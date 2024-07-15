@@ -1,5 +1,5 @@
 Here will go the docker container setup to compose a container running the influxdb database holding the inventory
 
 
-## RUN DATABASE SERVER
-docker-compose up -d influxdb
+## COMPOSE AND RUN THE DATABASE SERVER
+sudo docker compose up -d influxdb
