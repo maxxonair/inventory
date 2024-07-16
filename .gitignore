@@ -1,5 +1,11 @@
 
 
-env/
 
+# --- Python
+# Ignore virtual environment 
+env/
 __pycache__/
+
+# Ignore database linked data folders
+database/volumes/*
+**/volumes/
