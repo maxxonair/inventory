@@ -1,26 +1,21 @@
+version: '3.7'
 services:
-  influxdb:
-    container_name: influxdb
-    image: "influxdb:1.8"
+  inventory:
+    container_name: inventory
+    image: "mariadb:10.5"
     restart: unless-stopped
     ports:
-    - "8086:8086"
+      - '3306:3306'
     environment:
-    - TZ=Etc/UTC
-    - INFLUXDB_HTTP_FLUX_ENABLED=false
-    - INFLUXDB_REPORTING_DISABLED=false
-    - INFLUXDB_HTTP_AUTH_ENABLED=false
-    - INFLUXDB_MONITOR_STORE_ENABLED=FALSE
-  # - INFLUX_USERNAME=dba
-  # - INFLUX_PASSWORD=supremo
-  # - INFLUXDB_UDP_ENABLED=false
-  # - INFLUXDB_UDP_BIND_ADDRESS=0.0.0.0:8086
-  # - INFLUXDB_UDP_DATABASE=udp
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     volumes:
-    - ./volumes/influxdb/data:/var/lib/influxdb
-    - ./backups/influxdb/db:/var/lib/influxdb/backup
+      - ./volumes/mariadb/data:/var/lib/mysql
+      - ./init-db-scripts:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD", "curl", "http://localhost:8086"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "--silent"]
       interval: 30s
       timeout: 10s
       retries: 3

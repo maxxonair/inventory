@@ -1,5 +1,7 @@
 from influxdb import InfluxDBClient
 from logging import info, warning, debug
+from InventoryItem import InventoryItem
+from logging import info
 
 
 class DataBaseClient():
@@ -45,6 +47,9 @@ class DataBaseClient():
         return True
     return False
 
+  def show_db_content(self):
+    info(self.client.query(f"SELECT * from {self.INVENTORY_DATABASE_NAME}"))
+
   # ------------------------------------------------------------------------
   #                        [MODIFY]
   # ------------------------------------------------------------------------
@@ -54,3 +59,9 @@ class DataBaseClient():
     Create database
     """
     self.client.create_database(str(data_base_name))
+
+  def add_inventory_item(self, inventory_item: InventoryItem):
+    """
+    Create column in INVENTORY_DATABASE_NAME 
+    """
+    self.client.write_points(inventory_item.get_item_dict())

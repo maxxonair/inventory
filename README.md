@@ -32,6 +32,12 @@ pip install -r requirements.txt
 
 # Docker setup
 
+Required database dependencies
+
+```
+sudo apt install libmariadb3 libmariadb-dev
+```
+
 This project uses docker to run the database that is holding the inventory.
 To compose and run docker needs to be installed.
 
@@ -40,7 +46,7 @@ Start the database container as follows
 ```
 cd inventory/database
 
-docker compose up -d influxdb
+docker compose up -d inventory
 
 ```
 
@@ -56,6 +62,37 @@ Which should show the influxDb container up and running:
 
 ```
 CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS                       PORTS                                       NAMES
-a9066efdb6e7   influxdb:1.8   "/entrypoint.sh infl…"   25 hours ago   Up About an hour (healthy)   0.0.0.0:8086->8086/tcp, :::8086->8086/tcp   influxdb
+a9066efdb6e7   mariadb:2.1   "/entrypoint.sh infl…"   25 hours ago   Up About an hour (healthy)   0.0.0.0:3306->3306/tcp, :::8086->8086/tcp   inventory
 
+```
+
+### Troubleshooting
+
+The MariaDB docker container will use port 3306 which might conflict with
+running mysql services on the target machine, leading to the following error
+when starting up the container:
+
+```
+Error response from daemon: driver failed programming external connectivity on endpoint inventory (307f628849c076718517dcaf96313d1df854eca239ef314272932975cd6f2396): Error starting userland proxy: listen tcp4 0.0.0.0:3306: bind: address already in use
+```
+
+In that case list services that use this port and shut them down
+
+List services that use port 3306:
+
+```
+sudo lsof -i -P -n | grep 3306
+```
+
+Shut down mysql service on the target machine.
+
+```
+sudo service mysql stop
+```
+
+To prevent this issue from coming back when the host machine is restarded,
+disable the mysql service with:
+
+```
+sudo systemctl disable mysql
 ```

@@ -44,13 +44,10 @@ def fetch_data(samples=15):
   dummy_data = {
       "id": range(samples),
       "date_time_naive": pd.date_range("2021-01-01", periods=samples),
-      "apple": np.random.randint(0, 100, samples) / 3.0,
-      "banana": np.random.randint(0, 100, samples) / 5.0,
-      "chocolate": np.random.randint(0, 100, samples),
-      "group": np.random.choice(["A", "B"], size=samples),
-      "season": np.random.choice(
-          ["Spring", "Summer", "Fall", "Winter"], size=samples
-      ),
+      "item_name": np.random.randint(0, 100, samples) / 3.0,
+      "item_description": np.random.randint(0, 100, samples) / 5.0,
+      "item_class": np.random.randint(0, 100, samples),
+      "checked_out": np.random.choice(["A", "B"], size=samples),
       "date_only": pd.date_range("2020-01-01", periods=samples).date,
       "timedelta": [next(deltas) for i in range(samples)],
       "date_tz_aware": pd.date_range(
@@ -66,7 +63,7 @@ fetch_data()
 # --------------------------------------------------------------------------------
 # Preparing table
 # --------------------------------------------------------------------------------
-header_options = {"apple": {"sortable": False}}
+header_options = {"item_name": {"sortable": False}}
 headers, rows = vuetify.dataframe_to_grid(DATA_FRAME, header_options)
 
 table = {
@@ -94,12 +91,12 @@ def selection_change(selection=[], **kwargs):
 
   # Chart
   chart_data = DATA_FRAME.loc[
-      :, ["date_time_naive", "apple", "banana", "chocolate"]
+      :, ["date_time_naive", "item_name", "item_description", "item_class"]
   ].assign(source="total")
 
   if not selected_df.empty:
     selected_data = selected_df.loc[
-        :, ["date_time_naive", "apple", "banana", "chocolate"]
+        :, ["date_time_naive", "item_name", "item_description", "item_class"]
     ].assign(source="selection")
     chart_data = pd.concat([chart_data, selected_data])
 
@@ -128,7 +125,7 @@ def selection_change(selection=[], **kwargs):
 # --------------------------------------------------------------------------------
 
 with SinglePageLayout(server) as layout:
-  layout.title.set_text("Vuetify table example")
+  layout.title.set_text("B.I.G Material Library")
   with layout.toolbar:
     vuetify.VSpacer()
     vuetify.VTextField(
