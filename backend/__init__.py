@@ -1,6 +1,6 @@
 
 # --- [Clients]
-from DataBaseClient import DataBaseClient
+from backend.DataBaseClient import DataBaseClient
 from backend.CameraClient import CameraClient
 from backend.PrinterClient import PrinterClient
 
@@ -8,4 +8,4 @@ from backend.PrinterClient import PrinterClient
 from backend.InventoryItem import InventoryItem
 
 # --- [Main]
-from main import main
+# from backend.main import main

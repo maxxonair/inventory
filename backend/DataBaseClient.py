@@ -1,67 +1,181 @@
-from influxdb import InfluxDBClient
-from logging import info, warning, debug
-from InventoryItem import InventoryItem
-from logging import info
+import mariadb
+from logging import info, warning, debug, error
+import pandas as pd
+
+from backend.database_config import INVENTORY_TABLE_NAME, INVENTORY_DB_NAME
+from backend.InventoryItem import InventoryItem
 
 
 class DataBaseClient():
 
-  # [CONSTANT] Name of the main database to store the Inventory
-  INVENTORY_DATABASE_NAME = 'inventory'
+  def __init__(self, host: str, port: int = 3306):
+    self.connection_config = {
+        'user': 'inventory_user',
+        'password': 'inventory24',
+        'host': host,  # or use the container name 'mariadb'
+        'port': port,
+        'database': 'inventory'
+    }
 
-  def __init__(self, host: str, port: int = 8086):
-    self.host = host
-    self.port = port
-    self.client = InfluxDBClient(port=port, host=host)
+    try:
+      # Establishing the connection
+      self.connection = mariadb.connect(**self.connection_config)
 
-    # Check required databases exist
-    if not self.is_db(self.INVENTORY_DATABASE_NAME):
+      # Perform database operations
+      self.cursor = self.connection.cursor()
+      self.cursor.execute("SELECT DATABASE()")
+
+      info("[x] Connected to the inventory database")
+    except mariadb.Error as e:
+      error()
+      error(f"Error connecting to MariaDB: {e}")
+
+    if not self.is_database(INVENTORY_DB_NAME):
       warning(
-          f' Inventory database not found -> create database: {self.INVENTORY_DATABASE_NAME}')
-      self.create_db(self.INVENTORY_DATABASE_NAME)
+          f' {INVENTORY_DB_NAME} database not found.')
+      self.create_database(INVENTORY_DB_NAME)
+      info(f'[x] Created database: {INVENTORY_DB_NAME}')
     else:
-      debug('Inventory library found.')
+      info(f'[x] {INVENTORY_DB_NAME} database found.')
 
-    # Set to use the inventory database
-    self.client.switch_database(self.INVENTORY_DATABASE_NAME)
+    # Use inventory database from here onwards
+    self.cursor.execute(f"USE {INVENTORY_DB_NAME}")
+
+    if not self.is_table(INVENTORY_TABLE_NAME):
+      warning(
+          f' {INVENTORY_TABLE_NAME} table not found.')
+      self.create_table(INVENTORY_TABLE_NAME)
+      info(f'[x] Created table: {INVENTORY_TABLE_NAME}')
+    else:
+      info(f'[x] {INVENTORY_TABLE_NAME} table found.')
+
+  def close(self):
+    """
+    """
+    self.cursor.close()
+    self.connection.close()
 
   # ------------------------------------------------------------------------
   #                        [LIST & SEARCH]
   # ------------------------------------------------------------------------
 
-  def list_db(self):
+  def list_tables(self):
+    """
+    Return a list of all tables
+    """
+    self.cursor.execute("SHOW TABLES;")
+    db_list = []
+    for (databases) in self.cursor:
+      db_list.append(databases[0])
+    return db_list
+
+  def list_databases(self):
     """
     Return a list of all databases
     """
-    return self.client.get_list_database()
+    self.cursor.execute("SHOW DATABASES")
+    db_list = []
+    for (databases) in self.cursor:
+      db_list.append(databases[0])
+    return db_list
 
-  def is_db(self, data_base_name: str) -> bool:
+  def is_database(self, database_name: str) -> bool:
     """
     Check if database of given name exists. If so return True, False 
     otherwise
 
     """
-    db_list = self.list_db()
+    db_list = self.list_databases()
     for element in db_list:
-      if element['name'] == str(data_base_name):
+      if element == str(database_name):
         return True
     return False
 
-  def show_db_content(self):
-    info(self.client.query(f"SELECT * from {self.INVENTORY_DATABASE_NAME}"))
+  def is_table(self, table_name: str) -> bool:
+    """
+    Check if table of given name exists. If so return True, False 
+    otherwise
 
+    """
+    table_list = self.list_tables()
+    for element in table_list:
+      if element == str(table_name):
+        return True
+    return False
+
+  def show_inventory_content(self):
+    """
+    Debug function: Print all content of the inventory table
+    """
+    df = self.get_inventory_as_df()
+    info(df)
+
+  def get_inventory_as_df(self):
+    """
+    Return all content from a database in a pandas dataframe
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    df = pd.DataFrame(rows, columns=columns)
+
+    return df
   # ------------------------------------------------------------------------
   #                        [MODIFY]
   # ------------------------------------------------------------------------
 
-  def create_db(self, data_base_name: str):
+  def create_database(self, database_name: str):
     """
     Create database
     """
-    self.client.create_database(str(data_base_name))
+    query = f'CREATE DATABASE `{database_name}`;'
+    self.cursor.execute(query)
+
+  def create_table(self, table_name: str):
+    """
+    Create table 
+    """
+    # Create dummy InventoryItem and get query
+    item = InventoryItem('')
+    query = item.get_mysql_table_query()
+
+    # Execute query
+    self.cursor.execute(query)
+
+    # Commit the transaction
+    self.connection.commit()
 
   def add_inventory_item(self, inventory_item: InventoryItem):
     """
-    Create column in INVENTORY_DATABASE_NAME 
+    Create column in INVENTORY_TABLE_NAME 
     """
-    self.client.write_points(inventory_item.get_item_dict())
+    # SQL query to insert a new row into the table
+    query = f'INSERT INTO {INVENTORY_TABLE_NAME} (item_name, '\
+        'item_description, manufacturer, manufacturer_contact, is_checked_out, '\
+        'check_out_date, date_added) VALUES (?, ?, ?, ?, ?, ?, ?)'
+
+    inventory_dict = inventory_item.get_item_dict()
+
+    # Execute the query with the provided data
+    self.cursor.execute(query, (inventory_dict["item_name"],
+                                inventory_dict["item_description"],
+                                inventory_dict["manufacturer"],
+                                inventory_dict["manufacturer_contact"],
+                                inventory_dict["is_checked_out"],
+                                inventory_dict["check_out_date"],
+                                inventory_dict["date_added"]))
+
+    # Commit the transaction
+    self.connection.commit()
