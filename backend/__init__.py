@@ -1,7 +1,6 @@
 
 # --- [Clients]
 from backend.DataBaseClient import DataBaseClient
-from backend.CameraClient import CameraClient
 from backend.PrinterClient import PrinterClient
 
 # --- [Data Classes]

@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 from backend.database_config import INVENTORY_TABLE_NAME, INVENTORY_DB_NAME
 
@@ -7,6 +8,7 @@ class InventoryItem():
 
   def __init__(self,
                item_name: str,
+               item_image_path: Path = None,
                item_description: str = None,
                manufacturer: str = None,
                manufacturer_contact: str = None,
@@ -25,11 +27,17 @@ class InventoryItem():
     else:
       check_out_date_str = check_out_date.strftime("%m/%d/%Y, %H:%M:%S")
 
+    if item_image_path is None:
+      item_image_path_str = ''
+    else:
+      item_image_path_str = item_image_path.absolute().as_posix()
+
     date_time_now = datetime.now()
 
     #  Create dictonary from item data
     self.inventoryItemDict = {
         "item_name": item_name,
+        "item_image": item_image_path_str,
         "item_description": item_description,
         "manufacturer": manufacturer,
         "manufacturer_contact": manufacturer_contact,
@@ -59,6 +67,7 @@ class InventoryItem():
     create_table_query = f'CREATE TABLE IF NOT EXISTS {
         INVENTORY_TABLE_NAME} ( id INT PRIMARY KEY AUTO_INCREMENT,'
     create_table_query += f'item_name VARCHAR(255) NOT NULL,'
+    create_table_query += f'item_image VARCHAR(1055),'
     create_table_query += f'item_description VARCHAR(1055) ,'
     create_table_query += f'manufacturer VARCHAR(255),'
     create_table_query += f'manufacturer_contact VARCHAR(1055),'

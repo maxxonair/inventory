@@ -1,8 +1,13 @@
 import mariadb
 from logging import info, warning, debug, error
 import pandas as pd
+import os
+from pathlib import Path
+import cv2 as cv
 
-from backend.database_config import INVENTORY_TABLE_NAME, INVENTORY_DB_NAME
+from backend.database_config import (INVENTORY_TABLE_NAME,
+                                     INVENTORY_DB_NAME,
+                                     media_directory)
 from backend.InventoryItem import InventoryItem
 
 
@@ -48,6 +53,9 @@ class DataBaseClient():
       info(f'[x] Created table: {INVENTORY_TABLE_NAME}')
     else:
       info(f'[x] {INVENTORY_TABLE_NAME} table found.')
+
+    # Initialize media folder
+    self.init_media_dir()
 
   def close(self):
     """
@@ -179,3 +187,26 @@ class DataBaseClient():
 
     # Commit the transaction
     self.connection.commit()
+
+  # -----------------------------------------------------------------------
+  #                        [MISC]
+  # -----------------------------------------------------------------------
+
+  def init_media_dir(self):
+    """
+    Initialize subdirectory to store media data. Media data is data that will
+    not be stored in the database itself (images, video, audio). The inventory
+    database will hold a path to the respective file in the media folder instead.
+
+    """
+    pwd_path = Path(os.path.realpath(__file__))
+    media_directory = pwd_path.parent / '..' / 'database' / 'media'
+    if not media_directory.exists():
+      info(f'[x] Create media directory at {media_directory}')
+      os.makedirs(media_directory.absolute().as_posix(), 0o775)
+
+  def load_media_image(self, image_path: Path):
+    """
+    Load image file from media folder
+    """
+    return cv.imread(image_path.absolute().as_posix())

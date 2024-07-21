@@ -11,3 +11,7 @@ INVENTORY_TABLE_NAME = 'inventory'
 
 # Default database host
 database_host = '127.0.0.1'
+
+# Media directory folder. This will be set when creating the DataBaseClient
+# instance!
+media_directory = '../database/media'

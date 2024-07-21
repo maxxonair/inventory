@@ -8,4 +8,5 @@ __pycache__/
 
 # Ignore database linked data folders
 database/volumes/*
+database/media/*
 **/volumes/
