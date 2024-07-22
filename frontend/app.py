@@ -10,12 +10,14 @@ from itertools import cycle
 from trame.widgets import vuetify, vega
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
-from trame.widgets import vuetify, router
+from trame.widgets import vuetify, router, html
 from trame.app import get_server
 import sys
 import os
 import logging
 from logging import info
+import threading
+import signal
 
 # Get the parent directory and add it to the sys.path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -24,6 +26,8 @@ sys.path.append(parent_dir)
 # ---- Backend imports
 from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
+from backend.camera_server.camera_app import (start_camera_stream,
+                                              stop_server)
 
 # ---- Frontend imports
 from frontend.frontend_config import (inventory_page_title,
@@ -43,11 +47,25 @@ def return_item_action():
   info('Start action: return item')
 
 
+camera_thread = None
+
+
+def on_server_exit():
+  info('Exiting Application ...')
+  # Exit camera thread
+  if camera_thread and camera_thread.is_alive():
+    stop_server.set()
+    camera_thread.kill()
+  sys.exit(0)
+
+
 def main():
+  global camera_thread
   # -----------------------------------------------------------------------
   # Camera setup
   # -----------------------------------------------------------------------
-  # TODO: Launch camera server in background thread
+  # Start the camera server in a background thread
+  camera_thread = start_camera_stream()
 
   # -----------------------------------------------------------------------
   # Trame setup
@@ -108,6 +126,14 @@ def main():
       "single_select": False,
       "item_key": "id",
   }
+
+  # Create HTML snipped to embed camera live stream from flask server
+  html_content = """
+  <div>
+      <img crossorigin="anonymous" src="http://127.0.0.1:5000/video_feed" width="60%">
+  </div>
+  """
+
   # -----------------------------------------------------------------------
   # GUI
   # -----------------------------------------------------------------------
@@ -123,9 +149,11 @@ def main():
       vuetify.VCardTitle("Add Inventory Item")
       with vuetify.VCardText():
         # Embed the live camera feed
-        vuetify.VImg(src="http://localhost:5000/video_feed",
-                     classes="my-4", style="width: 100%; height: auto;")
+        # vuetify.VImg(src="http://localhost:5000/video_feed",
+        #              classes="my-4", style="width: 100%; height: auto;")
         vuetify.VBtn("Take me back", click="$router.back()")
+      with vuetify.VCard():
+        html.Div(html_content)
 
   # --- Checkout inventory
   with RouterViewLayout(server, "/checkout inventory item"):
@@ -199,10 +227,19 @@ def main():
   # -----------------------------------------------------------------------
   server.start()
 
+  # Close camera thread
+  camera_thread.join()
+
 
 if __name__ == "__main__":
   # Initialize logging
   logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                       datefmt='%H:%M:%S',
                       level=logging.INFO)
-  main()
+# Register signal handlers for graceful shutdown
+# Handles Ctrl+C
+signal.signal(signal.SIGINT, on_server_exit)
+# Handles termination signal
+signal.signal(signal.SIGTERM, on_server_exit)
+
+main()

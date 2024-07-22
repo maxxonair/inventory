@@ -3,15 +3,26 @@ This function starts and runs the camera web server
 
 
 """
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, jsonify
 import cv2 as cv
 from logging import error
+from flask_cors import CORS
 import logging
+from logging import info
+import sys
+import threading
+import signal
 
 app = Flask(__name__)
+# Enable CORS
+CORS(app)
 
 # Flag, if true -> Start and run camera stream
 enableCameraStream = True
+
+# Flag to control the camera stream and server shutdown
+enableCameraStream = True
+stop_server = threading.Event()
 
 
 def generateFrameByFrame():
@@ -48,9 +59,44 @@ def index():
   return render_template('index.html')
 
 
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+  """Endpoint to stop the server."""
+  stop_server.set()  # Signal the server to stop
+  return jsonify({"message": "Server is shutting down..."}), 200
+
+
+def run_server():
+  # Start video streaming server
+  app.run(host='127.0.0.1',
+          port=5000,
+          debug=False,
+          use_reloader=False,
+          threaded=True)
+
+
+def start_camera_stream():
+  server_thread = threading.Thread(target=run_server)
+  server_thread.start()
+
+  return server_thread
+
+
 if __name__ == '__main__':
   logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                       datefmt='%H:%M:%S',
                       level=logging.INFO)
 
-  app.run(debug=True)
+  server_thread = start_camera_stream()
+
+  def handle_shutdown(signal, frame):
+    info('Shutdown signal received.')
+    stop_server.set()
+    server_thread.join()  # Ensure the server thread has finished
+    sys.exit(0)
+
+  signal.signal(signal.SIGINT, handle_shutdown)  # Handle Ctrl+C
+  signal.signal(signal.SIGTERM, handle_shutdown)  # Handle termination signals
+
+  # Wait for the server thread to finish
+  server_thread.join()
