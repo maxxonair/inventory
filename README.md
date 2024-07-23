@@ -7,6 +7,10 @@ identified by QR code, which are generated and recognized by inventory.
 
 # Project Setup
 
+```
+sudo apt-get install zbar-tools
+```
+
 # Python setup
 
 ## Setup virtual python environment

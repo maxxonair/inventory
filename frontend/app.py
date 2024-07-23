@@ -15,8 +15,8 @@ from trame.app import get_server
 import sys
 import os
 import logging
-from logging import info
-import threading
+from logging import info, warning
+from multiprocessing import Process
 import signal
 
 # Get the parent directory and add it to the sys.path
@@ -26,8 +26,7 @@ sys.path.append(parent_dir)
 # ---- Backend imports
 from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
-from backend.camera_server.camera_app import (start_camera_stream,
-                                              stop_server)
+from backend.camera_server.camera_app import (run_camera_server)
 
 # ---- Frontend imports
 from frontend.frontend_config import (inventory_page_title,
@@ -47,26 +46,39 @@ def return_item_action():
   info('Start action: return item')
 
 
-camera_thread = None
+# Create global handle for the camera server running in a background
+# process
+camera_process = None
 
 
 def on_server_exit():
+  """
+  Callback to handle graceful exiting everything when the main application
+  is closed.
+
+  """
   info('Exiting Application ...')
-  # Exit camera thread
-  if camera_thread and camera_thread.is_alive():
-    stop_server.set()
-    camera_thread.kill()
+  # Exit camera server
+  try:
+    camera_process.join()
+  except:
+    warning(f'Failed to exit camera server!')
   sys.exit(0)
 
 
 def main():
   global camera_thread
   # -----------------------------------------------------------------------
-  # Camera setup
+  # Camera Server
   # -----------------------------------------------------------------------
   # Start the camera server in a background thread
-  camera_thread = start_camera_stream()
+  camera_process = Process(target=run_camera_server)
+  camera_process.start()
 
+  # Handle SIGINT
+  signal.signal(signal.SIGINT, on_server_exit)
+  # Handle termination SIGTERM
+  signal.signal(signal.SIGTERM, on_server_exit)
   # -----------------------------------------------------------------------
   # Trame setup
   # -----------------------------------------------------------------------
@@ -228,7 +240,7 @@ def main():
   server.start()
 
   # Close camera thread
-  camera_thread.join()
+  camera_process.join()
 
 
 if __name__ == "__main__":
@@ -236,10 +248,5 @@ if __name__ == "__main__":
   logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                       datefmt='%H:%M:%S',
                       level=logging.INFO)
-# Register signal handlers for graceful shutdown
-# Handles Ctrl+C
-signal.signal(signal.SIGINT, on_server_exit)
-# Handles termination signal
-signal.signal(signal.SIGTERM, on_server_exit)
 
-main()
+  main()
