@@ -5,19 +5,24 @@ This function starts and runs the camera web server
 """
 from flask import Flask, render_template, Response, jsonify
 import cv2 as cv
-from qreader import QReader
-from logging import error, info
+import numpy as np
+from logging import error, info, warning
 from flask_cors import CORS
 import logging
+
+# QR code reader
+from pyzbar.pyzbar import decode
+
+# Global variable to store the decoded QR marker message
+decoded_message = ''
 
 app = Flask(__name__)
 # Enable CORS
 CORS(app)
 
-marker_found = False
-
 
 def generateFrameByFrame():
+  global decoded_message
   # Create OpenCV VideoCapture instance for webcam at port 0
   camera = cv.VideoCapture(0)
   while True:
@@ -27,17 +32,24 @@ def generateFrameByFrame():
       error('Failed to conntect to camera.')
       break
     else:
-      # Rotate by 180 degree to compensate for how the camera is mounted
-      # inside the housing
-      # frame = cv.rotate(frame, cv.ROTATE_180)
 
-      # successFlag, decoded_info, frame = detect_qr_marker(frame)
-      # if not marker_found:
-      #   frame = detect_qr_marker(frame)
+      (frame,
+       _,
+       num_markers,
+       decoded_list) = detect_and_decode_qr_marker(frame)
 
-      # numCodes = len(decoded_info)
-      # if numCodes == 1 and successFlag:
-      #   info(f'Message: {decoded_info[0]}')
+      # Only use the decoded messages if one and only one marker is detected
+      # within the image
+      if num_markers > 1:
+        warning(
+            f'Multiple ({num_markers}) QR marker detected within the image. Aborting compiling the decoded message.')
+        decoded_message = ''
+      if num_markers == 1:
+        decoded_message = str(decoded_list[0])
+      else:
+        # Case: No markers found
+        # decoded_message = ''
+        DoNothing = True
 
       ret, buffer = cv.imencode('.jpg', frame)
       frame = buffer.tobytes()
@@ -58,40 +70,42 @@ def index():
   return render_template('index.html')
 
 
-def detect_qr_marker(frame):
+def get_decoded_message():
   """
-  Detect and decode a or several QR codes within the image
+  Getter function to return the decoded message if any
+  """
+  info(f'message {decoded_message}')
+  return decoded_message
+
+
+def detect_and_decode_qr_marker(frame):
+  """
+  Detect and decode a or several QR codes within the image using pyzbar
 
 
   """
-  qreader = QReader()
-  image = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-  decoded_text = qreader.detect_and_decode(image=image)
+  # ------------------------------------------------------------------------
+  # ----- Use Pyzbar
+  # Initialize flag to track if a marker has been found
+  qr_marker_found = False
+  # Initialize counter to track the number of markers detected in the image
+  num_markers = 0
+  # Initialize a list to store all decoded messages
+  decoded_list = []
 
-  # # Create QR code detector
-  # qcd = cv.QRCodeDetector()
+  for d in decode(frame):
+    qr_marker_found = True
+    num_markers += 1
+    decoded_text = str(d.data.decode())
+    decoded_list.append(decoded_text)
 
-  # # Run detection and decoding on the frame
-  # (successFlag,
-  #  decoded_info,
-  #  points,
-  #  straight_qrcode) = qcd.detectAndDecodeMulti(frame)
+    # Draw perimeter of the marker
+    frame = cv.polylines(frame, [np.array(d.polygon)], True, (0, 255, 0), 2)
+    # Draw marker text
+    frame = cv.putText(frame, decoded_text, (d.rect.left, d.rect.top + d.rect.height),
+                       cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv.LINE_AA)
 
-  # # If detection is successful -> draw detection on frame
-  # if successFlag:
-  #   frame = cv.polylines(frame, points.astype(int), True, (0, 255, 0), 3)
-
-  #   for info_text, p in zip(decoded_info, points):
-  #     corner_point = p[0].astype(int)
-  #     # TODO check boundaries before doing this
-  #     corner_point[0] -= 25
-  #     frame = cv.putText(frame, info_text, corner_point,
-  #                        cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
-
-  frame = cv.putText(frame, str(decoded_text), (20, 20),
-                     cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
-
-  return frame
+  return frame, qr_marker_found, num_markers, decoded_list
 
 
 def run_camera_server():

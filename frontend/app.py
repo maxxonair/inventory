@@ -26,12 +26,14 @@ sys.path.append(parent_dir)
 # ---- Backend imports
 from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
-from backend.camera_server.camera_app import (run_camera_server)
+from backend.camera_server.camera_app import (run_camera_server,
+                                              get_decoded_message)
 
 # ---- Frontend imports
 from frontend.frontend_config import (inventory_page_title,
                                       inventory_main_window_title,
-                                      main_table_header_options)
+                                      main_table_header_options,
+                                      html_content_embed_camera_stream)
 
 
 def add_item_action():
@@ -64,6 +66,14 @@ def on_server_exit():
   except:
     warning(f'Failed to exit camera server!')
   sys.exit(0)
+
+
+def print_decoded_message():
+  """
+  Test function to get the decoded QR message from the camera server 
+  print it to the terminal
+  """
+  info(f'Decoded item message: >{str(get_decoded_message())}<')
 
 
 def main():
@@ -139,13 +149,6 @@ def main():
       "item_key": "id",
   }
 
-  # Create HTML snipped to embed camera live stream from flask server
-  html_content = """
-  <div>
-      <img crossorigin="anonymous" src="http://127.0.0.1:5000/video_feed" width="60%">
-  </div>
-  """
-
   # -----------------------------------------------------------------------
   # GUI
   # -----------------------------------------------------------------------
@@ -160,12 +163,7 @@ def main():
     with vuetify.VCard():
       vuetify.VCardTitle("Add Inventory Item")
       with vuetify.VCardText():
-        # Embed the live camera feed
-        # vuetify.VImg(src="http://localhost:5000/video_feed",
-        #              classes="my-4", style="width: 100%; height: auto;")
         vuetify.VBtn("Take me back", click="$router.back()")
-      with vuetify.VCard():
-        html.Div(html_content)
 
   # --- Checkout inventory
   with RouterViewLayout(server, "/checkout inventory item"):
@@ -173,6 +171,11 @@ def main():
       vuetify.VCardTitle("Checkout Inventory Item - Under Construction")
       with vuetify.VCardText():
         vuetify.VBtn("Take me back", click="$router.back()")
+      with vuetify.VCardText():
+        vuetify.VBtn("Get item code", click=print_decoded_message)
+      # Embed camera stream in this sub-page
+      with vuetify.VCard():
+        html.Div(html_content_embed_camera_stream)
 
   # --- Return inventory
   with RouterViewLayout(server, "/return inventory item"):
@@ -180,6 +183,9 @@ def main():
       vuetify.VCardTitle("Return Inventory Item - Under Construction")
       with vuetify.VCardText():
         vuetify.VBtn("Take me back", click="$router.back()")
+      # Embed camera stream in this sub-page
+      with vuetify.VCard():
+        html.Div(html_content_embed_camera_stream)
 
   # Main page content
   with SinglePageWithDrawerLayout(server) as layout:

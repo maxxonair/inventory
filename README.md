@@ -7,6 +7,8 @@ identified by QR code, which are generated and recognized by inventory.
 
 # Project Setup
 
+Required packages
+
 ```
 sudo apt-get install zbar-tools
 ```
@@ -99,4 +101,16 @@ disable the mysql service with:
 
 ```
 sudo systemctl disable mysql
+
+```
+
+# Run Application
+
+This is assuming the previous setup has been completed and the database
+container is up and running.
+
+Start the application with:
+
+```
+python fronend/app.py
 ```
