@@ -26,9 +26,10 @@ sys.path.append(parent_dir)
 # ---- Backend imports
 from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
-from backend.camera_server.camera_app import (run_camera_server,
-                                              get_decoded_message)
-
+from backend.camera_server.camera_app import CameraServer
+from backend.database_config import (qr_iden_str,
+                                     qr_id_iden_str,
+                                     qr_msg_delimiter)
 # ---- Frontend imports
 from frontend.frontend_config import (inventory_page_title,
                                       inventory_main_window_title,
@@ -52,6 +53,9 @@ def return_item_action():
 # process
 camera_process = None
 
+# Create camera server instance
+camera_server = CameraServer()
+
 
 def on_server_exit():
   """
@@ -68,21 +72,40 @@ def on_server_exit():
   sys.exit(0)
 
 
-def print_decoded_message():
+def parse_qr_message(msg: str):
   """
   Test function to get the decoded QR message from the camera server 
   print it to the terminal
   """
-  info(f'Decoded item message: >{str(get_decoded_message())}<')
+  is_msg_valid = False
+  item_id = -1
+
+  # First check if all substring identifier are contained in the message
+  if qr_iden_str in msg and qr_id_iden_str in msg and qr_msg_delimiter in msg:
+    try:
+      # Remove all identifier strings and convert to integer
+      # Step 1: Split the test_str using the delimiter
+      parts = msg.split(qr_msg_delimiter)
+
+      # Step 2: Remove qr_iden_str and qr_id_iden_str, extract the numerical part
+      remaining_str = parts[1].replace(qr_id_iden_str, '')
+
+      # Step 3: Convert the remaining part to an integer
+      item_id = int(remaining_str)
+      is_msg_valid = True
+    except:
+      warning('Parsing QR code message failed. ')
+
+  return is_msg_valid, item_id
 
 
 def main():
-  global camera_thread
+  global camera_thread, camera_server
   # -----------------------------------------------------------------------
   # Camera Server
   # -----------------------------------------------------------------------
   # Start the camera server in a background thread
-  camera_process = Process(target=run_camera_server)
+  camera_process = Process(target=camera_server.run)
   camera_process.start()
 
   # Handle SIGINT
@@ -130,6 +153,23 @@ def main():
   state.query = ""
   update_table()
 
+  state = server.state
+  state.item_name = ""
+  state.item_details = ""
+
+  # Function to change grab the item data for the ID from a currently read
+  # QR code from the database and update the respective fields
+  def update_item(*args):
+    message = str(camera_server.get_decoded_msg())
+    valid, id = parse_qr_message(message)
+    if valid:
+      item_data_df = client.get_inventory_item_as_df(id)
+      item_name = item_data_df.iloc[0]['item_name']
+      date_added = item_data_df.iloc[0]['date_added']
+      manufacturer = item_data_df.iloc[0]['manufacturer']
+      state.item_name = f'{item_name} [ID {id}]'
+      state.item_details = f'Manufacturer: {
+          manufacturer} \n || Date added: {date_added}'
   # -----------------------------------------------------------------------
   # Preparing table
   # -----------------------------------------------------------------------
@@ -171,8 +211,6 @@ def main():
       vuetify.VCardTitle("Checkout Inventory Item - Under Construction")
       with vuetify.VCardText():
         vuetify.VBtn("Take me back", click="$router.back()")
-      with vuetify.VCardText():
-        vuetify.VBtn("Get item code", click=print_decoded_message)
       # Embed camera stream in this sub-page
       with vuetify.VCard():
         html.Div(html_content_embed_camera_stream)
@@ -183,6 +221,12 @@ def main():
       vuetify.VCardTitle("Return Inventory Item - Under Construction")
       with vuetify.VCardText():
         vuetify.VBtn("Take me back", click="$router.back()")
+      with vuetify.VCard(classes="ma-5", max_width="550px", elevation=5):
+        vuetify.VCardTitle("[Inventory]")
+        vuetify.VCardSubtitle("Item Name: {{ item_name }}")
+        vuetify.VCardText("{{ item_details }}")
+      with vuetify.VCardText():
+        vuetify.VBtn("Get item code", click=update_item)
       # Embed camera stream in this sub-page
       with vuetify.VCard():
         html.Div(html_content_embed_camera_stream)

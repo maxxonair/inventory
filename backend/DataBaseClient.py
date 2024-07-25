@@ -140,6 +140,32 @@ class DataBaseClient():
     df = pd.DataFrame(rows, columns=columns)
 
     return df
+
+  def get_inventory_item_as_df(self, item_id):
+    """
+    Return a specific inventory item identified by its ID from a database 
+    in a pandas dataframe
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_TABLE_NAME} WHERE ID = %s"
+
+    # Execute the query
+    self.cursor.execute(query, (item_id,))
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    df = pd.DataFrame(rows, columns=columns)
+
+    info(f'Inventory data {df}')
+
+    return df
   # ------------------------------------------------------------------------
   #                        [MODIFY]
   # ------------------------------------------------------------------------
