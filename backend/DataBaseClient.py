@@ -198,7 +198,7 @@ class DataBaseClient():
     # SQL query to insert a new row into the table
     query = f'INSERT INTO {INVENTORY_TABLE_NAME} (item_name, '\
         'item_description, manufacturer, manufacturer_contact, is_checked_out, '\
-        'check_out_date, date_added) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'check_out_date, date_added, item_image, item_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
 
     inventory_dict = inventory_item.get_item_dict()
 
@@ -209,7 +209,9 @@ class DataBaseClient():
                                 inventory_dict["manufacturer_contact"],
                                 inventory_dict["is_checked_out"],
                                 inventory_dict["check_out_date"],
-                                inventory_dict["date_added"]))
+                                inventory_dict["date_added"],
+                                inventory_dict["item_image"],
+                                inventory_dict["item_tags"]))
 
     # Commit the transaction
     self.connection.commit()

@@ -12,9 +12,10 @@ class InventoryItem():
                item_description: str = None,
                manufacturer: str = None,
                manufacturer_contact: str = None,
-               is_checked_out: bool = None,
+               is_checked_out: bool = False,
                check_out_poc: str = None,
-               check_out_date: datetime = None):
+               check_out_date: datetime = None,
+               item_tags: str = None):
     """
     This function initializes the inventory item instance and makes sure that
     the dictorionary contains ALL properties of that item. When updating item
@@ -45,6 +46,7 @@ class InventoryItem():
         "check_out_date": check_out_date_str,
         "check_out_poc": check_out_poc,
         "date_added": date_time_now.strftime("%m/%d/%Y, %H:%M:%S"),
+        "item_tags": str(item_tags),
     }
 
   def get_item_dict(self) -> dict:
@@ -75,5 +77,6 @@ class InventoryItem():
     create_table_query += f'check_out_date VARCHAR(255) ,'
     create_table_query += f'check_out_poc VARCHAR(1055) ,'
     create_table_query += f'date_added VARCHAR(255) )'
+    create_table_query += f'item_tags VARCHAR(1055) )'
 
     return create_table_query

@@ -9,13 +9,20 @@ INVENTORY_DB_NAME = 'inventory'
 # [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the Inventory
 INVENTORY_TABLE_NAME = 'inventory'
 
-# Default database host
+# Default database host IP address
 database_host = '127.0.0.1'
+
+# -------------------------------------------------------------------------
+#                             [QR]
+# -------------------------------------------------------------------------
 
 # Media directory folder. This will be set when creating the DataBaseClient
 # instance!
 media_directory = '../database/media'
 
+# -------------------------------------------------------------------------
+#                             [QR]
+# -------------------------------------------------------------------------
 # QR code identifier string
 # All valid QR code messages for this inventory will start with this string
 # followed by a delimiter

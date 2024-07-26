@@ -26,6 +26,10 @@ class CameraServer():
     CORS(self.app)
     self.manager = Manager()
     self.decoded_message = self.manager.Value('d', '')
+
+    self.image_manager = Manager()
+    self.captured_frame = self.image_manager.Value('d', '')
+
     # Define routes inside the constructor
     self.app.add_url_rule('/', 'index', self.index)
     self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)
@@ -45,6 +49,8 @@ class CameraServer():
          _,
          num_markers,
          decoded_list) = self.detect_and_decode_qr_marker(frame)
+
+        self.captured_frame.value = frame
 
         # Only use the decoded messages if one and only one marker is detected
         # within the image
@@ -88,6 +94,9 @@ class CameraServer():
 
   def get_decoded_msg(self) -> str:
     return str(self.decoded_message.value)
+
+  def get_last_frame(self):
+    return np.array(self.captured_frame.value)
   # ------------------------------------------------------------------------
   #                 [IMAGE PROCESSING FUNCTIONS]
   # ------------------------------------------------------------------------

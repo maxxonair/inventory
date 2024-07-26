@@ -20,7 +20,7 @@ def test_database_client():
   # Create a DatabaseClient instance and connect to the inventory database
   client = DataBaseClient(host='192.168.1.194')
 
-  item = InventoryItem(item_name='tile')
+  item = InventoryItem(item_name='Romis concept')
 
   client.add_inventory_item(item)
 
