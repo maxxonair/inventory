@@ -114,3 +114,10 @@ Start the application with:
 ```
 python fronend/app.py
 ```
+
+Default IP and port are configured in the frontend_config file, the sever
+should be launched with a different setting use:
+
+```
+python fronend/app.py --host <HOST IP> --port <PORT>
+```
