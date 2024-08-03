@@ -59,9 +59,9 @@ class InventoryItem():
     """
     return list(self.inventoryItemDict.keys())
 
-  def get_mysql_table_query(self):
+  def get_sql_table_query(self) -> str:
     """
-    Create a mysql query to create a table for this InventoryItem
+    Create a sql query to create a table for this InventoryItem
 
     """
 
@@ -80,3 +80,20 @@ class InventoryItem():
     create_table_query += f'item_tags VARCHAR(1055) )'
 
     return create_table_query
+
+  def get_sql_item_query(self, id: int):
+    """
+    Create a sql query to update an existing inventory item
+    """
+    # --- Construct the SQL UPDATE statement
+
+    # Pre-construct set each value statement
+    set_clause = ", ".join(
+        [f"{column} = ?" for column in list(self.inventoryItemDict.keys())])
+
+    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET {set_clause} WHERE id = ?"
+
+    # Prepare the data to update
+    values = list(self.inventoryItemDict.values()) + [id]
+
+    return sql, values

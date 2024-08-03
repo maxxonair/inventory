@@ -102,6 +102,7 @@ flask_app = Flask(__name__)
 state = server.state
 
 # Create server.state members
+state.item_id = None
 state.item_name = ""
 state.item_description = ""
 state.item_tags = ""
@@ -333,6 +334,11 @@ def selection_change(selection=[], **kwargs):
       current_id = selected_df["id"].tolist()[0]
       # Print the ID(s) of the selected row(s)
       info(f'Select item with ID: {current_id}')
+
+      # Update state data ID
+      state.item_id = current_id
+
+      # Populate state data with item information
       populate_item_from_id(current_id)
     elif len(selected_df["id"].tolist()) == 1:
       TODO = True
@@ -392,6 +398,16 @@ def main():
   state.query = ""
   update_table()
 
+  def delete_inventory_item(*args):
+    if state.item_id is not None:
+      # Command: DELETE item from inventory
+      db_client.delete_inventory_item(int(state.item_id))
+
+      # Update the dataframe so the table reflects the updated DB state
+      update_inventory_df()
+
+      update_table()
+
   # -----------------------------------------------------------------------
   # Preparing table
   # -----------------------------------------------------------------------
@@ -424,9 +440,10 @@ def main():
       with vuetify.VRow(v_if="logged_in"):
         with vuetify.VCol():
           vuetify.VCardTitle("Inventory Item")
-          with vuetify.VCardText():
+          with vuetify.VAppBar(elevation=2):
             vuetify.VBtn("Update Item")  # TODO add callback
-            vuetify.VBtn("Delete Item")  # TODO add callback
+            vuetify.VBtn("Delete Item", click=delete_inventory_item)
+
           vuetify.VTextField(
               v_model=("item_name", ""),
               label="Item Name",

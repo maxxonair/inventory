@@ -166,6 +166,7 @@ class DataBaseClient():
     info(f'Inventory data {df}')
 
     return df
+
   # ------------------------------------------------------------------------
   #                        [MODIFY]
   # ------------------------------------------------------------------------
@@ -183,7 +184,7 @@ class DataBaseClient():
     """
     # Create dummy InventoryItem and get query
     item = InventoryItem('')
-    query = item.get_mysql_table_query()
+    query = item.get_sql_table_query()
 
     # Execute query
     self.cursor.execute(query)
@@ -202,20 +203,45 @@ class DataBaseClient():
 
     inventory_dict = inventory_item.get_item_dict()
 
-    # Execute the query with the provided data
-    self.cursor.execute(query, (inventory_dict["item_name"],
-                                inventory_dict["item_description"],
-                                inventory_dict["manufacturer"],
-                                inventory_dict["manufacturer_contact"],
-                                inventory_dict["is_checked_out"],
-                                inventory_dict["check_out_date"],
-                                inventory_dict["date_added"],
-                                inventory_dict["item_image"],
-                                inventory_dict["item_tags"]))
+    self.exec_sql_cmd(query, (inventory_dict["item_name"],
+                              inventory_dict["item_description"],
+                              inventory_dict["manufacturer"],
+                              inventory_dict["manufacturer_contact"],
+                              inventory_dict["is_checked_out"],
+                              inventory_dict["check_out_date"],
+                              inventory_dict["date_added"],
+                              inventory_dict["item_image"],
+                              inventory_dict["item_tags"]))
+
+  def update_inventory_item(self, inventory_item: InventoryItem, id: int):
+    """
+    Modify and inventory item identified by ID with given values
+    """
+    sql, values = inventory_item.get_sql_item_query(id)
+    # Execute the UPDATE statement
+    self.exec_sql_cmd(sql, values)
+
+  def delete_inventory_item(self, id: int):
+    """
+    Delete Inventory item
+    """
+    sql = f"DELETE FROM {INVENTORY_TABLE_NAME} WHERE id = ?"
+    values = list([id])
+
+    # Execute the DELETE statement
+    self.exec_sql_cmd(sql, values)
+
+  def exec_sql_cmd(self, sql, values: list):
+    """
+    Generic execute SQL command defined by sql qery and its accompanying 
+    values
+
+    """
+    # Execute the UPDATE statement
+    self.cursor.execute(sql, values)
 
     # Commit the transaction
     self.connection.commit()
-
   # -----------------------------------------------------------------------
   #                        [MISC]
   # -----------------------------------------------------------------------
