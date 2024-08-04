@@ -150,9 +150,7 @@ class DataBaseClient():
     query = f"SELECT * FROM {INVENTORY_TABLE_NAME} WHERE ID = %s"
 
     # Execute the query
-    self.cursor.execute(query, (item_id,))
-
-    self.connection.commit()
+    self.exec_sql_cmd(query, (item_id,))
 
     # Fetch all rows from the executed query
     rows = self.cursor.fetchall()
@@ -166,6 +164,32 @@ class DataBaseClient():
     info(f'Inventory data {df}')
 
     return df
+
+  def get_inventory_item_as_object(self, item_id):
+    """
+    Return a specific inventory item identified by its ID from a database 
+    as a InventoryItem instance
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_TABLE_NAME} WHERE ID = %s"
+
+    # Execute the query
+    self.exec_sql_cmd(query, (item_id,))
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create InventoryItem instance
+    inventoryItem = InventoryItem()
+
+    # Populate all fields from the database export
+    inventoryItem.populate_from_df(
+        item_data_df=pd.DataFrame(rows, columns=columns))
+
+    return inventoryItem
 
   # ------------------------------------------------------------------------
   #                        [MODIFY]
@@ -184,7 +208,7 @@ class DataBaseClient():
     """
     # Create dummy InventoryItem and get query
     item = InventoryItem('')
-    query = item.get_sql_table_query()
+    query = item.get_sql_query_table_for_item()
 
     # Execute query
     self.cursor.execute(query)
@@ -197,27 +221,15 @@ class DataBaseClient():
     Create column in INVENTORY_TABLE_NAME 
     """
     # SQL query to insert a new row into the table
-    query = f'INSERT INTO {INVENTORY_TABLE_NAME} (item_name, '\
-        'item_description, manufacturer, manufacturer_contact, is_checked_out, '\
-        'check_out_date, date_added, item_image, item_tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    sql, values = inventory_item.get_sql_query_add_item()
 
-    inventory_dict = inventory_item.get_item_dict()
-
-    self.exec_sql_cmd(query, (inventory_dict["item_name"],
-                              inventory_dict["item_description"],
-                              inventory_dict["manufacturer"],
-                              inventory_dict["manufacturer_contact"],
-                              inventory_dict["is_checked_out"],
-                              inventory_dict["check_out_date"],
-                              inventory_dict["date_added"],
-                              inventory_dict["item_image"],
-                              inventory_dict["item_tags"]))
+    self.exec_sql_cmd(sql, values)
 
   def update_inventory_item(self, inventory_item: InventoryItem, id: int):
     """
     Modify and inventory item identified by ID with given values
     """
-    sql, values = inventory_item.get_sql_item_query(id)
+    sql, values = inventory_item.get_sql_query_update_item(id)
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 

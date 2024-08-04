@@ -17,7 +17,7 @@ from flask import Flask, send_from_directory
 import sys
 import os
 import logging
-from logging import info, warning
+from logging import info, warning, error, debug
 from multiprocessing import Process
 import signal
 import base64
@@ -64,15 +64,16 @@ camera_process = None
 # Create camera server instance
 camera_server = CameraServer()
 
-# Create global handle for the camera server running in a background
-# process
-image_process = None
-
 # Initialize variable to hold the complete inventory in a dataframe
 inventory_df = []
 
-with open(image_not_found_path, "rb") as image_file:
-  encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+# Global instance of an InventoryItem. This is used to temporarily hold the
+# full state of an item that is selected by the user in the main table
+inventory_item = InventoryItem(item_name='')
+
+# Create global variable for image file to be displayed
+display_img = None
+
 # -----------------------------------------------------------------------
 # Database connection
 # -----------------------------------------------------------------------
@@ -80,14 +81,23 @@ with open(image_not_found_path, "rb") as image_file:
 db_client = DataBaseClient(host=database_host)
 
 # TODO to be removed when user database is in place
-# Dummy credentials for demonstration purposes
+# Dummy credentials for demonstration purposes only
 VALID_USERNAME = "romi"
 VALID_PASSWORD = "pass"
 
 
-def encode_image(image_path):
+def encode_image_from_path(image_path):
   with open(image_path, "rb") as image_file:
     return base64.b64encode(image_file.read()).decode('utf-8')
+
+
+def encode_image(cv_image):
+    # Convert the OpenCV image (NumPy array) to bytes
+  _, buffer = cv.imencode('.jpg', cv_image)
+  image_bytes = buffer.tobytes()
+
+  # Encode the bytes to base64
+  return base64.b64encode(image_bytes).decode('utf-8')
 # -----------------------------------------------------------------------
 # Main application server
 # -----------------------------------------------------------------------
@@ -102,7 +112,7 @@ flask_app = Flask(__name__)
 state = server.state
 
 # Create server.state members
-state.item_id = None
+state.selected_item_id = None
 state.item_name = ""
 state.item_description = ""
 state.item_tags = ""
@@ -116,7 +126,11 @@ state.checkout_status_summary = ""
 state.item_image_path = (Path("./frontend/data") /
                          'no_image_available.jpg').absolute().as_posix()
 
-state.image_src = f"data:image/png;base64,{encode_image(image_not_found_path)}"
+state.image_src = f"data:image/png;base64,{
+    encode_image_from_path(image_not_found_path)}"
+state.display_img_src = f"data:image/png;base64,{
+    encode_image_from_path(image_not_found_path)}"
+
 
 # Server.state members to track log in status
 state.logged_in = False
@@ -126,8 +140,9 @@ state.username = ""
 state.password = ""
 
 local_image_dir = ''
-# --------------------------------------------------------------------------
-# Add a route to serve the local image file
+# -------------------------------------------------------------------------
+# UTILITY ROUTINES
+# -------------------------------------------------------------------------
 
 
 @flask_app.route('/media/<path:filename>')
@@ -147,21 +162,16 @@ def on_server_exit():
     camera_process.join()
   except:
     warning(f'Failed to exit camera server!')
-  # Exit image server
-  try:
-    image_process.join()
-  except:
-    warning(f'Failed to exit image server!')
+
   sys.exit(0)
 
-  # Function to encode image to base64
+# -------------------------------------------------------------------------
+#   UI CALLBACK FUNCTIONS
+# -------------------------------------------------------------------------
 
 
-# -------------------------------------------------------------------------
-#                       UI callback functions
-# -------------------------------------------------------------------------
 def update_inventory_df():
-  info('Update Inventory Data')  # TODO move to debug message
+  debug('Update Inventory Data')
   global inventory_df
 
   inventory_df = db_client.get_inventory_as_df()
@@ -228,14 +238,14 @@ def populate_item_from_id(id: int):
   img_path = Path(str(item_image))
   info(f'Image file path {img_path.absolute().as_posix()}')
   if img_path.exists():
-    print(f'Load image file -> {img_path.absolute().as_posix()}')
-
     state.item_image_path = img_path.absolute().as_posix()
     try:
-      # encode_image(img_path.absolute().as_posix())
+      # encode_image_from_path(img_path.absolute().as_posix())
       state.image_src = f"data:image/png;base64,{
-          encode_image(state.item_image_path)}"
+          encode_image_from_path(state.item_image_path)}"
     except:
+      state.image_src = f"data:image/png;base64,{
+          encode_image_from_path(image_not_found_path)}"
       warning(f'Encoding image url failed for path {state.item_image_path}')
 
   else:
@@ -243,7 +253,7 @@ def populate_item_from_id(id: int):
             img_path.absolute().as_posix()}')
     state.item_image_path = image_not_found_path
     state.image_src = f"data:image/png;base64,{
-        encode_image(image_not_found_path)}"
+        encode_image_from_path(image_not_found_path)}"
 
   # Update state
   state.item_name = f'{item_name}'
@@ -262,44 +272,58 @@ def populate_item_from_id(id: int):
     state.checkout_status_summary = ' This item has not been checked out.'
 
 
-def add_inventory_item(*args):
+def read_item_user_input_to_object():
   """
-  Handle sequence of actions to add a new item to the Inventory:
-  * Check input validity
-  * Take image of the item and save file to media
-  * Create InventoryItem and add to the database
-  * Print bar code sticker
+  Compile the user input for the selected inventory item into a
+  InventoryItem instance
 
+  Returns:
+  valid_data - Flag True if compiled data set is valid (User inputs are valid)
+  inventoryItem - InventoryItem instance populated with user inputs
   """
-  valid_inputs = True
+  valid_data = True
+  # Initialize empty InventoryItem
+  inventoryItem = InventoryItem(item_name="")
 
   # Check input validity
   if state.item_name == "" or state.item_name is None:
-    valid_inputs = False
+    warning('No item name defined. Current user input is invalid.')
+    valid_data = False
 
   # Create item and add to database
-  if valid_inputs:
-    cam_img = camera_server.get_last_frame()
-    cam_img_bytes = cam_img.tobytes()
-    hash_object = hashlib.sha256(cam_img_bytes)
-    hash_hex = hash_object.hexdigest()
-
-    img_path = Path(media_directory) / f'{hash_hex}.png'
-
-    # Save item image to file
-    cv.imwrite(img_path, cam_img)
-
+  if valid_data:
     # Create inventory item
-    inventoryItem = InventoryItem(
-        item_name=str(state.item_name),
-        item_description=str(state.item_description),
-        manufacturer=str(state.manufacturer),
-        manufacturer_contact=str(state.item_manufacturer_details),
-        item_tags=str(state.item_tags),
-        item_image_path=img_path)
+    inventoryItem.item_name = str(state.item_name)
+    inventoryItem.item_description = str(state.item_description)
+    inventoryItem.manufacturer = str(state.item_manufacturer)
+    inventoryItem.manufacturer_contact = str(state.item_manufacturer_details)
+    inventoryItem.item_tags = str(state.item_tags)
+    inventoryItem.item_image_path = Path(state.item_image_path)
 
-    # Add item to database
-    db_client.add_inventory_item(inventory_item=inventoryItem)
+  return valid_data, inventoryItem
+
+
+def capture_image():
+  """
+  Callback function to capture an image of an inventory item before adding
+  it to the database
+  """
+  global display_img
+  display_img = camera_server.get_last_frame()
+
+  state.display_img_src = f"data:image/png;base64,{
+      encode_image(display_img)}"
+
+
+def logout(*args):
+  """
+  Callback function to log out current user
+  """
+  global enableLogin
+  state.user_name = ''
+  state.password = ''
+  state.logged_in = False
+  enableLogin = True
 
 
 def login(username, password):
@@ -315,31 +339,30 @@ def login(username, password):
     state.error_message = "Invalid credentials. Please try again."
 
 
-def logout(*args):
-  """
-  Callback function to log out current user
-  """
-  state.user_name = ''
-  state.password = ''
-  state.logged_in = False
-
-
-@state.change("selection")
+@ state.change("selection")
 def selection_change(selection=[], **kwargs):
-  global inventory_df
+  """
+  Callback function that is called every time the user selects an item in 
+  the main table
+  """
+  global inventory_df, inventory_item
   selected_df = pd.DataFrame(selection)
 
   if not selected_df.empty:
     if len(selected_df["id"].tolist()) == 1:
       current_id = selected_df["id"].tolist()[0]
-      # Print the ID(s) of the selected row(s)
       info(f'Select item with ID: {current_id}')
 
       # Update state data ID
-      state.item_id = current_id
+      state.selected_item_id = current_id
 
       # Populate state data with item information
       populate_item_from_id(current_id)
+
+      # Save a complete and global copy of this item
+      inventory_item.populate_from_df(
+          item_data_df=db_client.get_inventory_item_as_df(current_id))
+
     elif len(selected_df["id"].tolist()) == 1:
       TODO = True
       # TODO add callback to empty item state variables if no item
@@ -347,40 +370,49 @@ def selection_change(selection=[], **kwargs):
 
 
 # -------------------------------------------------------------------------
-
-
+#  Frontend application MAIN FUNCTION
+# -------------------------------------------------------------------------
 def main():
   """
   Main function to start the Inventory application
+
+
   """
   # Set global variables for this function
   global camera_thread, camera_server, server, encoded_image, inventory_df
+  global enableLogin, inventory_item
   # -----------------------------------------------------------------------
-  # Camera Server
+  # -- CAMERA SERVER
   # -----------------------------------------------------------------------
   # Start the camera server in a background thread
   camera_process = Process(target=camera_server.run)
   camera_process.start()
-
+  # -----------------------------------------------------------------------
+  # -- HANDLE SIGINT/SIGTERM PROCESSES
+  # -----------------------------------------------------------------------
   # Handle SIGINT
   signal.signal(signal.SIGINT, on_server_exit)
   # Handle termination SIGTERM
   signal.signal(signal.SIGTERM, on_server_exit)
   # -----------------------------------------------------------------------
-  # Trame setup
+  # -- TRAME WINDOW SETUP
   # -----------------------------------------------------------------------
   state.trame__title = inventory_main_window_title
   state.menu_items = ["add item", "checkout item", "return item"]
   # -----------------------------------------------------------------------
-  # Pull inventory data from database
+  # -- PULL INVENTORY DATA
   # -----------------------------------------------------------------------
   update_inventory_df()
 
   # -----------------------------------------------------------------------
-  # Table functions table
+  # -- TABLE FUNCTIONS
   # -----------------------------------------------------------------------
 
   def filter_inventory_df(query):
+    """
+    Filter invetory dataframe by user search query
+
+    """
     if not query:
       return inventory_df
     query = query.lower()
@@ -389,6 +421,9 @@ def main():
     return filtered_df
 
   def update_table():
+    """
+    Update the table view 
+    """
     filtered_df = filter_inventory_df(state.query)
     headers, rows = vuetify.dataframe_to_grid(
         filtered_df, main_table_header_options)
@@ -399,19 +434,86 @@ def main():
   update_table()
 
   def delete_inventory_item(*args):
-    if state.item_id is not None:
+    """
+    Callback function to delete the currently selected inventory item
+    """
+    # Only delete item if one is selected
+    if state.selected_item_id is not None:
       # Command: DELETE item from inventory
-      db_client.delete_inventory_item(int(state.item_id))
+      db_client.delete_inventory_item(int(state.selected_item_id))
+
+      # Update the dataframe so the table reflects the updated DB state
+      update_inventory_df()
+
+      # Update the table view
+      update_table()
+
+  def update_inventory_item(*args):
+    """
+    Callback function to update the currently selected inventory item
+    """
+    valid_data, inventoryItem = read_item_user_input_to_object()
+
+    if valid_data:
+
+      print(f'[update_inventory_item] -- {inventoryItem.manufacturer}')
+
+      # Update the item in the database
+      db_client.update_inventory_item(inventory_item=inventoryItem,
+                                      id=state.selected_item_id)
+
+      # Update the dataframe so the table reflects the updated DB state
+      update_inventory_df()
+
+      # Update the table view
+      update_table()
+    else:
+      error('Adding Inventory item failed. Invalid user inputs')
+
+  def add_inventory_item(*args):
+    """
+    Handle sequence of actions to add a new item to the Inventory:
+    * Check input validity
+    * Take image of the item and save file to media
+    * Create InventoryItem and add to the database
+    * Print bar code sticker
+
+    """
+    global display_img
+    valid_data, inventoryItem = read_item_user_input_to_object()
+
+    if valid_data:
+      # If an image has been captured
+      # -> Save image to file
+      # -> Update image path in item data
+      if display_img is not None:
+        cam_img_bytes = display_img.tobytes()
+        hash_object = hashlib.sha256(cam_img_bytes)
+        hash_hex = hash_object.hexdigest()
+
+        img_path = Path(media_directory) / f'{hash_hex}.png'
+
+        # Save item image to file
+        cv.imwrite(img_path, display_img)
+
+        # Update image path in InventoryItem instance
+        inventoryItem.set_img_path(img_path)
+
+      # Add item to database
+      db_client.add_inventory_item(inventoryItem)
 
       # Update the dataframe so the table reflects the updated DB state
       update_inventory_df()
 
       update_table()
+    else:
+      error('Adding Inventory item failed. Invalid user inputs')
 
   # -----------------------------------------------------------------------
-  # Preparing table
+  # -- GUI
   # -----------------------------------------------------------------------
 
+  # Prepare table elements and configuration
   headers, rows = vuetify.dataframe_to_grid(inventory_df,
                                             main_table_header_options)
   main_table_config = {
@@ -427,9 +529,6 @@ def main():
       "item_key": "id",
   }
 
-  # -----------------------------------------------------------------------
-  # GUI
-  # -----------------------------------------------------------------------
   # --- Inventory [HOME]
   with RouterViewLayout(server, "/", clicked=update_inventory_df):
     with vuetify.VContainer(fluid=True):
@@ -441,7 +540,7 @@ def main():
         with vuetify.VCol():
           vuetify.VCardTitle("Inventory Item")
           with vuetify.VAppBar(elevation=2):
-            vuetify.VBtn("Update Item")  # TODO add callback
+            vuetify.VBtn("Update Item", click=update_inventory_item)
             vuetify.VBtn("Delete Item", click=delete_inventory_item)
 
           vuetify.VTextField(
@@ -462,11 +561,11 @@ def main():
           vuetify.VTextField(
               v_model=("item_manufacturer", ""),
               label="Manufacturer",
-              placeholder="Enter item name"
+              placeholder="Enter item name",
           )
           vuetify.VTextField(
               v_model=("item_manufacturer_details", ""),
-              label="Manufacturer Contact Details",
+              label="Manufacturer Details",
               placeholder="Enter item name"
           )
         with vuetify.VCol():
@@ -487,6 +586,7 @@ def main():
           vuetify.VCardText("Place the item in front of the camera!")
           with vuetify.VCardText():
             vuetify.VBtn("Add item to Inventory", click=add_inventory_item)
+            vuetify.VBtn("Capture Image", click=capture_image)
           vuetify.VTextField(
               v_model=("item_name", ""),
               label="Item Name",
@@ -505,13 +605,19 @@ def main():
           vuetify.VTextField(
               v_model=("item_manufacturer", ""),
               label="Manufacturer",
-              placeholder="Enter item name"
+              placeholder="Enter Manufacturer"
           )
           vuetify.VTextField(
               v_model=("item_manufacturer_details", ""),
               label="Manufacturer Contact Details",
-              placeholder="Enter item name"
+              placeholder="Enter Manufacturer Details"
           )
+          # Display captured frames
+          vuetify.VCardText("Item image")
+          vuetify.VImg(
+              src=("display_img_src",),
+              max_width="600px",
+              classes="mb-5")
 
         with vuetify.VCol():
           # Embed camera stream in this sub-page
@@ -542,7 +648,7 @@ def main():
             vuetify.VCardText(
                 "Manufacturer: {{ item_manufacturer }}")
             vuetify.VCardText(
-                "Manufacturer Details: {{ item_manufacturer }}")
+                "Manufacturer Details: {{ item_manufacturer_details }}")
             vuetify.VCardText(
                 "In Inventory since {{ date_added }}")
             vuetify.VCardText(
@@ -571,7 +677,8 @@ def main():
             vuetify.VCardText("Item Name: {{ item_name }}")
             vuetify.VCardText("Item Description: {{ item_description }}")
             vuetify.VCardText("Manufacturer: {{ item_manufacturer }}")
-            vuetify.VCardText("Manufacturer Details: {{ item_manufacturer }}")
+            vuetify.VCardText(
+                "Manufacturer Details: {{ item_manufacturer_details }}")
             vuetify.VCardText("In Inventory since {{ date_added }}")
             vuetify.VCardText(
                 "Check out status: {{ checkout_status_summary }}")
@@ -600,6 +707,8 @@ def main():
           vuetify.VCardText(v_if="error_message",
                             classes="red--text text-center")
     else:
+      # Debug option - Log in disabled
+      # Force logged in state with debug user
       state.username = VALID_USERNAME
       state.logged_in = True
 
@@ -614,6 +723,7 @@ def main():
           prepend_icon="mdi-magnify",
       )
       vuetify.VSpacer()
+      vuetify.VBtn("CSV Export", v_if="logged_in")  # TODO Callback to be added
       vuetify.VBtn("Log out", v_if="logged_in", click=logout)
 
     with layout.content:
