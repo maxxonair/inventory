@@ -15,16 +15,30 @@ main_table_header_options = {"item_name": {"sortable": False}}
 
 media_directory = './database/media'
 
-# Flag to enable/disable the login function. Disabling for debugging only!
-# If disabled the user will be set to the default user without prompting
-# the login page
-enableLogin = False
-
 # Host IP for the frontend server
 frontend_host_ip = "192.168.1.194"
 
 # Default port for the frontend server
 frontend_host_port = 8080
+
+# -------------------------------------------------------------------------
+# ---- DEBUG FLAGS
+# -------------------------------------------------------------------------
+
+# Flag to enable/disable the login function. Disabling for debugging only!
+# If disabled the user will be set to the default user without prompting
+# the login page
+enableLogin = False
+
+# Flag to run frontend in debug mode
+# Server will only be hosted to local host. frontend_host_ip/frontend_host_port
+# will not be used.
+enableRunForDebug = False
+
+# Flag to disable column filtering from the raw data base export
+# If True all columns that are in the backend database will be displayed in
+# the GUI
+disableDatabaseColumnFilter = False
 
 # -------------------------------------------------------------------------
 # ---- CAMERA INTERFACE

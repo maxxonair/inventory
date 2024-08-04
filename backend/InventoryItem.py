@@ -61,7 +61,7 @@ class InventoryItem():
     #  Create dictonary from item data
     self.inventoryItemDict = {
         "item_name": str(self.item_name),
-        "item_image": (self.item_image).absolute().as_posix(),
+        "item_image": Path(self.item_image).absolute().as_posix(),
         "item_description": str(self.item_description),
         "manufacturer": str(self.manufacturer),
         "manufacturer_contact": str(self.manufacturer_contact),
@@ -106,6 +106,19 @@ class InventoryItem():
       valid = True
 
     return valid
+
+  def set_checked_in(self, poc: str):
+    """
+    Function to mark this instance checked in from the time this function
+    is called
+
+    Args:
+    poc - Point of contact. Person who checked in this item
+
+    """
+    self.check_out_date = ''
+    self.check_out_poc = str(poc)
+    self.is_checked_out = False
 
   def populate_from_df(self, item_data_df: DataFrame):
     """

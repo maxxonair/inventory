@@ -48,7 +48,9 @@ from frontend.frontend_config import (inventory_page_title,
                                       html_content_embed_camera_stream_large,
                                       media_directory,
                                       image_not_found_path,
-                                      enableLogin)
+                                      enableLogin,
+                                      enableRunForDebug,
+                                      disableDatabaseColumnFilter)
 
 # Import frontend utility functions
 from frontend.util import parse_qr_message
@@ -113,6 +115,7 @@ state = server.state
 
 # Create server.state members
 state.selected_item_id = None
+state.parsed_item_id = None
 state.item_name = ""
 state.item_description = ""
 state.item_tags = ""
@@ -145,9 +148,9 @@ local_image_dir = ''
 # -------------------------------------------------------------------------
 
 
-@flask_app.route('/media/<path:filename>')
-def media(filename):
-  return send_from_directory(local_image_dir, filename)
+# @flask_app.route('/media/<path:filename>')
+# def media(filename):
+#   return send_from_directory(local_image_dir, filename)
 
 
 def on_server_exit():
@@ -176,19 +179,20 @@ def update_inventory_df():
 
   inventory_df = db_client.get_inventory_as_df()
 
-  # -- Remove columns that should not be displayed
-  inventory_df = inventory_df.drop('item_image', axis=1)
-  inventory_df = inventory_df.drop('manufacturer_contact', axis=1)
+  if not disableDatabaseColumnFilter:
+    # -- Remove columns that should not be displayed
+    inventory_df = inventory_df.drop('item_image', axis=1)
+    inventory_df = inventory_df.drop('manufacturer_contact', axis=1)
 
-  # Rename columns for a more user friendly table view
-  inventory_df = inventory_df.rename(columns={'item_name': 'Item',
-                                              'item_description': 'Description',
-                                              'manufacturer': 'Manufacturer',
-                                              'is_checked_out': 'Checked-Out',
-                                              'check_out_date': 'Checkout Date',
-                                              'check_out_poc': 'Checked-Out By',
-                                              'date_added': 'Date Added',
-                                              'item_tags': 'Tags'})
+    # Rename columns for a more user friendly table view
+    inventory_df = inventory_df.rename(columns={'item_name': 'Item',
+                                                'item_description': 'Description',
+                                                'manufacturer': 'Manufacturer',
+                                                'is_checked_out': 'Checked-Out',
+                                                'check_out_date': 'Checkout Date',
+                                                'check_out_poc': 'Checked-Out By',
+                                                'date_added': 'Date Added',
+                                                'item_tags': 'Tags'})
 
 
 def update_item(*args):
@@ -207,6 +211,7 @@ def update_item(*args):
   message = str(camera_server.get_decoded_msg())
   valid, id = parse_qr_message(message)
   if valid:
+    state.parsed_item_id = id
     populate_item_from_id(id)
 
 
@@ -221,6 +226,10 @@ def populate_item_from_id(id: int):
   """
   # Get data for scanned item from database
   item_data_df = db_client.get_inventory_item_as_df(id)
+
+  # [!] Make sure the global inventory_item is synchronized with the latest
+  #     data grab
+  inventory_item = db_client.get_inventory_item_as_object(id)
 
   # Extract item data from Dataframe
   item_name = item_data_df.iloc[0]['item_name']
@@ -298,7 +307,7 @@ def read_item_user_input_to_object():
     inventoryItem.manufacturer = str(state.item_manufacturer)
     inventoryItem.manufacturer_contact = str(state.item_manufacturer_details)
     inventoryItem.item_tags = str(state.item_tags)
-    inventoryItem.item_image_path = Path(state.item_image_path)
+    inventoryItem.set_img_path(Path(state.item_image_path))
 
   return valid_data, inventoryItem
 
@@ -309,10 +318,47 @@ def capture_image():
   it to the database
   """
   global display_img
-  display_img = camera_server.get_last_frame()
+  try:
+    display_img = camera_server.get_last_frame()
 
-  state.display_img_src = f"data:image/png;base64,{
-      encode_image(display_img)}"
+    state.display_img_src = f"data:image/png;base64,{
+        encode_image(display_img)}"
+  except:
+    warning('[capture_image] Capturing image failed.')
+
+
+def update_item_image_with_capture():
+  """
+  Take the latest captured image and set it as the currently selected items 
+  image
+  """
+
+  if state.display_img_src is not None:
+    state.image_src = state.display_img_src
+
+    cam_img_bytes = display_img.tobytes()
+    hash_object = hashlib.sha256(cam_img_bytes)
+    hash_hex = hash_object.hexdigest()
+
+    img_path = Path(media_directory) / f'{hash_hex}.png'
+    state.item_image_path = img_path.absolute().as_posix()
+
+    # Save item image to file
+    cv.imwrite(img_path, display_img)
+
+    try:
+      # encode_image_from_path(img_path.absolute().as_posix())
+      state.image_src = f"data:image/png;base64,{
+          encode_image_from_path(state.item_image_path)}"
+    except:
+      state.image_src = f"data:image/png;base64,{
+          encode_image_from_path(image_not_found_path)}"
+      warning(f'Encoding image url failed for path {state.item_image_path}')
+
+    # Update the path in the database
+    if state.selected_item_id is not None:
+      db_client.update_inventory_item_image_path(state.selected_item_id,
+                                                 img_path.absolute().as_posix())
 
 
 def logout(*args):
@@ -509,6 +555,32 @@ def main():
     else:
       error('Adding Inventory item failed. Invalid user inputs')
 
+  def checkout_item(*args):
+    global inventory_item
+    ret = inventory_item.set_checked_out(state.username)
+
+    if ret:
+      # Update checkout status in database
+      db_client.update_inventory_item_checkout_status(id=state.parsed_item_id,
+                                                      inventory_item=inventory_item)
+      # Update the dataframe so the table reflects the updated DB state
+      update_inventory_df()
+
+      update_table()
+    else:
+      warning('Updating checkout status failed. No Point of Contact provided')
+
+  def checkin_item(*args):
+    global inventory_item
+    inventory_item.set_checked_in(state.username)
+
+    # Update checkout status in database
+    db_client.update_inventory_item_checkout_status(id=state.parsed_item_id,
+                                                    inventory_item=inventory_item)
+    # Update the dataframe so the table reflects the updated DB state
+    update_inventory_df()
+
+    update_table()
   # -----------------------------------------------------------------------
   # -- GUI
   # -----------------------------------------------------------------------
@@ -541,7 +613,14 @@ def main():
           vuetify.VCardTitle("Inventory Item")
           with vuetify.VAppBar(elevation=2):
             vuetify.VBtn("Update Item", click=update_inventory_item)
-            vuetify.VBtn("Delete Item", click=delete_inventory_item)
+            vuetify.VBtn("Delete Item",
+                         click=delete_inventory_item,
+                         )
+            vuetify.VBtn("Update Item Image",
+                         click=update_item_image_with_capture)
+            vuetify.VBtn("Capture Image",
+                         click=capture_image,
+                         variant='outlined')
 
           vuetify.VTextField(
               v_model=("item_name", ""),
@@ -572,10 +651,20 @@ def main():
           with vuetify.VCard(classes="ma-5", max_width="350px", elevation=2):
             fig = vega.Figure(classes="ma-2", style="width: 100%;")
             ctrl.fig_update = fig.update
+            vuetify.VCardText("Current item image")
             vuetify.VImg(
                 src=("image_src",),
                 max_width="400px",
                 classes="mb-5")
+            vuetify.VCardText("Captured image")
+            vuetify.VImg(
+                src=("display_img_src",),
+                max_width="400px",
+                classes="mb-5")
+        with vuetify.VCol():
+          vuetify.VCardText("Camera stream")
+          # Embed camera stream in this sub-page
+          html.Div(html_content_embed_camera_stream)
 
   # --- Add inventory
   with RouterViewLayout(server, "/add inventory item"):
@@ -632,9 +721,9 @@ def main():
               "Checkout Inventory Item - Under Construction")
 
           with vuetify.VAppBar(elevation=2):
-            vuetify.VBtn("Get item code", click=update_item)
+            vuetify.VBtn("Scan item code", click=update_item)
             vuetify.VSpacer()
-            vuetify.VBtn("Check-out this item")  # Calback TODO
+            vuetify.VBtn("Check-out this item", click=checkout_item)
 
           with vuetify.VCard(classes="ma-5", max_width="350px", elevation=2):
             vuetify.VImg(
@@ -665,8 +754,8 @@ def main():
         with vuetify.VCol():
           vuetify.VCardTitle("Return Inventory Item - Under Construction")
           with vuetify.VCardText():
-            vuetify.VBtn("Get item code", click=update_item)
-            vuetify.VBtn("Return this item")  # Callback TODO
+            vuetify.VBtn("Scan item code", click=update_item)
+            vuetify.VBtn("Return this item", click=checkin_item)
 
           with vuetify.VCard(classes="ma-5", max_width="350px", elevation=2):
             vuetify.VImg(
@@ -723,6 +812,12 @@ def main():
           prepend_icon="mdi-magnify",
       )
       vuetify.VSpacer()
+      vuetify.VSwitch(
+          v_model="$vuetify.theme.dark",
+          hide_detials=True,
+          dense=True,
+      )
+
       vuetify.VBtn("CSV Export", v_if="logged_in")  # TODO Callback to be added
       vuetify.VBtn("Log out", v_if="logged_in", click=logout)
 
@@ -769,8 +864,11 @@ def main():
   # -----------------------------------------------------------------------
   # Start server
   # -----------------------------------------------------------------------
-  server.start(host=frontend_host_ip,
-               port=frontend_host_port)
+  if enableRunForDebug:
+    server.start()
+  else:
+    server.start(host=frontend_host_ip,
+                 port=frontend_host_port)
 
   # Close camera thread
   camera_process.join()

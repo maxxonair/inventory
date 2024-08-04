@@ -183,7 +183,7 @@ class DataBaseClient():
     columns = [col[0] for col in self.cursor.description]
 
     # Create InventoryItem instance
-    inventoryItem = InventoryItem()
+    inventoryItem = InventoryItem('')
 
     # Populate all fields from the database export
     inventoryItem.populate_from_df(
@@ -230,6 +230,31 @@ class DataBaseClient():
     Modify and inventory item identified by ID with given values
     """
     sql, values = inventory_item.get_sql_query_update_item(id)
+    # Execute the UPDATE statement
+    self.exec_sql_cmd(sql, values)
+
+  def update_inventory_item_image_path(self, id: int, path: str):
+    """
+    Modify the image path of an inventory item identified by ID with the 
+    given path
+    """
+    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET item_image = ? WHERE id = ?"
+    values = [path] + [id]
+
+    # Execute the UPDATE statement
+    self.exec_sql_cmd(sql, values)
+
+  def update_inventory_item_checkout_status(self, id: int,
+                                            inventory_item: InventoryItem):
+    """
+    Modify the  item checkout status of an inventory item identified by ID 
+    with the parameters of a provided InventoryItem
+    """
+    sql = f"UPDATE {
+        INVENTORY_TABLE_NAME} SET is_checked_out = ?, check_out_date = ?, check_out_poc = ? WHERE id = ?"
+    values = [inventory_item.is_checked_out] + \
+        [inventory_item.check_out_date] + [inventory_item.check_out_poc] + [id]
+
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 
