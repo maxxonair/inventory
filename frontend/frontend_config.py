@@ -33,7 +33,7 @@ enableLogin = False
 # Flag to run frontend in debug mode
 # Server will only be hosted to local host. frontend_host_ip/frontend_host_port
 # will not be used.
-enableRunForDebug = False
+enableRunForDebug = True
 
 # Flag to disable column filtering from the raw data base export
 # If True all columns that are in the backend database will be displayed in

@@ -10,6 +10,12 @@ import cv2 as cv
 from pathlib import Path
 # from itertools import cycle
 from trame.widgets import vuetify, vega, router, html
+
+from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
+                                   VCol, VRow, VContainer, VImg, VCardTitle,
+                                   VCard, VList, VListItemIcon, VListItem,
+                                   VListItemTitle, VListItemContent
+                                   )
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
 from trame.app import get_server
@@ -135,6 +141,8 @@ state.display_img_src = f"data:image/png;base64,{
     encode_image_from_path(image_not_found_path)}"
 
 
+state.scan_bt_color = 'primary'
+
 # Server.state members to track log in status
 state.logged_in = False
 state.error_message = ""
@@ -211,8 +219,14 @@ def update_item(*args):
   message = str(camera_server.get_decoded_msg())
   valid, id = parse_qr_message(message)
   if valid:
+    # Update the scan button color to indicate a successful scan
+    state.scan_bt_color = 'success'
+
     state.parsed_item_id = id
     populate_item_from_id(id)
+  else:
+    # Update the scan button color to indicate a failed scan
+    state.scan_bt_color = 'failure'
 
 
 def populate_item_from_id(id: int):
@@ -610,99 +624,109 @@ def main():
         vuetify.VDataTable(**main_table_config, v_if="logged_in")
       with vuetify.VRow(v_if="logged_in"):
         with vuetify.VCol():
-          vuetify.VCardTitle("Inventory Item")
-          with vuetify.VAppBar(elevation=2):
-            vuetify.VBtn("Update Item", click=update_inventory_item)
-            vuetify.VBtn("Delete Item",
-                         click=delete_inventory_item,
-                         )
-            vuetify.VBtn("Update Item Image",
-                         click=update_item_image_with_capture)
-            vuetify.VBtn("Capture Image",
-                         click=capture_image,
-                         variant='outlined')
-
-          vuetify.VTextField(
-              v_model=("item_name", ""),
-              label="Item Name",
-              placeholder="Enter item name"
-          )
-          vuetify.VTextField(
-              v_model=("item_description", ""),
-              label="Item Description",
-              placeholder="Enter item description"
-          )
-          vuetify.VTextField(
-              v_model=("item_tags", ""),
-              label="Tags",
-              placeholder="Enter item tags"
-          )
-          vuetify.VTextField(
-              v_model=("item_manufacturer", ""),
-              label="Manufacturer",
-              placeholder="Enter item name",
-          )
-          vuetify.VTextField(
-              v_model=("item_manufacturer_details", ""),
-              label="Manufacturer Details",
-              placeholder="Enter item name"
-          )
+          with vuetify.VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+            VIcon('mdi-swap-horizontal')
+            VBtn("Update Item",
+                 click=update_inventory_item)
+          with vuetify.VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+            VIcon('mdi-trash-can-outline')
+            VBtn("Delete Item",
+                 click=delete_inventory_item)
+          with vuetify.VRow(v_if="logged_in"):
+            with vuetify.VContainer(fluid=True):
+              VTextField(
+                  v_model=("item_name", ""),
+                  label="Item Name",
+                  placeholder="Enter item name"
+              )
+              VTextField(
+                  v_model=("item_description", ""),
+                  label="Item Description",
+                  placeholder="Enter item description"
+              )
+              VTextField(
+                  v_model=("item_tags", ""),
+                  label="Tags",
+                  placeholder="Enter item tags"
+              )
+              VTextField(
+                  v_model=("item_manufacturer", ""),
+                  label="Manufacturer",
+                  placeholder="Enter item name",
+              )
+              VTextField(
+                  v_model=("item_manufacturer_details", ""),
+                  label="Manufacturer Details",
+                  placeholder="Enter item name"
+              )
         with vuetify.VCol():
-          with vuetify.VCard(classes="ma-5", max_width="350px", elevation=2):
+          with VCard(classes="ma-5", max_width="350px", elevation=2):
             fig = vega.Figure(classes="ma-2", style="width: 100%;")
             ctrl.fig_update = fig.update
-            vuetify.VCardText("Current item image")
+            VCardText("Current Item Image")
             vuetify.VImg(
                 src=("image_src",),
                 max_width="400px",
                 classes="mb-5")
-            vuetify.VCardText("Captured image")
+            with vuetify.VAppBar(elevation=0):
+              vuetify.VIcon("mdi-arrow-up-bold-box", size=35, left=False)
+              VBtn("Change Current Image",
+                   click=update_item_image_with_capture)
+              vuetify.VIcon("mdi-arrow-up-bold-box", size=35, left=True)
+            VCardText("Captured Image")
             vuetify.VImg(
                 src=("display_img_src",),
                 max_width="400px",
                 classes="mb-5")
         with vuetify.VCol():
-          vuetify.VCardText("Camera stream")
+          VCardText("Camera stream")
+          VCardText("Place the item in front of the camera!")
           # Embed camera stream in this sub-page
           html.Div(html_content_embed_camera_stream)
+          with vuetify.VRow(v_if="logged_in", style="margin-top: 10px;"):
+            VIcon('mdi-camera-plus-outline', left=False)
+            VBtn("Capture Image",
+                 click=capture_image,
+                 variant='outlined')
+            VIcon('mdi-camera-plus-outline', left=True)
 
   # --- Add inventory
   with RouterViewLayout(server, "/add inventory item"):
     with vuetify.VContainer(fluid=True):
       with vuetify.VRow(v_if="logged_in"):
         with vuetify.VCol():
-          vuetify.VCardTitle("Add Inventory Item - Under Construction")
-          vuetify.VCardText("Place the item in front of the camera!")
-          with vuetify.VCardText():
-            vuetify.VBtn("Add item to Inventory", click=add_inventory_item)
-            vuetify.VBtn("Capture Image", click=capture_image)
-          vuetify.VTextField(
+          VCardTitle("Add Inventory Item - Under Construction")
+          VCardText("Place the item in front of the camera!")
+          with VCardText():
+            VBtn("Add item to Inventory", click=add_inventory_item)
+            VBtn("Capture Image", click=capture_image)
+          VTextField(
               v_model=("item_name", ""),
               label="Item Name",
               placeholder="Enter item name"
           )
-          vuetify.VTextField(
+          VTextField(
               v_model=("item_description", ""),
               label="Item Description",
               placeholder="Enter item description"
           )
-          vuetify.VTextField(
+          VTextField(
               v_model=("item_tags", ""),
               label="Tags",
               placeholder="Enter item tags"
           )
-          vuetify.VTextField(
+          VTextField(
               v_model=("item_manufacturer", ""),
               label="Manufacturer",
               placeholder="Enter Manufacturer"
           )
-          vuetify.VTextField(
+          VTextField(
               v_model=("item_manufacturer_details", ""),
               label="Manufacturer Contact Details",
               placeholder="Enter Manufacturer Details"
           )
           # Display captured frames
-          vuetify.VCardText("Item image")
+          VCardText("Item image")
           vuetify.VImg(
               src=("display_img_src",),
               max_width="600px",
@@ -717,63 +741,71 @@ def main():
     with vuetify.VContainer(fluid=True):
       with vuetify.VRow(v_if="logged_in"):
         with vuetify.VCol():
-          vuetify.VCardTitle(
-              "Checkout Inventory Item - Under Construction")
+          VCardTitle(
+              "Checkout Inventory Item")
 
-          with vuetify.VAppBar(elevation=2):
-            vuetify.VBtn("Scan item code", click=update_item)
-            vuetify.VSpacer()
-            vuetify.VBtn("Check-out this item", click=checkout_item)
+          VBtn("Check-out this item", click=checkout_item)
 
-          with vuetify.VCard(classes="ma-5", max_width="350px", elevation=2):
+          with VCard(classes="ma-5", max_width="350px", elevation=2):
             vuetify.VImg(
                 src=("image_src",), max_width="400px", classes="mb-5")
 
-          with vuetify.VCard(classes="ma-5", max_width="550px", elevation=2):
-            vuetify.VCardTitle("Inventory")
-            vuetify.VCardText("Item Name: {{ item_name }}")
-            vuetify.VCardText(
+          with VCard(classes="ma-5", max_width="550px", elevation=2):
+            VCardTitle("Inventory")
+            VCardText("Item Name: {{ item_name }}")
+            VCardText(
                 "Item Description: {{ item_description }}")
-            vuetify.VCardText(
+            VCardText(
                 "Manufacturer: {{ item_manufacturer }}")
-            vuetify.VCardText(
+            VCardText(
                 "Manufacturer Details: {{ item_manufacturer_details }}")
-            vuetify.VCardText(
+            VCardText(
                 "In Inventory since {{ date_added }}")
-            vuetify.VCardText(
+            VCardText(
                 "Check out status: {{ checkout_status_summary }}")
 
         with vuetify.VCol():
+          VCardText("Place the item QR code in front of the camera!")
           # Embed camera stream in this sub-page
           html.Div(html_content_embed_camera_stream, v_if="logged_in")
+          with vuetify.VRow(v_if="logged_in", style="margin-top: 10px;"):
+            VIcon('mdi-qrcode-scan', left=True, size=35)
+            VBtn("Scan Item QR Code",
+                 click=update_item,
+                 color=("scan_bt_color",))
 
   # --- Return inventory
   with RouterViewLayout(server, "/return inventory item"):
     with vuetify.VContainer(fluid=True):
       with vuetify.VRow(v_if="logged_in"):
         with vuetify.VCol():
-          vuetify.VCardTitle("Return Inventory Item - Under Construction")
-          with vuetify.VCardText():
-            vuetify.VBtn("Scan item code", click=update_item)
-            vuetify.VBtn("Return this item", click=checkin_item)
+          VCardTitle("Return Inventory Item - Under Construction")
 
-          with vuetify.VCard(classes="ma-5", max_width="350px", elevation=2):
+          VBtn("Return this item", click=checkin_item)
+
+          with VCard(classes="ma-5", max_width="350px", elevation=2):
             vuetify.VImg(
                 src=("image_src",), max_width="400px", classes="mb-5")
 
-          with vuetify.VCard(classes="ma-5", max_width="550px", elevation=5):
-            vuetify.VCardTitle("Inventory")
-            vuetify.VCardText("Item Name: {{ item_name }}")
-            vuetify.VCardText("Item Description: {{ item_description }}")
-            vuetify.VCardText("Manufacturer: {{ item_manufacturer }}")
-            vuetify.VCardText(
+          with VCard(classes="ma-5", max_width="550px", elevation=5):
+            VCardTitle("Inventory")
+            VCardText("Item Name: {{ item_name }}")
+            VCardText("Item Description: {{ item_description }}")
+            VCardText("Manufacturer: {{ item_manufacturer }}")
+            VCardText(
                 "Manufacturer Details: {{ item_manufacturer_details }}")
-            vuetify.VCardText("In Inventory since {{ date_added }}")
-            vuetify.VCardText(
+            VCardText("In Inventory since {{ date_added }}")
+            VCardText(
                 "Check out status: {{ checkout_status_summary }}")
         with vuetify.VCol():
+          VCardText("Place the item QR code in front of the camera!")
           # Embed camera stream in this sub-page
           html.Div(html_content_embed_camera_stream)
+          with vuetify.VRow(v_if="logged_in", style="margin-top: 10px;"):
+            VIcon('mdi-qrcode-scan', left=False, size=35)
+            VBtn("Scan Item QR Code",
+                 click=update_item,
+                 color=("scan_bt_color",))
 
   # Main page content
   with SinglePageWithDrawerLayout(server) as layout:
@@ -782,19 +814,19 @@ def main():
     if enableLogin:
       # Login form
       with layout.content:
-        with vuetify.VCard(max_width="400px", v_if="!logged_in", outlined=True, classes="mx-auto mt-10"):
-          with vuetify.VCardTitle():
-            vuetify.VCardTitle("Login")
-          with vuetify.VCardText():
-            vuetify.VTextField(label="Username", v_model="username")
-            vuetify.VTextField(
+        with VCard(max_width="400px", v_if="!logged_in", outlined=True, classes="mx-auto mt-10"):
+          with VCardTitle():
+            VCardTitle("Login")
+          with VCardText():
+            VTextField(label="Username", v_model="username")
+            VTextField(
                 label="Password", v_model="password", type="password")
-          vuetify.VSpacer()
-          vuetify.VBtn("Login", click=lambda: login(
+          VSpacer()
+          VBtn("Login", click=lambda: login(
               state.username, state.password), block=True)
-          vuetify.VSpacer()
-          vuetify.VCardText(v_if="error_message",
-                            classes="red--text text-center")
+          VSpacer()
+          VCardText(v_if="error_message",
+                    classes="red--text text-center")
     else:
       # Debug option - Log in disabled
       # Force logged in state with debug user
@@ -802,8 +834,8 @@ def main():
       state.logged_in = True
 
     with layout.toolbar:
-      vuetify.VSpacer()
-      vuetify.VTextField(
+      VSpacer()
+      VTextField(
           v_model=("query",),
           placeholder="Search Inventory Item",
           dense=True,
@@ -811,15 +843,15 @@ def main():
           hide_details=True,
           prepend_icon="mdi-magnify",
       )
-      vuetify.VSpacer()
+      VSpacer()
       vuetify.VSwitch(
           v_model="$vuetify.theme.dark",
           hide_detials=True,
           dense=True,
       )
 
-      vuetify.VBtn("CSV Export", v_if="logged_in")  # TODO Callback to be added
-      vuetify.VBtn("Log out", v_if="logged_in", click=logout)
+      VBtn("CSV Export", v_if="logged_in")  # TODO Callback to be added
+      VBtn("Log out", v_if="logged_in", click=logout)
 
     with layout.content:
       with vuetify.VContainer():
@@ -830,29 +862,29 @@ def main():
       with vuetify.VList(shaped=True, v_if="logged_in", v_model=("selectedRoute", 0)):
         vuetify.VSubheader("Inventory Actions")
 
-        with vuetify.VListItem(to="/", clicked=update_inventory_df):
-          with vuetify.VListItemIcon():
+        with VListItem(to="/", clicked=update_inventory_df):
+          with VListItemIcon():
             vuetify.VIcon("mdi-home")
-          with vuetify.VListItemContent():
-            vuetify.VListItemTitle("Inventory", clicked=update_inventory_df)
+          with VListItemContent():
+            VListItemTitle("Inventory", clicked=update_inventory_df)
 
-        with vuetify.VListItem(to="/add inventory item", clicked=update_inventory_df):
-          with vuetify.VListItemIcon():
+        with VListItem(to="/add inventory item", clicked=update_inventory_df):
+          with VListItemIcon():
             vuetify.VIcon("mdi-plus", v_if="logged_in")
-          with vuetify.VListItemContent():
-            vuetify.VListItemTitle("Add Inventory Item", v_if="logged_in")
+          with VListItemContent():
+            VListItemTitle("Add Inventory Item", v_if="logged_in")
 
-        with vuetify.VListItem(to="/checkout inventory item"):
-          with vuetify.VListItemIcon():
+        with VListItem(to="/checkout inventory item"):
+          with VListItemIcon():
             vuetify.VIcon("mdi-check", v_if="logged_in")
-          with vuetify.VListItemContent():
-            vuetify.VListItemTitle("Checkout Inventory Item", v_if="logged_in")
+          with VListItemContent():
+            VListItemTitle("Checkout Inventory Item", v_if="logged_in")
 
-        with vuetify.VListItem(to="/return inventory item"):
-          with vuetify.VListItemIcon():
+        with VListItem(to="/return inventory item"):
+          with VListItemIcon():
             vuetify.VIcon("mdi-arrow-right", v_if="logged_in")
-          with vuetify.VListItemContent():
-            vuetify.VListItemTitle("Return Inventory Item", v_if="logged_in")
+          with VListItemContent():
+            VListItemTitle("Return Inventory Item", v_if="logged_in")
 
   # -----------------------------------------------------------------------
   # Callbacks

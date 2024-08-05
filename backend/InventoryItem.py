@@ -132,7 +132,10 @@ class InventoryItem():
       self.is_checked_out = item_data_df.iloc[0]['is_checked_out']
       self.check_out_date = item_data_df.iloc[0]['check_out_date']
       self.check_out_poc = item_data_df.iloc[0]['check_out_poc']
-      self.item_image = Path(item_data_df.iloc[0]['item_image'])
+      try:
+        self.item_image = Path(item_data_df.iloc[0]['item_image'])
+      except:
+        self.item_image = Path('')
       self.item_description = item_data_df.iloc[0]['item_description']
       self.item_tags = item_data_df.iloc[0]['item_tags']
     else:
