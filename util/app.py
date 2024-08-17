@@ -5,12 +5,22 @@ Inventory frontend main application
 """
 import numpy as np
 import pandas as pd
-import altair as alt
 import cv2 as cv
 from pathlib import Path
+import sys
+import os
+import logging
+from logging import info, warning, error, debug
+from multiprocessing import Process, Manager
+import multiprocessing
+import signal
+import base64
+import hashlib
+import time
+from threading import Thread
+
 # from itertools import cycle
 from trame.widgets import vuetify, vega, router, html
-
 from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
                                    VCol, VRow, VContainer, VImg, VCardTitle,
                                    VCard, VList, VListItemIcon, VListItem,
@@ -19,15 +29,10 @@ from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
 from trame.app import get_server
-from flask import Flask, send_from_directory
-import sys
-import os
-import logging
-from logging import info, warning, error, debug
-from multiprocessing import Process
-import signal
-import base64
-import hashlib
+
+
+from flask import Flask, render_template, Response
+from flask_cors import CORS
 
 # --------------------------------------------------------------------------
 #                           [Inventory Imports]
@@ -39,8 +44,8 @@ sys.path.append(parent_dir)
 # ---- Backend imports
 from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
-from backend.camera_server.CameraServer import CameraServer
 from backend.InventoryItem import InventoryItem
+from backend.util import detect_and_decode_qr_marker
 
 # ---- Frontend imports
 
@@ -59,18 +64,16 @@ from frontend.frontend_config import (inventory_page_title,
                                       disableDatabaseColumnFilter)
 
 # Import frontend utility functions
-from frontend.util import parse_qr_message
+from backend.util import parse_qr_message
 
 # --------------------------------------------------------------------------
 #                       [Global Variables]
 # --------------------------------------------------------------------------
 
+
 # Create global handle for the camera server running in a background
 # process
 camera_process = None
-
-# Create camera server instance
-camera_server = CameraServer()
 
 # Initialize variable to hold the complete inventory in a dataframe
 inventory_df = []
@@ -117,10 +120,12 @@ state, ctrl = server.state, server.controller
 # Initialize the Flask app
 flask_app = Flask(__name__)
 
-state = server.state
+dummy_id = multiprocessing.Value('d', 0.0)  # 'd' is for double (float)
+condition = multiprocessing.Condition()
 
 # Create server.state members
 state.selected_item_id = None
+state.dummy_id = 0
 state.parsed_item_id = None
 state.item_name = ""
 state.item_description = ""
@@ -156,9 +161,9 @@ local_image_dir = ''
 # -------------------------------------------------------------------------
 
 
-# @flask_app.route('/media/<path:filename>')
-# def media(filename):
-#   return send_from_directory(local_image_dir, filename)
+@state.change('item_name')
+def update_item_textfields(**kwargs):
+  ctrl.view_update()
 
 
 def on_server_exit():
@@ -182,6 +187,10 @@ def on_server_exit():
 
 
 def update_inventory_df():
+  """
+  Update DataFrame that holds the compolete Inventory content
+
+  """
   debug('Update Inventory Data')
   global inventory_df
 
@@ -203,33 +212,7 @@ def update_inventory_df():
                                                 'item_tags': 'Tags'})
 
 
-def update_item(*args):
-  """
-  Callback function to be called when scanning a QR code from an existing
-  Inventory item.
-  The function handles the following activies:
-  * Get the decoded QR message from the camera server
-  * Parse the message to retrieve the ID
-  * Call the database to collect the inventory data corresponding to this
-    ID
-  * Populate server.state variables with the collected data
-
-  """
-
-  message = str(camera_server.get_decoded_msg())
-  valid, id = parse_qr_message(message)
-  if valid:
-    # Update the scan button color to indicate a successful scan
-    state.scan_bt_color = 'success'
-
-    state.parsed_item_id = id
-    populate_item_from_id(id)
-  else:
-    # Update the scan button color to indicate a failed scan
-    state.scan_bt_color = 'failure'
-
-
-def populate_item_from_id(id: int):
+def populate_item_from_id(id: int, state):
   """
   Callback function to be called when scanning a QR code from an existing
   Inventory item.
@@ -238,6 +221,7 @@ def populate_item_from_id(id: int):
    * Populate server.state variables with the collected data
 
   """
+  global inventory_item
   # Get data for scanned item from database
   item_data_df = db_client.get_inventory_item_as_df(id)
 
@@ -245,20 +229,8 @@ def populate_item_from_id(id: int):
   #     data grab
   inventory_item = db_client.get_inventory_item_as_object(id)
 
-  # Extract item data from Dataframe
-  item_name = item_data_df.iloc[0]['item_name']
-  date_added = item_data_df.iloc[0]['date_added']
-  manufacturer = item_data_df.iloc[0]['manufacturer']
-  manufacturer_contact = item_data_df.iloc[0]['manufacturer_contact']
-  is_checked_out = item_data_df.iloc[0]['is_checked_out']
-  check_out_date = item_data_df.iloc[0]['check_out_date']
-  check_out_poc = item_data_df.iloc[0]['check_out_poc']
-  item_image = item_data_df.iloc[0]['item_image']
-  item_description = item_data_df.iloc[0]['item_description']
-  item_tags = item_data_df.iloc[0]['item_tags']
-
   # Handle loading and encoding image from media data
-  img_path = Path(str(item_image))
+  img_path = Path(str(item_data_df.iloc[0]['item_image']))
   info(f'Image file path {img_path.absolute().as_posix()}')
   if img_path.exists():
     state.item_image_path = img_path.absolute().as_posix()
@@ -279,20 +251,167 @@ def populate_item_from_id(id: int):
         encode_image_from_path(image_not_found_path)}"
 
   # Update state
-  state.item_name = f'{item_name}'
-  state.item_manufacturer = f'{manufacturer}'
-  state.item_manufacturer_details = f'{manufacturer_contact}'
-  state.is_checked_out = f'{is_checked_out}'
-  state.check_out_date = f'{check_out_date}'
-  state.check_out_poc = f'{check_out_poc}'
-  state.date_added = f'{date_added}'
-  state.item_description = f'{item_description}'
-  state.item_tags = f'{item_tags}'
-  if is_checked_out:
+  state.item_name = f'{item_data_df.iloc[0]["item_name"]}'
+  state.item_manufacturer = f'{item_data_df.iloc[0]['manufacturer']}'
+  state.item_manufacturer_details = f'{
+      item_data_df.iloc[0]['manufacturer_contact']}'
+  state.is_checked_out = f'{item_data_df.iloc[0]['is_checked_out']}'
+  state.check_out_date = f'{item_data_df.iloc[0]['check_out_date']}'
+  state.check_out_poc = f'{item_data_df.iloc[0]['check_out_poc']}'
+  state.date_added = f'{item_data_df.iloc[0]['date_added']}'
+  state.item_description = f'{item_data_df.iloc[0]['item_description']}'
+  state.item_tags = f'{item_data_df.iloc[0]['item_tags']}'
+
+  if state.is_checked_out:
     state.checkout_status_summary = f'This item is checked out since {
-        check_out_date} by {check_out_poc}'
+        state.check_out_date} by {state.check_out_poc}'
   else:
     state.checkout_status_summary = ' This item has not been checked out.'
+
+  print(f'--- {state.item_name}')
+
+  return state
+
+# -------------------------------------------------------------------------
+#   CAMERA SERVER
+# -------------------------------------------------------------------------
+
+
+def scan_qr_messages():
+  """
+  Callback function used by the Camera server. This function will be called
+  every time a valid QR code has been detected in the camera stream.
+  The function handles the following activies:
+  * Get the decoded QR message from the camera server
+  * Parse the message to retrieve the ID
+  * Call the database to collect the inventory data corresponding to this
+    ID
+  * Populate server.state variables with the collected data
+
+  """
+  global state
+  while True:
+    qr_code_message = camera_server.get_qr_message()
+
+    valid, id = parse_qr_message(qr_code_message)
+
+    print('Scan for messages')
+
+    if valid:
+      # Update the scan button color to indicate a successful scan
+      state.scan_bt_color = 'success'
+
+      state.parsed_item_id = id
+
+      state = populate_item_from_id(id, state)
+
+      print(f'- {state.item_name}')
+    else:
+      # Update the scan button color to indicate a failed scan
+      state.scan_bt_color = 'failure'
+      error('failure')
+
+    time.sleep(0.2)
+
+
+class CameraServer():
+  """
+  Class to use Flask to host a camera web server. This web stream is used
+  to:
+     * Scan item QR codes
+     * Take images of each inventory item to be stored in the database
+
+  """
+
+  def __init__(self, parsed_id, condition):
+    # Enable/Disable displaying the QR message in the streamed image
+    self.enableQrText = False
+
+    self.parsed_id = parsed_id
+    self.condition = condition
+
+    self.app = Flask(__name__)
+    # Enable CORS
+    CORS(self.app)
+
+    self.manager = Manager()
+    self.qr_message = self.manager.Value('d', '')
+
+    self.image_manager = Manager()
+    self.captured_frame = self.image_manager.Value('d', '')
+
+    # Define routes inside the constructor
+    self.app.add_url_rule('/', 'index', self.index)
+    self.app.add_url_rule('/video_feed', 'video_feed', self.video_feed)
+
+  def generate_frame_by_frame(self):
+    # Create OpenCV VideoCapture instance for webcam at port 0
+    camera = cv.VideoCapture(0)
+    while True:
+      # Capture frame-by-frame
+      success, frame = camera.read()
+      if not success:
+        error('Failed to conntect to camera.')
+        break
+      else:
+
+        (frame,
+         _,
+         num_markers,
+         decoded_list) = detect_and_decode_qr_marker(frame)
+
+        self.captured_frame.value = frame
+
+        # Only use the decoded messages if one and only one marker is detected
+        # within the image
+        if num_markers > 1:
+          warning(
+              f'Multiple ({num_markers}) QR marker detected within the image. Aborting compiling the decoded message.')
+
+        if num_markers == 1:
+          # Valid detection -> Single QR marker found
+          self.qr_message.value = str(decoded_list[0])
+          with self.condition:
+            self.parsed_id.value = 3
+            self.condition.notify_all()
+
+        ret, buffer = cv.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               # concat frame one by one and show result
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+  def video_feed(self):
+    """
+    Video streaming route. Put this in the src attribute of an img tag
+    """
+    return Response(self.generate_frame_by_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+  def index(self):
+    """Video streaming home page."""
+    return render_template('index.html')
+
+  def run(self):
+    """
+    Start the camera server
+    """
+    # Start video streaming server
+    self.app.run(host='127.0.0.1',
+                 port=5000,
+                 debug=False,
+                 use_reloader=False,
+                 threaded=True)
+
+  def get_last_frame(self):
+    return np.array(self.captured_frame.value)
+
+  def get_qr_message(self):
+    return str(self.qr_message.value)
+
+
+# Create camera server instance
+camera_server = CameraServer(dummy_id, condition)
 
 
 def read_item_user_input_to_object():
@@ -343,7 +462,7 @@ def capture_image():
 
 def update_item_image_with_capture():
   """
-  Take the latest captured image and set it as the currently selected items 
+  Take the latest captured image and set it as the currently selected items
   image
   """
 
@@ -402,7 +521,7 @@ def login(username, password):
 @ state.change("selection")
 def selection_change(selection=[], **kwargs):
   """
-  Callback function that is called every time the user selects an item in 
+  Callback function that is called every time the user selects an item in
   the main table
   """
   global inventory_df, inventory_item
@@ -467,6 +586,9 @@ def main():
   # -----------------------------------------------------------------------
   # -- TABLE FUNCTIONS
   # -----------------------------------------------------------------------
+  # TODO Remove
+  def print_item_name():
+    print(f'Item name {state.item_name}')
 
   def filter_inventory_df(query):
     """
@@ -482,7 +604,7 @@ def main():
 
   def update_table():
     """
-    Update the table view 
+    Update the table view
     """
     filtered_df = filter_inventory_df(state.query)
     headers, rows = vuetify.dataframe_to_grid(
@@ -618,21 +740,23 @@ def main():
   # --- Inventory [HOME]
   with RouterViewLayout(server, "/", clicked=update_inventory_df):
     with vuetify.VContainer(fluid=True):
-      with vuetify.VRow(classes="justify-center ma-6", v_if="logged_in"):
+      with VRow(classes="justify-center ma-6", v_if="logged_in"):
         fig = vega.Figure(classes="ma-2", style="width: 100%;")
         ctrl.fig_update = fig.update
         vuetify.VDataTable(**main_table_config, v_if="logged_in")
-      with vuetify.VRow(v_if="logged_in"):
-        with vuetify.VCol():
-          with vuetify.VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+      with VRow(v_if="logged_in"):
+        with VCol():
+          with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
             VIcon('mdi-swap-horizontal')
             VBtn("Update Item",
                  click=update_inventory_item)
-          with vuetify.VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+          with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
             VIcon('mdi-trash-can-outline')
             VBtn("Delete Item",
                  click=delete_inventory_item)
-          with vuetify.VRow(v_if="logged_in"):
+          with VRow(v_if="logged_in"):
+            fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
+            ctrl.view_update = fig_item.update
             with vuetify.VContainer(fluid=True):
               VTextField(
                   v_model=("item_name", ""),
@@ -659,31 +783,31 @@ def main():
                   label="Manufacturer Details",
                   placeholder="Enter item name"
               )
-        with vuetify.VCol():
+        with VCol():
           with VCard(classes="ma-5", max_width="350px", elevation=2):
             fig = vega.Figure(classes="ma-2", style="width: 100%;")
             ctrl.fig_update = fig.update
             VCardText("Current Item Image")
-            vuetify.VImg(
+            VImg(
                 src=("image_src",),
                 max_width="400px",
                 classes="mb-5")
             with vuetify.VAppBar(elevation=0):
-              vuetify.VIcon("mdi-arrow-up-bold-box", size=35, left=False)
+              VIcon("mdi-arrow-up-bold-box", size=35, left=False)
               VBtn("Change Current Image",
                    click=update_item_image_with_capture)
-              vuetify.VIcon("mdi-arrow-up-bold-box", size=35, left=True)
+              VIcon("mdi-arrow-up-bold-box", size=35, left=True)
             VCardText("Captured Image")
-            vuetify.VImg(
+            VImg(
                 src=("display_img_src",),
                 max_width="400px",
                 classes="mb-5")
-        with vuetify.VCol():
+        with VCol():
           VCardText("Camera stream")
           VCardText("Place the item in front of the camera!")
           # Embed camera stream in this sub-page
           html.Div(html_content_embed_camera_stream)
-          with vuetify.VRow(v_if="logged_in", style="margin-top: 10px;"):
+          with VRow(v_if="logged_in", style="margin-top: 10px;"):
             VIcon('mdi-camera-plus-outline', left=False)
             VBtn("Capture Image",
                  click=capture_image,
@@ -693,8 +817,8 @@ def main():
   # --- Add inventory
   with RouterViewLayout(server, "/add inventory item"):
     with vuetify.VContainer(fluid=True):
-      with vuetify.VRow(v_if="logged_in"):
-        with vuetify.VCol():
+      with VRow(v_if="logged_in"):
+        with VCol():
           VCardTitle("Add Inventory Item - Under Construction")
           VCardText("Place the item in front of the camera!")
           with VCardText():
@@ -727,27 +851,29 @@ def main():
           )
           # Display captured frames
           VCardText("Item image")
-          vuetify.VImg(
+          VImg(
               src=("display_img_src",),
               max_width="600px",
               classes="mb-5")
 
-        with vuetify.VCol():
+        with VCol():
           # Embed camera stream in this sub-page
           html.Div(html_content_embed_camera_stream_large)
 
   # --- Checkout inventory
   with RouterViewLayout(server, "/checkout inventory item"):
     with vuetify.VContainer(fluid=True):
-      with vuetify.VRow(v_if="logged_in"):
-        with vuetify.VCol():
+      with VRow(v_if="logged_in"):
+        fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
+        ctrl.view_update = fig_item.update
+        with VCol():
           VCardTitle(
               "Checkout Inventory Item")
 
           VBtn("Check-out this item", click=checkout_item)
 
           with VCard(classes="ma-5", max_width="350px", elevation=2):
-            vuetify.VImg(
+            VImg(
                 src=("image_src",), max_width="400px", classes="mb-5")
 
           with VCard(classes="ma-5", max_width="550px", elevation=2):
@@ -764,27 +890,24 @@ def main():
             VCardText(
                 "Check out status: {{ checkout_status_summary }}")
 
-        with vuetify.VCol():
-          VCardText("Place the item QR code in front of the camera!")
+        with VCol():
+          with VRow(v_if="logged_in", style="margin-top: 10px;"):
+            VIcon('mdi-qrcode-scan', left=True, size=35)
+            VCardText("Place the item QR code in front of the camera!")
           # Embed camera stream in this sub-page
           html.Div(html_content_embed_camera_stream, v_if="logged_in")
-          with vuetify.VRow(v_if="logged_in", style="margin-top: 10px;"):
-            VIcon('mdi-qrcode-scan', left=True, size=35)
-            VBtn("Scan Item QR Code",
-                 click=update_item,
-                 color=("scan_bt_color",))
 
   # --- Return inventory
   with RouterViewLayout(server, "/return inventory item"):
     with vuetify.VContainer(fluid=True):
-      with vuetify.VRow(v_if="logged_in"):
-        with vuetify.VCol():
+      with VRow(v_if="logged_in"):
+        with VCol():
           VCardTitle("Return Inventory Item - Under Construction")
 
           VBtn("Return this item", click=checkin_item)
 
           with VCard(classes="ma-5", max_width="350px", elevation=2):
-            vuetify.VImg(
+            VImg(
                 src=("image_src",), max_width="400px", classes="mb-5")
 
           with VCard(classes="ma-5", max_width="550px", elevation=5):
@@ -797,24 +920,20 @@ def main():
             VCardText("In Inventory since {{ date_added }}")
             VCardText(
                 "Check out status: {{ checkout_status_summary }}")
-        with vuetify.VCol():
+        with VCol():
           VCardText("Place the item QR code in front of the camera!")
           # Embed camera stream in this sub-page
           html.Div(html_content_embed_camera_stream)
-          with vuetify.VRow(v_if="logged_in", style="margin-top: 10px;"):
-            VIcon('mdi-qrcode-scan', left=False, size=35)
-            VBtn("Scan Item QR Code",
-                 click=update_item,
-                 color=("scan_bt_color",))
+          VBtn("Print item name", click=print_item_name)
 
   # Main page content
   with SinglePageWithDrawerLayout(server) as layout:
     layout.title.set_text(inventory_page_title)
-
     if enableLogin:
       # Login form
       with layout.content:
-        with VCard(max_width="400px", v_if="!logged_in", outlined=True, classes="mx-auto mt-10"):
+        with VCard(max_width="400px", v_if="!logged_in", outlined=True,
+                   classes="mx-auto mt-10"):
           with VCardTitle():
             VCardTitle("Login")
           with VCardText():
@@ -864,25 +983,25 @@ def main():
 
         with VListItem(to="/", clicked=update_inventory_df):
           with VListItemIcon():
-            vuetify.VIcon("mdi-home")
+            VIcon("mdi-home")
           with VListItemContent():
             VListItemTitle("Inventory", clicked=update_inventory_df)
 
         with VListItem(to="/add inventory item", clicked=update_inventory_df):
           with VListItemIcon():
-            vuetify.VIcon("mdi-plus", v_if="logged_in")
+            VIcon("mdi-plus", v_if="logged_in")
           with VListItemContent():
             VListItemTitle("Add Inventory Item", v_if="logged_in")
 
         with VListItem(to="/checkout inventory item"):
           with VListItemIcon():
-            vuetify.VIcon("mdi-check", v_if="logged_in")
+            VIcon("mdi-check", v_if="logged_in")
           with VListItemContent():
             VListItemTitle("Checkout Inventory Item", v_if="logged_in")
 
         with VListItem(to="/return inventory item"):
           with VListItemIcon():
-            vuetify.VIcon("mdi-arrow-right", v_if="logged_in")
+            VIcon("mdi-arrow-right", v_if="logged_in")
           with VListItemContent():
             VListItemTitle("Return Inventory Item", v_if="logged_in")
 
@@ -893,13 +1012,19 @@ def main():
   def on_query_change(query, **kwargs):
     update_table()
 
+  # scan_qr_messages()
+  t = Thread(target=scan_qr_messages)
+  t.run()
   # -----------------------------------------------------------------------
   # Start server
   # -----------------------------------------------------------------------
   if enableRunForDebug:
-    server.start()
+    server.start(thread=True,
+                 open_browser=True,
+                 disable_logging=True)
   else:
-    server.start(host=frontend_host_ip,
+    server.start(open_browser=False,
+                 host=frontend_host_ip,
                  port=frontend_host_port)
 
   # Close camera thread

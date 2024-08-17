@@ -46,14 +46,14 @@ disableDatabaseColumnFilter = False
 # Create HTML snipped to embed camera live stream from flask server
 html_content_embed_camera_stream = """
 <div>
-    <img crossorigin="anonymous" src="http://127.0.0.1:5000/video_feed" width="70%">
+    <img crossorigin="anonymous" src="http://127.0.0.1:5000" width="70%">
 </div>
 """
 
 # Create HTML snipped to embed camera live stream from flask server
 html_content_embed_camera_stream_large = """
 <div>
-    <img crossorigin="anonymous" src="http://127.0.0.1:5000/video_feed" width="85%">
+    <img crossorigin="anonymous" src="http://127.0.0.1:5000" width="85%">
 </div>
 """
 

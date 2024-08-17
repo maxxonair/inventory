@@ -112,12 +112,12 @@ container is up and running.
 Start the application with:
 
 ```
-python fronend/app.py
+python app.py
 ```
 
-Default IP and port are configured in the frontend_config file, the sever
-should be launched with a different setting use:
+This command includes starting up and handling the following elements: 
+- the database client
+- the camera server
+- the UI server
 
-```
-python fronend/app.py --host <HOST IP> --port <PORT>
-```
+Note that running the application requires having the database server already running.
