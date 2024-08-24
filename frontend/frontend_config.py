@@ -28,7 +28,7 @@ frontend_host_port = 8080
 # Flag to enable/disable the login function. Disabling for debugging only!
 # If disabled the user will be set to the default user without prompting
 # the login page
-enableLogin = False
+enableLogin = True
 
 # Flag to run frontend in debug mode
 # Server will only be hosted to local host. frontend_host_ip/frontend_host_port

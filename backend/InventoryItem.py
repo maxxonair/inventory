@@ -55,6 +55,7 @@ class InventoryItem():
     self._update_dict()
 
   def get_item_dict(self) -> dict:
+    self._update_dict()
     return self.inventoryItemDict
 
   def _update_dict(self):

@@ -32,6 +32,7 @@ sys.path.append(parent_dir)
 from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
 from backend.InventoryItem import InventoryItem
+from backend.InventoryUser import InventoryUser
 from backend.CameraServer import CameraServer
 
 # ---- Frontend imports
@@ -52,25 +53,18 @@ from frontend.frontend_config import (inventory_page_title,
 
 
 class FrontendApplication:
-  
 
-  
-  # TODO to be removed when user database is in place
-  # Dummy credentials for demonstration purposes only
-  VALID_USERNAME = "romi"
-  VALID_PASSWORD = "pass"
-
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   #                 [INIT]
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   def __init__(self, db_client: DataBaseClient, camera_server: CameraServer = None):
     # -----------------------------------------------------------------------
     # Main application server
     # -----------------------------------------------------------------------
     self.server = get_server(client_type="vue2")
     self.state, self.ctrl = self.server.state, self.server.controller
-    
-      # Create server.state members
+
+    # Create server.state members
     self.state.selected_item_id = None
     self.state.dummy_id = 0
     self.state.parsed_item_id = None
@@ -85,13 +79,12 @@ class FrontendApplication:
     self.state.date_added = ""
     self.state.checkout_status_summary = ""
     self.state.item_image_path = (Path("./frontend/data") /
-                            'no_image_available.jpg').absolute().as_posix()
+                                  'no_image_available.jpg').absolute().as_posix()
 
     self.state.image_src = f"data:image/png;base64,{
         self.encode_image_from_path(image_not_found_path)}"
     self.state.display_img_src = f"data:image/png;base64,{
         self.encode_image_from_path(image_not_found_path)}"
-
 
     self.state.scan_bt_color = 'primary'
 
@@ -103,7 +96,7 @@ class FrontendApplication:
     self.state.password = ""
 
     local_image_dir = ''
-    
+
     self.db_client = db_client
 
     # -----------------------------------------------------------------------
@@ -232,7 +225,7 @@ class FrontendApplication:
       if ret:
         # Update checkout status in database
         db_client.update_inventory_item_checkout_status(id=self.state.parsed_item_id,
-                                                        inventory_item=inventory_item)
+                                                        inventory_item=self.inventory_item)
         # Update the dataframe so the table reflects the updated DB state
         self.update_inventory_df()
 
@@ -246,7 +239,7 @@ class FrontendApplication:
 
       # Update checkout status in database
       db_client.update_inventory_item_checkout_status(id=self.state.parsed_item_id,
-                                                      inventory_item=inventory_item)
+                                                      inventory_item=self.inventory_item)
       # Update the dataframe so the table reflects the updated DB state
       self.update_inventory_df()
 
@@ -283,11 +276,11 @@ class FrontendApplication:
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
               VIcon('mdi-swap-horizontal')
               VBtn("Update Item",
-                  click=update_inventory_item)
+                   click=update_inventory_item)
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
               VIcon('mdi-trash-can-outline')
               VBtn("Delete Item",
-                  click=delete_inventory_item)
+                   click=delete_inventory_item)
             with VRow(v_if="logged_in"):
               fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
               self.ctrl.view_update = fig_item.update
@@ -329,7 +322,7 @@ class FrontendApplication:
               with vuetify.VAppBar(elevation=0):
                 VIcon("mdi-arrow-up-bold-box", size=35, left=False)
                 VBtn("Change Current Image",
-                    click=self.update_item_image_with_capture)
+                     click=self.update_item_image_with_capture)
                 VIcon("mdi-arrow-up-bold-box", size=35, left=True)
               VCardText("Captured Image")
               VImg(
@@ -344,8 +337,8 @@ class FrontendApplication:
             with VRow(v_if="logged_in", style="margin-top: 10px;"):
               VIcon('mdi-camera-plus-outline', left=False)
               VBtn("Capture Image",
-                  click=self.capture_image,
-                  variant='outlined')
+                   click=self.capture_image,
+                   variant='outlined')
               VIcon('mdi-camera-plus-outline', left=True)
 
     # --- Add inventory
@@ -467,7 +460,7 @@ class FrontendApplication:
         # Login form
         with layout.content:
           with VCard(max_width="400px", v_if="!logged_in", outlined=True,
-                    classes="mx-auto mt-10"):
+                     classes="mx-auto mt-10"):
             with VCardTitle():
               VCardTitle("Login")
             with VCardText():
@@ -491,7 +484,7 @@ class FrontendApplication:
         VTextField(
             v_model=("query",),
             placeholder="Search Inventory Item",
-            dense=True,
+            dense=False,
             v_if="logged_in",
             hide_details=True,
             prepend_icon="mdi-magnify",
@@ -504,6 +497,13 @@ class FrontendApplication:
         )
 
         VBtn("CSV Export", v_if="logged_in")  # TODO Callback to be added
+        with VCard(classes="ma-5"):
+          with VRow(v_if="logged_in"):
+            with VCol():
+              VIcon('mdi-account', left=False, size=45)
+            with VCol():
+              VCardText("{{ username }}")
+
         VBtn("Log out", v_if="logged_in", click=self.logout)
 
       with layout.content:
@@ -545,11 +545,11 @@ class FrontendApplication:
     @ self.state.change("query")
     def on_query_change(query, **kwargs):
       update_table()
-      
+
     @ self.state.change('item_name')
     def update_item_textfields(**kwargs):
-      self.ctrl.view_update()  
-        
+      self.ctrl.view_update()
+
     @ self.state.change("selection")
     def selection_change(selection=[], **kwargs):
       """
@@ -571,19 +571,19 @@ class FrontendApplication:
 
           # Save a complete and global copy of this item
           self.inventory_item.populate_from_df(
-              item_data_df = self.db_client.get_inventory_item_as_df(current_id))
+              item_data_df=self.db_client.get_inventory_item_as_df(current_id))
 
         elif len(selected_df["id"].tolist()) == 1:
           TODO = True
           # TODO add callback to empty item state variables if no item
           #      is actively selected by the user
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
   #                 [FUNCTIONS]
-  #-----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
+
   def encode_image_from_path(self, image_path):
     with open(image_path, "rb") as image_file:
       return base64.b64encode(image_file.read()).decode('utf-8')
-
 
   def encode_image(self, cv_image):
       # Convert the OpenCV image (NumPy array) to bytes
@@ -595,7 +595,6 @@ class FrontendApplication:
   # -------------------------------------------------------------------------
   #   UI CALLBACK FUNCTIONS
   # -------------------------------------------------------------------------
-
 
   def update_inventory_df(self):
     """
@@ -609,18 +608,18 @@ class FrontendApplication:
     if not disableDatabaseColumnFilter:
       # -- Remove columns that should not be displayed
       self.inventory_df = self.inventory_df.drop('item_image', axis=1)
-      self.inventory_df = self.inventory_df.drop('manufacturer_contact', axis=1)
+      self.inventory_df = self.inventory_df.drop(
+          'manufacturer_contact', axis=1)
 
       # Rename columns for a more user friendly table view
       self.inventory_df = self.inventory_df.rename(columns={'item_name': 'Item',
-                                                  'item_description': 'Description',
-                                                  'manufacturer': 'Manufacturer',
-                                                  'is_checked_out': 'Checked-Out',
-                                                  'check_out_date': 'Checkout Date',
-                                                  'check_out_poc': 'Checked-Out By',
-                                                  'date_added': 'Date Added',
-                                                  'item_tags': 'Tags'})
-
+                                                            'item_description': 'Description',
+                                                            'manufacturer': 'Manufacturer',
+                                                            'is_checked_out': 'Checked-Out',
+                                                            'check_out_date': 'Checkout Date',
+                                                            'check_out_poc': 'Checked-Out By',
+                                                            'date_added': 'Date Added',
+                                                            'item_tags': 'Tags'})
 
   def populate_item_from_id(self, id: int):
     """
@@ -641,7 +640,7 @@ class FrontendApplication:
     # Handle loading and encoding image from media data
     img_path = Path(str(item_data_df.iloc[0]['item_image']))
     info(f'Image file path {img_path.absolute().as_posix()}')
-    
+
     if img_path.exists():
       self.state.item_image_path = img_path.absolute().as_posix()
       try:
@@ -651,7 +650,8 @@ class FrontendApplication:
       except:
         self.state.image_src = f"data:image/png;base64,{
             self.encode_image_from_path(image_not_found_path)}"
-        warning(f'Encoding image url failed for path {self.state.item_image_path}')
+        warning(f'Encoding image url failed for path {
+                self.state.item_image_path}')
 
     else:
       warning(f'Failed to locate media file {
@@ -704,12 +704,12 @@ class FrontendApplication:
       inventoryItem.item_name = str(self.state.item_name)
       inventoryItem.item_description = str(self.state.item_description)
       inventoryItem.manufacturer = str(self.state.item_manufacturer)
-      inventoryItem.manufacturer_contact = str(self.state.item_manufacturer_details)
+      inventoryItem.manufacturer_contact = str(
+          self.state.item_manufacturer_details)
       inventoryItem.item_tags = str(self.state.item_tags)
       inventoryItem.set_img_path(Path(self.state.item_image_path))
 
     return valid_data, inventoryItem
-
 
   def capture_image(self):
     """
@@ -724,7 +724,6 @@ class FrontendApplication:
           self.encode_image(display_img)}"
     except:
       warning('[capture_image] Capturing image failed.')
-
 
   def update_item_image_with_capture(self):
     """
@@ -752,24 +751,21 @@ class FrontendApplication:
       except:
         self.state.image_src = f"data:image/png;base64,{
             self.encode_image_from_path(image_not_found_path)}"
-        warning(f'Encoding image url failed for path {self.state.item_image_path}')
+        warning(f'Encoding image url failed for path {
+                self.state.item_image_path}')
 
       # Update the path in the database
       if self.state.selected_item_id is not None:
         self.db_client.update_inventory_item_image_path(self.state.selected_item_id,
-                                                  img_path.absolute().as_posix())
-
+                                                        img_path.absolute().as_posix())
 
   def logout(self, *args):
     """
     Callback function to log out current user
     """
-    global enableLogin
     self.state.user_name = ''
     self.state.password = ''
     self.state.logged_in = False
-    enableLogin = True
-
 
   def login(self, username, password):
     """
@@ -777,14 +773,16 @@ class FrontendApplication:
 
     TODO -> to be replaced by user database interface
     """
-    if username == self.VALID_USERNAME and password == self.VALID_PASSWORD:
+    valid_user, inventoryUser = self.db_client.get_inventory_user_as_object(
+        username)
+
+    if not valid_user:
+      self.state.error_message = "User name not found."
+    elif inventoryUser.is_password(password):
       self.state.logged_in = True
       self.state.error_message = ""
     else:
       self.state.error_message = "Invalid credentials. Please try again."
-
-
-
 
   def start_server(self):
     """
@@ -793,13 +791,13 @@ class FrontendApplication:
     # --- Start server ---
     if enableRunForDebug:
       self.server.start(thread=True,
-                  open_browser=True,
-                  disable_logging=True)
+                        open_browser=True,
+                        disable_logging=True)
     else:
       self.server.start(open_browser=False,
-                  host=frontend_host_ip,
-                  port=frontend_host_port,
-                  disable_logging=True)
+                        host=frontend_host_ip,
+                        port=frontend_host_port,
+                        disable_logging=True)
 
 
 # Function to allow running the frontend in isolation
@@ -808,6 +806,6 @@ if __name__ == "__main__":
   logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                       datefmt='%H:%M:%S',
                       level=logging.INFO)
-  
+
   app = FrontendApplication(db_client=DataBaseClient(host=database_host))
   app.start_server()
