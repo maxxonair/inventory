@@ -3,7 +3,7 @@ from flask import Flask, Response, render_template
 from multiprocessing import Manager
 import cv2 as cv
 from logging import warning, error
-import numpy as np 
+import numpy as np
 import os
 import sys
 
@@ -12,6 +12,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
 from backend.util import detect_and_decode_qr_marker
+
 
 class CameraServer():
   """
@@ -22,12 +23,9 @@ class CameraServer():
 
   """
 
-  def __init__(self, parsed_id = None, condition=None):
+  def __init__(self):
     # Enable/Disable displaying the QR message in the streamed image
     self.enableQrText = False
-
-    self.parsed_id = parsed_id
-    self.condition = condition
 
     self.app = Flask(__name__)
     # Enable CORS
@@ -58,7 +56,7 @@ class CameraServer():
          num_markers,
          decoded_list) = detect_and_decode_qr_marker(frame)
 
-        self.captured_frame.value = frame
+        # self.captured_frame.value = frame
 
         # Only use the decoded messages if one and only one marker is detected
         # within the image
@@ -68,13 +66,8 @@ class CameraServer():
 
         if num_markers == 1:
           # Valid detection -> Single QR marker found
-          self.qr_message.value = str(decoded_list[0])
-          try:
-            with self.condition:
-              self.parsed_id.value = 3
-              self.condition.notify_all()
-          except:
-            warning('Updating ID failed')
+          TODO = True  # Add function back
+          # self.qr_message.value = str(decoded_list[0])
 
         ret, buffer = cv.imencode('.jpg', frame)
         frame = buffer.tobytes()
@@ -89,13 +82,13 @@ class CameraServer():
     """
     return Response(self.generate_frame_by_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-  def run(self):
+  def run(self, host: str = '127.0.0.1', port: int = 5000):
     """
     Start the camera server
     """
     # Start video streaming server
-    self.app.run(host='127.0.0.1',
-                 port=5000,
+    self.app.run(host=host,
+                 port=port,
                  debug=False,
                  use_reloader=False,
                  threaded=True)
@@ -106,7 +99,8 @@ class CameraServer():
   def get_qr_message(self):
     return str(self.qr_message.value)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
   server = CameraServer()
-  
+
   server.run()

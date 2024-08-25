@@ -91,9 +91,13 @@ class FrontendApplication:
     # Server.state members to track log in status
     self.state.logged_in = False
     self.state.error_message = ""
+
     # Initialize state variables
     self.state.username = ""
     self.state.password = ""
+
+    self.state.logged_in = False
+    self.state.show_img_swap_page = False
 
     local_image_dir = ''
 
@@ -112,9 +116,6 @@ class FrontendApplication:
     # -----------------------------------------------------------------------
     # -- TABLE FUNCTIONS
     # -----------------------------------------------------------------------
-    # TODO Remove
-    def print_item_name():
-      print(f'Item name {self.state.item_name}')
 
     def filter_inventory_df(query):
       """
@@ -125,7 +126,7 @@ class FrontendApplication:
         return self.inventory_df
       else:
         query = query.lower()
-        filtered_df = self.inventory_df[inventory_df.astype(str).apply(
+        filtered_df = self.inventory_df[self.inventory_df.astype(str).apply(
             lambda x: x.str.lower().str.contains(query).any(axis=1))]
         return filtered_df
 
@@ -311,30 +312,38 @@ class FrontendApplication:
                     placeholder="Enter item name"
                 )
           with VCol():
-            with VCard(classes="ma-5", max_width="350px", elevation=2):
-              fig = vega.Figure(classes="ma-2", style="width: 100%;")
-              self.ctrl.fig_update = fig.update
-              VCardText("Current Item Image")
-              VImg(
-                  src=("image_src",),
-                  max_width="400px",
-                  classes="mb-5")
-              with vuetify.VAppBar(elevation=0):
-                VIcon("mdi-arrow-up-bold-box", size=35, left=False)
-                VBtn("Change Current Image",
-                     click=self.update_item_image_with_capture)
-                VIcon("mdi-arrow-up-bold-box", size=35, left=True)
-              VCardText("Captured Image")
-              VImg(
-                  src=("display_img_src",),
-                  max_width="400px",
-                  classes="mb-5")
-          with VCol():
+            VImg(
+                src=("image_src",),
+                max_width="400px",
+                classes="mb-5")
+        with VRow(v_if="logged_in"):
+          VBtn("Change image", click=self.switch_show_img_change)
+        with VRow(v_if="show_img_swap_page"):
+          with VCard(classes="ma-5", v_if="show_img_swap_page",
+                     max_width="350px", elevation=2):
+            fig = vega.Figure(classes="ma-2", style="width: 100%;")
+            self.ctrl.fig_update = fig.update
+            VCardText("Current Item Image")
+            VImg(
+                src=("image_src",),
+                max_width="400px",
+                classes="mb-5")
+            with vuetify.VAppBar(elevation=0):
+              VIcon("mdi-arrow-up-bold-box", size=35, left=False)
+              VBtn("Change Current Image",
+                   click=self.update_item_image_with_capture)
+              VIcon("mdi-arrow-up-bold-box", size=35, left=True)
+            VCardText("Captured Image")
+            VImg(
+                src=("display_img_src",),
+                max_width="400px",
+                classes="mb-5")
+          with VCol(v_if="show_img_swap_page"):
             VCardText("Camera stream")
             VCardText("Place the item in front of the camera!")
             # Embed camera stream in this sub-page
             html.Div(html_content_embed_camera_stream)
-            with VRow(v_if="logged_in", style="margin-top: 10px;"):
+            with VRow(v_if="show_img_swap_page", style="margin-top: 10px;"):
               VIcon('mdi-camera-plus-outline', left=False)
               VBtn("Capture Image",
                    click=self.capture_image,
@@ -451,7 +460,6 @@ class FrontendApplication:
             VCardText("Place the item QR code in front of the camera!")
             # Embed camera stream in this sub-page
             html.Div(html_content_embed_camera_stream)
-            VBtn("Print item name", click=print_item_name)
 
     # Main page content
     with SinglePageWithDrawerLayout(self.server) as layout:
@@ -471,7 +479,7 @@ class FrontendApplication:
             VBtn("Login", click=lambda: self.login(
                 self.state.username, self.state.password), block=True)
             VSpacer()
-            VCardText(v_if="error_message",
+            VCardText("{{ error_message }}",
                       classes="red--text text-center")
       else:
         # Debug option - Log in disabled
@@ -759,6 +767,14 @@ class FrontendApplication:
         self.db_client.update_inventory_item_image_path(self.state.selected_item_id,
                                                         img_path.absolute().as_posix())
 
+  def switch_show_img_change(self, *args):
+    if self.state.show_img_swap_page:
+      self.state.show_img_swap_page = False
+      info('Show image swap')
+    else:
+      self.state.show_img_swap_page = True
+      info('Hide image swap')
+
   def logout(self, *args):
     """
     Callback function to log out current user
@@ -766,6 +782,7 @@ class FrontendApplication:
     self.state.user_name = ''
     self.state.password = ''
     self.state.logged_in = False
+    self.state.error_message = ''
 
   def login(self, username, password):
     """
@@ -777,12 +794,12 @@ class FrontendApplication:
         username)
 
     if not valid_user:
-      self.state.error_message = "User name not found."
+      self.state.error_message = "User name not found"
     elif inventoryUser.is_password(password):
       self.state.logged_in = True
       self.state.error_message = ""
     else:
-      self.state.error_message = "Invalid credentials. Please try again."
+      self.state.error_message = "Invalid credentials, please try again"
 
   def start_server(self):
     """

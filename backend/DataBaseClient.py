@@ -25,7 +25,7 @@ class DataBaseClient():
     }
 
     try:
-      # Establishing the connection
+      # Establishing the connection with the database server
       self.connection = mariadb.connect(**self.connection_config)
 
       # Perform database operations
@@ -37,7 +37,7 @@ class DataBaseClient():
       error()
       error(f"Error connecting to MariaDB: {e}")
 
-    # -- Check that database exists --
+    # -- Ensure that database exists --
     if not self.is_database(INVENTORY_DB_NAME):
       warning(
           f' {INVENTORY_DB_NAME} database not found.')
@@ -49,7 +49,7 @@ class DataBaseClient():
     # Use inventory database from here onwards
     self.cursor.execute(f"USE {INVENTORY_DB_NAME}")
 
-    # -- Check that inventory table exists --
+    # -- Ensure that inventory table exists --
     if not self.is_table(INVENTORY_TABLE_NAME):
       warning(
           f' {INVENTORY_TABLE_NAME} table not found.')
@@ -58,7 +58,7 @@ class DataBaseClient():
     else:
       info(f'[x] {INVENTORY_TABLE_NAME} table found.')
 
-    # -- Check that inventory user table exists --
+    # -- Ensure that inventory user table exists --
     if not self.is_table(INVENTORY_USER_TABLE_NAME):
       warning(
           f' {INVENTORY_USER_TABLE_NAME} table not found.')
