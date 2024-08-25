@@ -32,7 +32,7 @@ sys.path.append(parent_dir)
 from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
 from backend.InventoryItem import InventoryItem
-from backend.InventoryUser import InventoryUser
+from backend.InventoryUser import InventoryUser, UserPrivileges
 from backend.CameraServer import CameraServer
 
 # ---- Frontend imports
@@ -95,6 +95,13 @@ class FrontendApplication:
     # Initialize state variables
     self.state.username = ""
     self.state.password = ""
+    self.state.privileges = UserPrivileges.GUEST.value
+
+    # Initialize user privilege action flags
+    self.state.enable_privilege_add_item = False
+    self.state.enable_privilege_delete_item = False
+    self.state.enable_privilege_mod_item = False
+    self.state.enable_privilege_settings = False
 
     self.state.logged_in = False
     self.state.show_img_swap_page = False
@@ -217,6 +224,7 @@ class FrontendApplication:
 
         update_table()
       else:
+        # TODO Add error field to show in UI
         error('Adding Inventory item failed. Invalid user inputs')
 
     def checkout_item(*args):
@@ -275,13 +283,17 @@ class FrontendApplication:
         with VRow(v_if="logged_in"):
           with VCol():
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VIcon('mdi-swap-horizontal')
+              VIcon('mdi-swap-horizontal',
+                    v_if="enable_privilege_mod_item")
               VBtn("Update Item",
-                   click=update_inventory_item)
+                   click=update_inventory_item,
+                   v_if="enable_privilege_mod_item")
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VIcon('mdi-trash-can-outline')
+              VIcon('mdi-trash-can-outline',
+                    v_if="enable_privilege_delete_item")
               VBtn("Delete Item",
-                   click=delete_inventory_item)
+                   click=delete_inventory_item,
+                   v_if="enable_privilege_delete_item")
             with VRow(v_if="logged_in"):
               fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
               self.ctrl.view_update = fig_item.update
@@ -316,45 +328,49 @@ class FrontendApplication:
                 src=("image_src",),
                 max_width="400px",
                 classes="mb-5")
-        with VRow(v_if="logged_in"):
-          VBtn("Change image", click=self.switch_show_img_change)
-        with VRow(v_if="show_img_swap_page"):
-          with VCard(classes="ma-5", v_if="show_img_swap_page",
-                     max_width="350px", elevation=2):
-            fig = vega.Figure(classes="ma-2", style="width: 100%;")
-            self.ctrl.fig_update = fig.update
-            VCardText("Current Item Image")
-            VImg(
-                src=("image_src",),
-                max_width="400px",
-                classes="mb-5")
-            with vuetify.VAppBar(elevation=0):
-              VIcon("mdi-arrow-up-bold-box", size=35, left=False)
-              VBtn("Change Current Image",
-                   click=self.update_item_image_with_capture)
-              VIcon("mdi-arrow-up-bold-box", size=35, left=True)
-            VCardText("Captured Image")
-            VImg(
-                src=("display_img_src",),
-                max_width="400px",
-                classes="mb-5")
-          with VCol(v_if="show_img_swap_page"):
-            VCardText("Camera stream")
-            VCardText("Place the item in front of the camera!")
-            # Embed camera stream in this sub-page
-            html.Div(html_content_embed_camera_stream)
-            with VRow(v_if="show_img_swap_page", style="margin-top: 10px;"):
-              VIcon('mdi-camera-plus-outline', left=False)
-              VBtn("Capture Image",
-                   click=self.capture_image,
-                   variant='outlined')
-              VIcon('mdi-camera-plus-outline', left=True)
+
+          with VRow(v_if="logged_in"):
+            VBtn("Change image",
+                 click=self.switch_show_img_change,
+                 v_if="enable_privilege_mod_item")
+          with VRow(v_if="show_img_swap_page"):
+            with VCard(classes="ma-5", v_if="show_img_swap_page",
+                       max_width="350px", elevation=2):
+              fig = vega.Figure(classes="ma-2", style="width: 100%;")
+              self.ctrl.fig_update = fig.update
+              VCardText("Current Item Image")
+              VImg(
+                  src=("image_src",),
+                  max_width="400px",
+                  classes="mb-5")
+              with vuetify.VAppBar(elevation=0):
+                VIcon("mdi-arrow-up-bold-box", size=35, left=False)
+                VBtn("Change Current Image",
+                     click=self.update_item_image_with_capture)
+                VIcon("mdi-arrow-up-bold-box", size=35, left=True)
+              VCardText("Captured Image")
+              VImg(
+                  src=("display_img_src",),
+                  max_width="400px",
+                  classes="mb-5")
+            with VCol(v_if="show_img_swap_page"):
+              VCardText("Camera stream")
+              VCardText("Place the item in front of the camera!")
+              # Embed camera stream in this sub-page
+              html.Div(html_content_embed_camera_stream)
+              with VRow(v_if="show_img_swap_page", style="margin-top: 10px;"):
+                VIcon('mdi-camera-plus-outline', left=False)
+                VBtn("Capture Image",
+                     click=self.capture_image,
+                     variant='outlined')
+                VIcon('mdi-camera-plus-outline', left=True)
 
     # --- Add inventory
-    with RouterViewLayout(self.server, "/add inventory item"):
+    with RouterViewLayout(self.server, "/add inventory item", v_if="enable_privilege_add_item"):
       with vuetify.VContainer(fluid=True):
         with VRow(v_if="logged_in"):
           with VCol():
+            # TODO Update title
             VCardTitle("Add Inventory Item - Under Construction")
             VCardText("Place the item in front of the camera!")
             with VCardText():
@@ -438,6 +454,7 @@ class FrontendApplication:
       with vuetify.VContainer(fluid=True):
         with VRow(v_if="logged_in"):
           with VCol():
+            # TODO Update title
             VCardTitle("Return Inventory Item - Under Construction")
 
             VBtn("Return this item", click=checkin_item)
@@ -460,6 +477,14 @@ class FrontendApplication:
             VCardText("Place the item QR code in front of the camera!")
             # Embed camera stream in this sub-page
             html.Div(html_content_embed_camera_stream)
+
+    # --- Settings
+    with RouterViewLayout(self.server, "/settings"):
+      with vuetify.VContainer(fluid=True):
+        with VRow(v_if="logged_in"):
+          with VCol():
+            # TODO Update title
+            VCardTitle("Settings - Under Construction")
 
     # Main page content
     with SinglePageWithDrawerLayout(self.server) as layout:
@@ -529,7 +554,9 @@ class FrontendApplication:
             with VListItemContent():
               VListItemTitle("Inventory", clicked=self.update_inventory_df)
 
-          with VListItem(to="/add inventory item", clicked=self.update_inventory_df):
+          with VListItem(to="/add inventory item",
+                         clicked=self.update_inventory_df,
+                         v_if="enable_privilege_add_item"):
             with VListItemIcon():
               VIcon("mdi-plus", v_if="logged_in")
             with VListItemContent():
@@ -546,6 +573,13 @@ class FrontendApplication:
               VIcon("mdi-arrow-right", v_if="logged_in")
             with VListItemContent():
               VListItemTitle("Return Inventory Item", v_if="logged_in")
+
+          with VListItem(to="/settings",
+                         v_if="enable_privilege_add_item"):
+            with VListItemIcon():
+              VIcon("mdi-cog", v_if="logged_in")
+            with VListItemContent():
+              VListItemTitle("Settings", v_if="logged_in")
 
     # -----------------------------------------------------------------------
     # Internal Callbacks
@@ -786,9 +820,13 @@ class FrontendApplication:
 
   def login(self, username, password):
     """
-    Dummy login callback -> compare user input against static credentials
+    Callback function to interface with the inventory user database table:
+     * Check user name is a Inventory user
+     * Check user password matches
 
-    TODO -> to be replaced by user database interface
+     / If not both of the above show the correct error message
+     / If both of the above set logged_in to True and assign privileges
+
     """
     valid_user, inventoryUser = self.db_client.get_inventory_user_as_object(
         username)
@@ -798,23 +836,109 @@ class FrontendApplication:
     elif inventoryUser.is_password(password):
       self.state.logged_in = True
       self.state.error_message = ""
+      info(f'[x] User {username} with {UserPrivileges(
+          inventoryUser.user_privileges)} logged in')
+      self.state.privileges = inventoryUser.user_privileges
+
+      # Manage user exposure corresponding to privileges
+      self.state.enable_privilege_add_item = False
+      self.state.enable_privilege_delete_item = False
+      self.state.enable_privilege_mod_item = False
+      self.state.enable_privilege_settings = False
+
+      if inventoryUser.user_privileges == UserPrivileges.REPORTER.value:
+        self.state.enable_privilege_add_item = False
+        self.state.enable_privilege_delete_item = False
+        self.state.enable_privilege_mod_item = False
+      elif inventoryUser.user_privileges == UserPrivileges.DEVELOPPER.value:
+        self.state.enable_privilege_add_item = True
+        self.state.enable_privilege_delete_item = False
+        self.state.enable_privilege_mod_item = True
+      elif inventoryUser.user_privileges == UserPrivileges.MAINTAINER.value:
+        self.state.enable_privilege_add_item = True
+        self.state.enable_privilege_delete_item = True
+        self.state.enable_privilege_mod_item = True
+        self.state.enable_privilege_settings = True
+      elif inventoryUser.user_privileges == UserPrivileges.OWNER.value:
+        self.state.enable_privilege_add_item = True
+        self.state.enable_privilege_delete_item = True
+        self.state.enable_privilege_mod_item = True
+        self.state.enable_privilege_settings = True
+
     else:
       self.state.error_message = "Invalid credentials, please try again"
 
   def start_server(self):
     """
     Main function to start the inventory frontend server
+
+    --> From API for server.start() :
+
+    Start the server by listening to the provided port or using the port, 
+    -p command line argument. If the server is already starting or started, 
+    any further call will be skipped.
+
+    When the exec_mode=”main” or “desktop”, the method will be blocking. 
+    If exec_mode=”task”, the method will return a scheduled task. If 
+    exec_mode=”coroutine”, the method will return a coroutine which will 
+    need to be scheduled by the user.
+
+    Parameters:
+
+        port  A port number to listen to. When 0 is provided the system will 
+        use a random open port.
+
+        thread  If the server run in a thread which means we should disable 
+        interuption listeners
+
+        open_browser  
+        Should we open the system browser with app url. 
+        Using the server command line argument is similar to setting it 
+        o False.
+
+        show_connection_info  
+        hould we print connection URL at startup?
+
+        disable_logging  
+        Ask wslink to disable logging
+
+        backend  
+        aiohttp by default but could be generic or tornado. 
+        This can also be set with the environment variable TRAME_BACKEND. 
+        Defaults to 'aiohttp'.
+
+        exec_mode  
+        main/desktop/task/coroutine specify how the start 
+        function should work
+
+        timeout  
+        How much second should we wait before automatically 
+        stopping the server when no client is connected. Setting it to 0 
+        will disable such auto-shutdown.
+
+        host  The 
+        hostname used to bind the server. This can also be set 
+        with the environment variable TRAME_DEFAULT_HOST. Defaults to 
+        'localhost'.
+
+        **kwargs 
+
+        Keyword arguments for capturing optional parameters for wslink 
+        server and/or desktop browser
+
     """
     # --- Start server ---
     if enableRunForDebug:
       self.server.start(thread=True,
                         open_browser=True,
-                        disable_logging=True)
+                        disable_logging=True,
+                        timeout=0)
     else:
       self.server.start(open_browser=False,
                         host=frontend_host_ip,
                         port=frontend_host_port,
-                        disable_logging=True)
+                        disable_logging=True,
+                        timeout=0)
 
 
 # Function to allow running the frontend in isolation

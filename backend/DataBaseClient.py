@@ -21,7 +21,8 @@ class DataBaseClient():
         'password': 'inventory24',
         'host': host,  # or use the container name 'mariadb'
         'port': port,
-        'database': 'inventory'
+        'database': 'inventory',
+        'connect_timeout': 0
     }
 
     try:
@@ -336,7 +337,7 @@ class DataBaseClient():
     """
     Delete Inventory user
     """
-    info(f'[-] Add user {user_name} ')
+    info(f'[-] Delete user {user_name} ')
     sql = f"DELETE FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
     values = list([user_name])
 

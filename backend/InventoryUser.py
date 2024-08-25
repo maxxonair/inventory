@@ -2,8 +2,18 @@
 import hashlib
 from pandas import DataFrame
 from logging import warning
+from enum import Enum
+
 from backend.database_config import (INVENTORY_USER_TABLE_NAME,
                                      INVENTORY_DB_NAME)
+
+
+class UserPrivileges(Enum):
+  GUEST = 0
+  REPORTER = 1
+  DEVELOPPER = 2
+  MAINTAINER = 3
+  OWNER = 4
 
 
 class InventoryUser():
@@ -15,11 +25,11 @@ class InventoryUser():
   def __init__(self,
                user_name: str,
                user_password: str,
-               user_privileges: int = 1):
+               user_privileges: UserPrivileges = UserPrivileges.GUEST):
 
     self.user_name = user_name
     self.hashed_user_password = self._hash(user_password)
-    self.user_privileges = user_privileges
+    self.user_privileges = user_privileges.value
 
     self._update_dict()
 
@@ -49,7 +59,7 @@ class InventoryUser():
     if user_data_df.empty == False:
       self.user_name = user_data_df.iloc[0]['user_name']
       self.hashed_user_password = user_data_df.iloc[0]['user_password']
-      self.manufauser_privilegescturer = user_data_df.iloc[0]['user_privileges']
+      self.user_privileges = int(user_data_df.iloc[0]['user_privileges'])
     else:
       warning('Attempted to populate InventoryItem from empty DataFrame')
   # ------------------------------------------------------------------------
