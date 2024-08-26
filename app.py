@@ -12,7 +12,6 @@ import sys
 import signal
 
 # --- Class imports
-from backend.DataBaseClient import DataBaseClient
 from backend.CameraServer import CameraServer
 from frontend.FrontendApplication import FrontendApplication
 
@@ -54,14 +53,10 @@ def main():
 
   """
   # -----------------------------------------------------------------------
-  # --- Create database client instance
-  # Create a DatabaseClient instance and connect to the inventory database
-  db_client = DataBaseClient(host=database_host)
   # --- Create camera server instance
   camera_server = CameraServer()
   # --- Create camera server instance
-  frontend_server = FrontendApplication(db_client=db_client,
-                                        camera_server=camera_server)
+  frontend_server = FrontendApplication(camera_server=camera_server)
 
   # TODO Add check if database server is running
   # -----------------------------------------------------------------------

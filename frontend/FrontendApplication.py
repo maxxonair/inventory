@@ -57,7 +57,7 @@ class FrontendApplication:
   # -----------------------------------------------------------------------------
   #                 [INIT]
   # -----------------------------------------------------------------------------
-  def __init__(self, db_client: DataBaseClient, camera_server: CameraServer = None):
+  def __init__(self, camera_server: CameraServer = None):
     # -----------------------------------------------------------------------
     # Main application server
     # -----------------------------------------------------------------------
@@ -108,8 +108,6 @@ class FrontendApplication:
 
     local_image_dir = ''
 
-    self.db_client = db_client
-
     # -----------------------------------------------------------------------
     # -- TRAME WINDOW SETUP
     # -----------------------------------------------------------------------
@@ -156,6 +154,8 @@ class FrontendApplication:
       """
       # Only delete item if one is selected
       if self.state.selected_item_id is not None:
+          # Create a DatabaseClient instance and connect to the inventory database
+        db_client = DataBaseClient(host=database_host)
         # Command: DELETE item from inventory
         db_client.delete_inventory_item(int(self.state.selected_item_id))
 
@@ -172,7 +172,8 @@ class FrontendApplication:
       valid_data, inventoryItem = self.read_item_user_input_to_object()
 
       if valid_data:
-
+          # Create a DatabaseClient instance and connect to the inventory database
+        db_client = DataBaseClient(host=database_host)
         print(f'[update_inventory_item] -- {inventoryItem.manufacturer}')
 
         # Update the item in the database
@@ -216,6 +217,8 @@ class FrontendApplication:
           # Update image path in InventoryItem instance
           inventoryItem.set_img_path(img_path)
 
+        # Create a DatabaseClient instance and connect to the inventory database
+        db_client = DataBaseClient(host=database_host)
         # Add item to database
         db_client.add_inventory_item(inventoryItem)
 
@@ -232,6 +235,8 @@ class FrontendApplication:
       ret = self.inventory_item.set_checked_out(self.state.username)
 
       if ret:
+          # Create a DatabaseClient instance and connect to the inventory database
+        db_client = DataBaseClient(host=database_host)
         # Update checkout status in database
         db_client.update_inventory_item_checkout_status(id=self.state.parsed_item_id,
                                                         inventory_item=self.inventory_item)
@@ -245,7 +250,8 @@ class FrontendApplication:
     def checkin_item(self, *args):
 
       self.inventory_item.set_checked_in(self.state.username)
-
+      # Create a DatabaseClient instance and connect to the inventory database
+      db_client = DataBaseClient(host=database_host)
       # Update checkout status in database
       db_client.update_inventory_item_checkout_status(id=self.state.parsed_item_id,
                                                       inventory_item=self.inventory_item)
@@ -323,6 +329,8 @@ class FrontendApplication:
                     label="Manufacturer Details",
                     placeholder="Enter item name"
                 )
+                VCardText(
+                    "Check out status: {{ checkout_status_summary }}")
           with VCol():
             VImg(
                 src=("image_src",),
@@ -560,19 +568,19 @@ class FrontendApplication:
             with VListItemIcon():
               VIcon("mdi-plus", v_if="logged_in")
             with VListItemContent():
-              VListItemTitle("Add Inventory Item", v_if="logged_in")
+              VListItemTitle("Add Item", v_if="logged_in")
 
           with VListItem(to="/checkout inventory item"):
             with VListItemIcon():
               VIcon("mdi-check", v_if="logged_in")
             with VListItemContent():
-              VListItemTitle("Checkout Inventory Item", v_if="logged_in")
+              VListItemTitle("Checkout Item", v_if="logged_in")
 
           with VListItem(to="/return inventory item"):
             with VListItemIcon():
               VIcon("mdi-arrow-right", v_if="logged_in")
             with VListItemContent():
-              VListItemTitle("Return Inventory Item", v_if="logged_in")
+              VListItemTitle("Return Item", v_if="logged_in")
 
           with VListItem(to="/settings",
                          v_if="enable_privilege_add_item"):
@@ -611,9 +619,11 @@ class FrontendApplication:
           # Populate state data with item information
           self.populate_item_from_id(current_id)
 
+          # Create a DatabaseClient instance and connect to the inventory database
+          db_client = DataBaseClient(host=database_host)
           # Save a complete and global copy of this item
           self.inventory_item.populate_from_df(
-              item_data_df=self.db_client.get_inventory_item_as_df(current_id))
+              item_data_df=db_client.get_inventory_item_as_df(current_id))
 
         elif len(selected_df["id"].tolist()) == 1:
           TODO = True
@@ -644,8 +654,9 @@ class FrontendApplication:
 
     """
     debug('Update Inventory Data')
-
-    self.inventory_df = self.db_client.get_inventory_as_df()
+    # Create a DatabaseClient instance and connect to the inventory database
+    db_client = DataBaseClient(host=database_host)
+    self.inventory_df = db_client.get_inventory_as_df()
 
     if not disableDatabaseColumnFilter:
       # -- Remove columns that should not be displayed
@@ -672,12 +683,14 @@ class FrontendApplication:
     * Populate server.state variables with the collected data
 
     """
+    # Create a DatabaseClient instance and connect to the inventory database
+    db_client = DataBaseClient(host=database_host)
     # Get data for scanned item from database
-    item_data_df = self.db_client.get_inventory_item_as_df(id)
+    item_data_df = db_client.get_inventory_item_as_df(id)
 
     # [!] Make sure the global inventory_item is synchronized with the latest
     #     data grab
-    self.inventory_item = self.db_client.get_inventory_item_as_object(id)
+    self.inventory_item = db_client.get_inventory_item_as_object(id)
 
     # Handle loading and encoding image from media data
     img_path = Path(str(item_data_df.iloc[0]['item_image']))
@@ -707,18 +720,26 @@ class FrontendApplication:
     self.state.item_manufacturer = f'{item_data_df.iloc[0]['manufacturer']}'
     self.state.item_manufacturer_details = f'{
         item_data_df.iloc[0]['manufacturer_contact']}'
-    self.state.is_checked_out = f'{item_data_df.iloc[0]['is_checked_out']}'
+    is_checkout_temp = (
+        f'{item_data_df.iloc[0]['is_checked_out']}')
     self.state.check_out_date = f'{item_data_df.iloc[0]['check_out_date']}'
     self.state.check_out_poc = f'{item_data_df.iloc[0]['check_out_poc']}'
     self.state.date_added = f'{item_data_df.iloc[0]['date_added']}'
     self.state.item_description = f'{item_data_df.iloc[0]['item_description']}'
     self.state.item_tags = f'{item_data_df.iloc[0]['item_tags']}'
 
-    if self.state.is_checked_out:
-      self.state.checkout_status_summary = f'This item is checked out since {
+    # Handle cases where for whichever reason the checkout status is set
+    # to None
+    if is_checkout_temp == 'None':
+      self.state.is_checked_out = 0
+    else:
+      self.state.is_checked_out = int(is_checkout_temp)
+
+    if self.state.is_checked_out == 1:
+      self.state.checkout_status_summary = f' Item is checked out since {
           self.state.check_out_date} by {self.state.check_out_poc}'
     else:
-      self.state.checkout_status_summary = ' This item has not been checked out.'
+      self.state.checkout_status_summary = ' Item has not been checked out.'
 
     print(f'--- {self.state.item_name}')
 
@@ -798,8 +819,10 @@ class FrontendApplication:
 
       # Update the path in the database
       if self.state.selected_item_id is not None:
-        self.db_client.update_inventory_item_image_path(self.state.selected_item_id,
-                                                        img_path.absolute().as_posix())
+        # Create a DatabaseClient instance and connect to the inventory database
+        db_client = DataBaseClient(host=database_host)
+        db_client.update_inventory_item_image_path(self.state.selected_item_id,
+                                                   img_path.absolute().as_posix())
 
   def switch_show_img_change(self, *args):
     if self.state.show_img_swap_page:
@@ -828,7 +851,9 @@ class FrontendApplication:
      / If both of the above set logged_in to True and assign privileges
 
     """
-    valid_user, inventoryUser = self.db_client.get_inventory_user_as_object(
+    # Create a DatabaseClient instance and connect to the inventory database
+    db_client = DataBaseClient(host=database_host)
+    valid_user, inventoryUser = db_client.get_inventory_user_as_object(
         username)
 
     if not valid_user:
@@ -948,5 +973,5 @@ if __name__ == "__main__":
                       datefmt='%H:%M:%S',
                       level=logging.INFO)
 
-  app = FrontendApplication(db_client=DataBaseClient(host=database_host))
+  app = FrontendApplication()
   app.start_server()
