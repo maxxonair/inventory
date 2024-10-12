@@ -3,7 +3,7 @@ from trame.widgets import vuetify, vega, router, html
 from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
                                    VCol, VRow, VContainer, VImg, VCardTitle,
                                    VCard, VList, VListItemIcon, VListItem,
-                                   VListItemTitle, VListItemContent
+                                   VListItemTitle, VListItemContent, VTooltip
                                    )
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
@@ -102,6 +102,13 @@ class FrontendApplication:
     self.state.enable_privilege_delete_item = False
     self.state.enable_privilege_mod_item = False
     self.state.enable_privilege_settings = False
+
+    # If true show the camera feed in the Checkout Item section
+    self.state.show_checkout_camera_feed = False
+    # If true show the camera feed in the return Item section
+    self.state.show_return_camera_feed = False
+    # If true show the camera feed in the Inventory overview section
+    self.state.show_inventory_camera_feed = False
 
     self.state.logged_in = False
     self.state.show_img_swap_page = False
@@ -387,27 +394,32 @@ class FrontendApplication:
             VTextField(
                 v_model=("item_name", ""),
                 label="Item Name",
-                placeholder="Enter item name"
+                placeholder="Enter item name",
+                prepend_icon="mdi-rename-box-outline"
             )
             VTextField(
                 v_model=("item_description", ""),
                 label="Item Description",
-                placeholder="Enter item description"
+                placeholder="Enter item description",
+                prepend_icon="mdi-image-text"
             )
             VTextField(
                 v_model=("item_tags", ""),
                 label="Tags",
-                placeholder="Enter item tags"
+                placeholder="Enter item tags",
+                prepend_icon="mdi-tag"
             )
             VTextField(
                 v_model=("item_manufacturer", ""),
                 label="Manufacturer",
-                placeholder="Enter Manufacturer"
+                placeholder="Enter Manufacturer",
+                prepend_icon="mdi-anvil"
             )
             VTextField(
                 v_model=("item_manufacturer_details", ""),
                 label="Manufacturer Contact Details",
-                placeholder="Enter Manufacturer Details"
+                placeholder="Enter Manufacturer Details",
+                prepend_icon="mdi-anvil"
             )
             # Display captured frames
             VCardText("Item image")
@@ -430,32 +442,41 @@ class FrontendApplication:
             VCardTitle(
                 "Checkout Inventory Item")
 
-            VBtn("Check-out this item", click=checkout_item)
+            with VCardText():
+              VBtn(children=[
+                   VIcon("mdi-cart-check"),
+                   "Check-out inventory item"
+                   ],
+                   outlined=True,
+                   click=checkout_item)
+              VTooltip(children=["Open camera to scan QR code",
+                                 VBtn(VIcon("mdi-qrcode-scan"),
+                                      outlined=True,
+                                      click=self.checkout_show_camera_feed)])
 
-            with VCard(classes="ma-5", max_width="350px", elevation=2):
+            with VRow(v_if="show_checkout_camera_feed", style="margin-top: 10px;"):
+              VCardText("Place the item QR code in front of the camera!")
+              # Embed camera stream in this sub-page
+              html.Div(html_content_embed_camera_stream)
+            with VRow(tyle="margin-top: 10px;"):
+              # with VCard(classes="ma-5", elevation=150):
               VImg(
                   src=("image_src",), max_width="400px", classes="mb-5")
 
-            with VCard(classes="ma-5", max_width="550px", elevation=2):
-              VCardTitle("Inventory")
-              VCardText("Item Name: {{ item_name }}")
-              VCardText(
-                  "Item Description: {{ item_description }}")
-              VCardText(
-                  "Manufacturer: {{ item_manufacturer }}")
-              VCardText(
-                  "Manufacturer Details: {{ item_manufacturer_details }}")
-              VCardText(
-                  "In Inventory since {{ date_added }}")
-              VCardText(
-                  "Check out status: {{ checkout_status_summary }}")
-
-          with VCol():
-            with VRow(v_if="logged_in", style="margin-top: 10px;"):
-              VIcon('mdi-qrcode-scan', left=True, size=35)
-              VCardText("Place the item QR code in front of the camera!")
-            # Embed camera stream in this sub-page
-            html.Div(html_content_embed_camera_stream, v_if="logged_in")
+              with VCard(classes="ma-5", max_width="550px", elevation=2):
+                VCardTitle("Inventory")
+                VCardText("Item Name: {{ item_name }}")
+                VCardText(
+                    "Item Description: {{ item_description }}")
+                VCardText(
+                    "Manufacturer: {{ item_manufacturer }}")
+                VCardText(
+                    "Manufacturer Details: {{ item_manufacturer_details }}",
+                    prepend_icon="mdi-anvil")
+                VCardText(
+                    "In Inventory since {{ date_added }}")
+                VCardText(
+                    "Check out status: {{ checkout_status_summary }}")
 
     # --- Return inventory
     with RouterViewLayout(self.server, "/return inventory item"):
@@ -465,8 +486,21 @@ class FrontendApplication:
             # TODO Update title
             VCardTitle("Return Inventory Item - Under Construction")
 
-            VBtn("Return this item", click=checkin_item)
-
+            with VCardText():
+              VBtn(children=[
+                   VIcon("mdi-clipboard-arrow-left"),
+                   "Check-in inventory item"
+                   ],
+                   outlined=True,
+                   click=checkin_item)
+              VTooltip(children=["Open camera to scan QR code",
+                                 VBtn(VIcon("mdi-qrcode-scan"),
+                                      outlined=True,
+                                      click=self.return_show_camera_feed)])
+            with VRow(v_if="show_return_camera_feed"):
+              VCardText("Place the item QR code in front of the camera!")
+              # Embed camera stream in this sub-page
+              html.Div(html_content_embed_camera_stream)
             with VCard(classes="ma-5", max_width="350px", elevation=2):
               VImg(
                   src=("image_src",), max_width="400px", classes="mb-5")
@@ -481,10 +515,6 @@ class FrontendApplication:
               VCardText("In Inventory since {{ date_added }}")
               VCardText(
                   "Check out status: {{ checkout_status_summary }}")
-          with VCol():
-            VCardText("Place the item QR code in front of the camera!")
-            # Embed camera stream in this sub-page
-            html.Div(html_content_embed_camera_stream)
 
     # --- Settings
     with RouterViewLayout(self.server, "/settings"):
@@ -517,8 +547,14 @@ class FrontendApplication:
       else:
         # Debug option - Log in disabled
         # Force logged in state with debug user
-        self.state.username = self.VALID_USERNAME
+        self.state.username = 'debugger'
         self.state.logged_in = True
+        # Give full owner priveleges
+        # TODO revisit this
+        self.state.enable_privilege_add_item = True
+        self.state.enable_privilege_delete_item = True
+        self.state.enable_privilege_mod_item = True
+        self.state.enable_privilege_settings = True
 
       with layout.toolbar:
         VSpacer()
@@ -647,6 +683,27 @@ class FrontendApplication:
   # -------------------------------------------------------------------------
   #   UI CALLBACK FUNCTIONS
   # -------------------------------------------------------------------------
+
+  def checkout_show_camera_feed(self):
+    """
+    If camera feed NOT shown -> show camera feed
+    If camera feed shown -> hide camera feed
+    """
+    self.state.show_checkout_camera_feed = not self.state.show_checkout_camera_feed
+
+  def return_show_camera_feed(self):
+    """
+    If camera feed NOT shown -> show camera feed
+    If camera feed shown -> hide camera feed
+    """
+    self.state.show_return_camera_feed = not self.state.show_return_camera_feed
+
+  def inventory_show_camera_feed(self):
+    """
+    If camera feed NOT shown -> show camera feed
+    If camera feed shown -> hide camera feed
+    """
+    self.state.show_inventory_camera_feed = not self.state.show_inventory_camera_feed
 
   def update_inventory_df(self):
     """
