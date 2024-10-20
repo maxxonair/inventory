@@ -320,10 +320,9 @@ class FrontendApplication:
                    outlined=True,
                    v_if="enable_privilege_mod_item")
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VTooltip(text='Print QR label for selected item',
-                       children=[VBtn(VIcon("mdi-cloud-print"),
+              VBtn(VIcon("mdi-cloud-print"),
                                       click=self.print_label_from_id,
-                                      outlined=True)])
+                                      outlined=True)
 
           # --- CHANGE ITEM CONTROLS ---
           # TODO: This section is a mess and needs cleaning up
@@ -469,7 +468,7 @@ class FrontendApplication:
           fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
           self.ctrl.view_update = fig_item.update
           with VCol():
-            VCardTitle("Checkout Inventory Item")
+            VCardTitle("Check-out Inventory Item")
 
             with VCardText():
               VBtn(children=[
@@ -488,20 +487,47 @@ class FrontendApplication:
               with VCol():
                 VImg(
                     src=("image_src",), max_width="400px", classes="mb-5")
-              with VCol():
-                with VCard(classes="ma-5", max_width="550px", elevation=0):
-                  VCardTitle("Inventory")
-                  VCardText("Item Name: {{ item_name }}")
-                  VCardText(
-                      "Item Description: {{ item_description }}")
-                  VCardText(
-                      "Manufacturer: {{ item_manufacturer }}")
-                  VCardText(
-                      children=["Manufacturer Details: {{ item_manufacturer_details }}"])
-                  VCardText(
-                      "In Inventory since {{ date_added }}")
-                  VCardText(
-                      "Check out status: {{ checkout_status_summary }}")
+            with VCol():
+              with VRow():
+                VTextField(
+                    v_model=("item_name", ""),
+                    label="Item Name",
+                    placeholder="Enter item name",
+                    prepend_icon="mdi-rename-box-outline",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_description", ""),
+                    label="Item Description",
+                    placeholder="Enter item description",
+                    prepend_icon="mdi-image-text",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_tags", ""),
+                    label="Tags",
+                    placeholder="Enter item tags",
+                    prepend_icon="mdi-tag",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_manufacturer", ""),
+                    label="Manufacturer",
+                    placeholder="Enter Manufacturer",
+                    prepend_icon="mdi-anvil",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_manufacturer_details", ""),
+                    label="Manufacturer Contact Details",
+                    placeholder="Enter Manufacturer Details",
+                    prepend_icon="mdi-anvil",
+                    disabled=True
+                )
           with VCol():
             with VRow(v_if="show_checkout_camera_feed", style="margin-top: 10px;"):
               VCardText("Place the item QR code in front of the camera!")
@@ -534,17 +560,47 @@ class FrontendApplication:
               with VCol():
                 VImg(
                     src=("image_src",), max_width="400px", classes="mb-5")
-              with VCol():
-                with VCard(classes="ma-5", max_width="550px", elevation=0):
-                  VCardTitle("Inventory")
-                  VCardText("Item Name: {{ item_name }}")
-                  VCardText("Item Description: {{ item_description }}")
-                  VCardText("Manufacturer: {{ item_manufacturer }}")
-                  VCardText(
-                      "Manufacturer Details: {{ item_manufacturer_details }}")
-                  VCardText("In Inventory since {{ date_added }}")
-                  VCardText(
-                      "Check out status: {{ checkout_status_summary }}")
+            with VCol():
+              with VRow():
+                VTextField(
+                    v_model=("item_name", ""),
+                    label="Item Name",
+                    placeholder="Enter item name",
+                    prepend_icon="mdi-rename-box-outline",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_description", ""),
+                    label="Item Description",
+                    placeholder="Enter item description",
+                    prepend_icon="mdi-image-text",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_tags", ""),
+                    label="Tags",
+                    placeholder="Enter item tags",
+                    prepend_icon="mdi-tag",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_manufacturer", ""),
+                    label="Manufacturer",
+                    placeholder="Enter Manufacturer",
+                    prepend_icon="mdi-anvil",
+                    disabled=True
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_manufacturer_details", ""),
+                    label="Manufacturer Contact Details",
+                    placeholder="Enter Manufacturer Details",
+                    prepend_icon="mdi-anvil",
+                    disabled=True
+                )
           with VCol():
             with VRow(v_if="show_return_camera_feed", style="margin-top: 10px;"):
               VCardText("Place the item QR code in front of the camera!")
