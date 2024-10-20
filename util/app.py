@@ -63,8 +63,8 @@ from frontend.frontend_config import (inventory_page_title,
                                       enableRunForDebug,
                                       disableDatabaseColumnFilter)
 
-# Import frontend utility functions
-from backend.util import parse_qr_message
+# Import qr configuration functions
+from backend.qr_config import decode_id_from_qr_message
 
 # --------------------------------------------------------------------------
 #                       [Global Variables]
@@ -293,7 +293,7 @@ def scan_qr_messages():
   while True:
     qr_code_message = camera_server.get_qr_message()
 
-    valid, id = parse_qr_message(qr_code_message)
+    valid, id = decode_id_from_qr_message(qr_code_message)
 
     print('Scan for messages')
 

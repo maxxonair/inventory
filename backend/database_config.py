@@ -24,17 +24,3 @@ database_host = '127.0.0.1'
 # Media directory folder. This will be set when creating the DataBaseClient
 # instance!
 media_directory = '../database/media'
-
-# -------------------------------------------------------------------------
-#                             [QR]
-# -------------------------------------------------------------------------
-# QR code identifier string
-# All valid QR code messages for this inventory will start with this string
-# followed by a delimiter
-qr_iden_str = 'bigml2'
-
-# Delimiter between qr_iden_str and qr_id_iden_str
-qr_msg_delimiter = ';'
-
-# Sub-string to identify the item it within a QR code message
-qr_id_iden_str = 'id'

@@ -34,6 +34,7 @@ from backend.database_config import database_host
 from backend.InventoryItem import InventoryItem
 from backend.InventoryUser import InventoryUser, UserPrivileges
 from backend.CameraServer import CameraServer
+from backend.PrinterClient import PrinterClient
 
 # ---- Frontend imports
 
@@ -109,9 +110,12 @@ class FrontendApplication:
     self.state.show_return_camera_feed = False
     # If true show the camera feed in the Inventory overview section
     self.state.show_inventory_camera_feed = False
+    # If true show the camera feed in the add item section
+    self.state.show_add_camera_feed = False
 
     self.state.logged_in = False
     self.state.show_img_swap_page = False
+    self.state.show_inventory_item_details = True
 
     local_image_dir = ''
 
@@ -287,68 +291,43 @@ class FrontendApplication:
     }
 
     # --- Inventory [HOME]
-    with RouterViewLayout(self.server, "/", clicked=self.update_inventory_df):
+    with RouterViewLayout(self.server, "/", clicked=self.update_inventory_df, v_if="logged_in"):
       with vuetify.VContainer(fluid=True):
+        with VRow():
+          # TODO Add refined search option
+          VBtn('Refined search - Under Construction')
         with VRow(classes="justify-center ma-6", v_if="logged_in"):
           fig = vega.Figure(classes="ma-2", style="width: 100%;")
           self.ctrl.fig_update = fig.update
           vuetify.VDataTable(**main_table_config, v_if="logged_in")
-        with VRow(v_if="logged_in"):
+        with VRow(v_if="logged_in", dense=True):
           with VCol():
+
+            # --- CONTROL BUTTONS ---
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VIcon('mdi-swap-horizontal',
-                    v_if="enable_privilege_mod_item")
-              VBtn("Update Item",
+              VBtn(children=["Update Item", VIcon('mdi-swap-horizontal')],
                    click=update_inventory_item,
+                   outlined=True,
                    v_if="enable_privilege_mod_item")
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VIcon('mdi-trash-can-outline',
-                    v_if="enable_privilege_delete_item")
-              VBtn("Delete Item",
+              VBtn(children=["Delete Item", VIcon('mdi-trash-can-outline')],
                    click=delete_inventory_item,
+                   outlined=True,
                    v_if="enable_privilege_delete_item")
-            with VRow(v_if="logged_in"):
-              fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
-              self.ctrl.view_update = fig_item.update
-              with vuetify.VContainer(fluid=True):
-                VTextField(
-                    v_model=("item_name", ""),
-                    label="Item Name",
-                    placeholder="Enter item name"
-                )
-                VTextField(
-                    v_model=("item_description", ""),
-                    label="Item Description",
-                    placeholder="Enter item description"
-                )
-                VTextField(
-                    v_model=("item_tags", ""),
-                    label="Tags",
-                    placeholder="Enter item tags"
-                )
-                VTextField(
-                    v_model=("item_manufacturer", ""),
-                    label="Manufacturer",
-                    placeholder="Enter item name",
-                )
-                VTextField(
-                    v_model=("item_manufacturer_details", ""),
-                    label="Manufacturer Details",
-                    placeholder="Enter item name"
-                )
-                VCardText(
-                    "Check out status: {{ checkout_status_summary }}")
-          with VCol():
-            VImg(
-                src=("image_src",),
-                max_width="400px",
-                classes="mb-5")
+            with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+              VBtn(children=["Change Image", VIcon('mdi-camera')],
+                   click=self.switch_show_img_change,
+                   outlined=True,
+                   v_if="enable_privilege_mod_item")
+            with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+              VTooltip(text='Print QR label for selected item',
+                       children=[VBtn(VIcon("mdi-cloud-print"),
+                                      click=self.print_label_from_id,
+                                      outlined=True)])
 
-          with VRow(v_if="logged_in"):
-            VBtn("Change image",
-                 click=self.switch_show_img_change,
-                 v_if="enable_privilege_mod_item")
-          with VRow(v_if="show_img_swap_page"):
+          # --- CHANGE ITEM CONTROLS ---
+          # TODO: This section is a mess and needs cleaning up
+          with VCol(v_if="show_img_swap_page"):
             with VCard(classes="ma-5", v_if="show_img_swap_page",
                        max_width="350px", elevation=2):
               fig = vega.Figure(classes="ma-2", style="width: 100%;")
@@ -368,69 +347,120 @@ class FrontendApplication:
                   src=("display_img_src",),
                   max_width="400px",
                   classes="mb-5")
-            with VCol(v_if="show_img_swap_page"):
-              VCardText("Camera stream")
-              VCardText("Place the item in front of the camera!")
-              # Embed camera stream in this sub-page
-              html.Div(html_content_embed_camera_stream)
-              with VRow(v_if="show_img_swap_page", style="margin-top: 10px;"):
-                VIcon('mdi-camera-plus-outline', left=False)
-                VBtn("Capture Image",
-                     click=self.capture_image,
-                     variant='outlined')
-                VIcon('mdi-camera-plus-outline', left=True)
+          with VCol(v_if="show_img_swap_page"):
+            VCardText("Place the item in front of the camera!")
+            VBtn(children=["Capture Image", VIcon('mdi-camera-plus-outline')],
+                 click=self.capture_image,
+                 outlined=True,
+                 variant='outlined')
+            # Embed camera stream in this sub-page
+            html.Div(html_content_embed_camera_stream_large)
+
+          # --- ITEM DATA ---
+          with VCol(v_if="show_inventory_item_details"):
+            fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
+            self.ctrl.view_update = fig_item.update
+            with vuetify.VContainer(fluid=True):
+              VTextField(
+                  v_model=("item_name", ""),
+                  label="Item Name",
+                  placeholder="Enter item name",
+                  prepend_icon="mdi-rename-box-outline"
+              )
+              VTextField(
+                  v_model=("item_description", ""),
+                  label="Item Description",
+                  placeholder="Enter item description",
+                  prepend_icon="mdi-image-text"
+              )
+              VTextField(
+                  v_model=("item_tags", ""),
+                  label="Tags",
+                  placeholder="Enter item tags",
+                  prepend_icon="mdi-tag"
+              )
+              VTextField(
+                  v_model=("item_manufacturer", ""),
+                  label="Manufacturer",
+                  placeholder="Enter item manufacturer",
+                  prepend_icon="mdi-anvil"
+              )
+              VTextField(
+                  v_model=("item_manufacturer_details", ""),
+                  label="Manufacturer Details",
+                  placeholder="Enter item manufacturer details",
+                  prepend_icon="mdi-anvil"
+              )
+              VCardText(
+                  "Check out status: {{ checkout_status_summary }}")
+
+          # --- ITEM IMAGE ---
+          with VCol(v_if="show_inventory_item_details"):
+            VImg(
+                src=("image_src",),
+                max_width="400px",
+                classes="mb-5")
 
     # --- Add inventory
     with RouterViewLayout(self.server, "/add inventory item", v_if="enable_privilege_add_item"):
       with vuetify.VContainer(fluid=True):
-        with VRow(v_if="logged_in"):
+        with VRow():
           with VCol():
-            # TODO Update title
-            VCardTitle("Add Inventory Item - Under Construction")
-            VCardText("Place the item in front of the camera!")
-            with VCardText():
-              VBtn("Add item to Inventory", click=add_inventory_item)
-              VBtn("Capture Image", click=self.capture_image)
-            VTextField(
-                v_model=("item_name", ""),
-                label="Item Name",
-                placeholder="Enter item name",
-                prepend_icon="mdi-rename-box-outline"
-            )
-            VTextField(
-                v_model=("item_description", ""),
-                label="Item Description",
-                placeholder="Enter item description",
-                prepend_icon="mdi-image-text"
-            )
-            VTextField(
-                v_model=("item_tags", ""),
-                label="Tags",
-                placeholder="Enter item tags",
-                prepend_icon="mdi-tag"
-            )
-            VTextField(
-                v_model=("item_manufacturer", ""),
-                label="Manufacturer",
-                placeholder="Enter Manufacturer",
-                prepend_icon="mdi-anvil"
-            )
-            VTextField(
-                v_model=("item_manufacturer_details", ""),
-                label="Manufacturer Contact Details",
-                placeholder="Enter Manufacturer Details",
-                prepend_icon="mdi-anvil"
-            )
-            # Display captured frames
-            VCardText("Item image")
-            VImg(
-                src=("display_img_src",),
-                max_width="600px",
-                classes="mb-5")
-
+            with VRow():
+              # TODO Update title
+              VCardTitle("Add Inventory Item - Under Construction")
+              with VCardText():
+                VBtn(children=["Add item to Inventory", VIcon(
+                    "mdi-archive-plus")], click=add_inventory_item, outlined=True,)
+                VBtn(children=[VIcon("mdi-camera")],
+                     click=self.add_show_camera_feed, outlined=True)
+            with VCol():
+              with VRow():
+                VImg(
+                    src=("image_src",), max_width="400px", classes="mb-5")
+            with VCol():
+              with VRow():
+                VTextField(
+                    v_model=("item_name", ""),
+                    label="Item Name",
+                    placeholder="Enter item name",
+                    prepend_icon="mdi-rename-box-outline"
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_description", ""),
+                    label="Item Description",
+                    placeholder="Enter item description",
+                    prepend_icon="mdi-image-text"
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_tags", ""),
+                    label="Tags",
+                    placeholder="Enter item tags",
+                    prepend_icon="mdi-tag"
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_manufacturer", ""),
+                    label="Manufacturer",
+                    placeholder="Enter Manufacturer",
+                    prepend_icon="mdi-anvil"
+                )
+              with VRow():
+                VTextField(
+                    v_model=("item_manufacturer_details", ""),
+                    label="Manufacturer Contact Details",
+                    placeholder="Enter Manufacturer Details",
+                    prepend_icon="mdi-anvil"
+                )
           with VCol():
-            # Embed camera stream in this sub-page
-            html.Div(html_content_embed_camera_stream_large)
+            with VRow(v_if="show_add_camera_feed"):
+              VBtn(children=['Capture Image', VIcon("mdi-camera")],
+                   click=self.capture_image, outlined=True,)
+              VCardText("Place the item in front of the camera!")
+              # Embed camera stream in this sub-page
+              html.Div(html_content_embed_camera_stream_large)
 
     # --- Checkout inventory
     with RouterViewLayout(self.server, "/checkout inventory item"):
@@ -439,8 +469,7 @@ class FrontendApplication:
           fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
           self.ctrl.view_update = fig_item.update
           with VCol():
-            VCardTitle(
-                "Checkout Inventory Item")
+            VCardTitle("Checkout Inventory Item")
 
             with VCardText():
               VBtn(children=[
@@ -448,73 +477,79 @@ class FrontendApplication:
                    "Check-out inventory item"
                    ],
                    outlined=True,
+                   block=(self.state.is_checked_out == False),
                    click=checkout_item)
               VTooltip(children=["Open camera to scan QR code",
                                  VBtn(VIcon("mdi-qrcode-scan"),
                                       outlined=True,
                                       click=self.checkout_show_camera_feed)])
 
+            with VRow(tyle="margin-top: 10px;"):
+              with VCol():
+                VImg(
+                    src=("image_src",), max_width="400px", classes="mb-5")
+              with VCol():
+                with VCard(classes="ma-5", max_width="550px", elevation=0):
+                  VCardTitle("Inventory")
+                  VCardText("Item Name: {{ item_name }}")
+                  VCardText(
+                      "Item Description: {{ item_description }}")
+                  VCardText(
+                      "Manufacturer: {{ item_manufacturer }}")
+                  VCardText(
+                      children=["Manufacturer Details: {{ item_manufacturer_details }}"])
+                  VCardText(
+                      "In Inventory since {{ date_added }}")
+                  VCardText(
+                      "Check out status: {{ checkout_status_summary }}")
+          with VCol():
             with VRow(v_if="show_checkout_camera_feed", style="margin-top: 10px;"):
               VCardText("Place the item QR code in front of the camera!")
               # Embed camera stream in this sub-page
               html.Div(html_content_embed_camera_stream)
-            with VRow(tyle="margin-top: 10px;"):
-              # with VCard(classes="ma-5", elevation=150):
-              VImg(
-                  src=("image_src",), max_width="400px", classes="mb-5")
-
-              with VCard(classes="ma-5", max_width="550px", elevation=2):
-                VCardTitle("Inventory")
-                VCardText("Item Name: {{ item_name }}")
-                VCardText(
-                    "Item Description: {{ item_description }}")
-                VCardText(
-                    "Manufacturer: {{ item_manufacturer }}")
-                VCardText(
-                    "Manufacturer Details: {{ item_manufacturer_details }}",
-                    prepend_icon="mdi-anvil")
-                VCardText(
-                    "In Inventory since {{ date_added }}")
-                VCardText(
-                    "Check out status: {{ checkout_status_summary }}")
 
     # --- Return inventory
     with RouterViewLayout(self.server, "/return inventory item"):
       with vuetify.VContainer(fluid=True):
         with VRow(v_if="logged_in"):
+          fig_item2 = vega.Figure(classes="ma-2", style="width: 100%;")
+          self.ctrl.view_update = fig_item2.update
           with VCol():
-            # TODO Update title
-            VCardTitle("Return Inventory Item - Under Construction")
+            VCardTitle("Return Inventory Item")
 
             with VCardText():
               VBtn(children=[
-                   VIcon("mdi-clipboard-arrow-left"),
-                   "Check-in inventory item"
-                   ],
+                  VIcon("mdi-cart-check"),
+                  "Check-in inventory item"
+              ],
+                  outlined=True,
+                  block="state.is_checked_out",
+                  click=checkout_item)
+
+              VBtn(VIcon("mdi-qrcode-scan"),
                    outlined=True,
-                   click=checkin_item)
-              VTooltip(children=["Open camera to scan QR code",
-                                 VBtn(VIcon("mdi-qrcode-scan"),
-                                      outlined=True,
-                                      click=self.return_show_camera_feed)])
-            with VRow(v_if="show_return_camera_feed"):
+                   click=self.return_show_camera_feed)
+
+            with VRow(tyle="margin-top: 20px;"):
+              with VCol():
+                VImg(
+                    src=("image_src",), max_width="400px", classes="mb-5")
+              with VCol():
+                with VCard(classes="ma-5", max_width="550px", elevation=0):
+                  VCardTitle("Inventory")
+                  VCardText("Item Name: {{ item_name }}")
+                  VCardText("Item Description: {{ item_description }}")
+                  VCardText("Manufacturer: {{ item_manufacturer }}")
+                  VCardText(
+                      "Manufacturer Details: {{ item_manufacturer_details }}")
+                  VCardText("In Inventory since {{ date_added }}")
+                  VCardText(
+                      "Check out status: {{ checkout_status_summary }}")
+          with VCol():
+            with VRow(v_if="show_return_camera_feed", style="margin-top: 10px;"):
               VCardText("Place the item QR code in front of the camera!")
               # Embed camera stream in this sub-page
               html.Div(html_content_embed_camera_stream)
-            with VCard(classes="ma-5", max_width="350px", elevation=2):
-              VImg(
-                  src=("image_src",), max_width="400px", classes="mb-5")
-
-            with VCard(classes="ma-5", max_width="550px", elevation=5):
-              VCardTitle("Inventory")
-              VCardText("Item Name: {{ item_name }}")
-              VCardText("Item Description: {{ item_description }}")
-              VCardText("Manufacturer: {{ item_manufacturer }}")
-              VCardText(
-                  "Manufacturer Details: {{ item_manufacturer_details }}")
-              VCardText("In Inventory since {{ date_added }}")
-              VCardText(
-                  "Check out status: {{ checkout_status_summary }}")
 
     # --- Settings
     with RouterViewLayout(self.server, "/settings"):
@@ -573,15 +608,16 @@ class FrontendApplication:
             dense=True,
         )
 
-        VBtn("CSV Export", v_if="logged_in")  # TODO Callback to be added
+        # TODO Callback to be added
+        VBtn("CSV Export", v_if="logged_in", disabled=True, outlined=True,)
         with VCard(classes="ma-5"):
           with VRow(v_if="logged_in"):
             with VCol():
-              VIcon('mdi-account', left=False, size=45)
+              VIcon('mdi-card-account-details', left=False, size=45)
             with VCol():
               VCardText("{{ username }}")
 
-        VBtn("Log out", v_if="logged_in", click=self.logout)
+        VBtn("Log out", v_if="logged_in", click=self.logout, outlined=True,)
 
       with layout.content:
         with vuetify.VContainer():
@@ -705,6 +741,13 @@ class FrontendApplication:
     """
     self.state.show_inventory_camera_feed = not self.state.show_inventory_camera_feed
 
+  def add_show_camera_feed(self):
+    """
+    If camera feed NOT shown -> show camera feed
+    If camera feed shown -> hide camera feed
+    """
+    self.state.show_add_camera_feed = not self.state.show_add_camera_feed
+
   def update_inventory_df(self):
     """
     Update DataFrame that holds the compolete Inventory content
@@ -748,6 +791,8 @@ class FrontendApplication:
     # [!] Make sure the global inventory_item is synchronized with the latest
     #     data grab
     self.inventory_item = db_client.get_inventory_item_as_object(id)
+
+    self.state.parsed_item_id = id
 
     # Handle loading and encoding image from media data
     img_path = Path(str(item_data_df.iloc[0]['item_image']))
@@ -845,6 +890,14 @@ class FrontendApplication:
     except:
       warning('[capture_image] Capturing image failed.')
 
+  def print_label_from_id(self):
+    """
+    Callback to print the label for the currently selected Item 
+    """
+    client = PrinterClient()
+    if self.state.parsed_item_id is not None:
+      client.print_qr_label_from_id(int(self.state.parsed_item_id))
+
   def update_item_image_with_capture(self):
     """
     Take the latest captured image and set it as the currently selected items
@@ -882,12 +935,8 @@ class FrontendApplication:
                                                    img_path.absolute().as_posix())
 
   def switch_show_img_change(self, *args):
-    if self.state.show_img_swap_page:
-      self.state.show_img_swap_page = False
-      info('Show image swap')
-    else:
-      self.state.show_img_swap_page = True
-      info('Hide image swap')
+    self.state.show_inventory_item_details = not self.state.show_inventory_item_details
+    self.state.show_img_swap_page = not self.state.show_img_swap_page
 
   def logout(self, *args):
     """
