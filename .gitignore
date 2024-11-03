@@ -1,17 +1,24 @@
 
 
 
-# --- Python
-# Ignore virtual environment 
+# --- [PYTHON]
+# Ignore virtual environments
 env/
+.venv/
 __pycache__/
 
+
+# --- [DATABASE]
 # Ignore database linked data folders
 database/volumes/*
 database/media/*
 **/volumes/
 
+# --- [ENVIRONMENT FILES]
+# Ignore all environment files 
+**/*.env
 
-# FILES
+# --- [FILES]
+# Ignore all image files
 **/*.png
 **/*.jpeg

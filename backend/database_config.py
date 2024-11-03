@@ -15,7 +15,7 @@ INVENTORY_TABLE_NAME = 'inventory'
 INVENTORY_USER_TABLE_NAME = 'inventory_user'
 
 # Default database host IP address
-database_host = '127.0.0.1'
+database_host = '192.168.1.194'
 
 # -------------------------------------------------------------------------
 #                             [QR]

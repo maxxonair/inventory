@@ -1,11 +1,12 @@
 from trame.app import get_server
-from trame.widgets import vuetify, vega, router, html
-from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
-                                   VCol, VRow, VContainer, VImg, VCardTitle,
-                                   VCard, VList, VListItemIcon, VListItem,
-                                   VListItemTitle, VListItemContent, VTooltip
-                                   )
-from trame.ui.vuetify import SinglePageWithDrawerLayout
+from trame.widgets import vuetify3 as v3, vega, router, html
+from trame.widgets.vuetify3 import (VBtn, VSpacer, VTextField, VCardText, VIcon,
+                                    VCol, VRow, VContainer, VImg, VCardTitle,
+                                    VCard, VList, VListItem,
+                                    VListItemTitle, VTooltip
+                                    )
+# from trame.widgets.vuetify import (VListItemIcon, VListItemContent)
+from trame.ui.vuetify3 import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
 
 from multiprocessing import Process, Manager, Pipe, Value
@@ -62,7 +63,7 @@ class FrontendApplication:
     # -----------------------------------------------------------------------
     # Main application server
     # -----------------------------------------------------------------------
-    self.server = get_server(client_type="vue2")
+    self.server = get_server(client_type="vue3")  # client_type="vue2")
     self.state, self.ctrl = self.server.state, self.server.controller
 
     # Create server.state members
@@ -151,7 +152,7 @@ class FrontendApplication:
       Update the table view
       """
       filtered_df = filter_inventory_df(self.state.query)
-      headers, rows = vuetify.dataframe_to_grid(
+      headers, rows = v3.dataframe_to_grid(
           filtered_df, main_table_header_options)
       self.state.headers = headers
       self.state.rows = rows
@@ -275,8 +276,8 @@ class FrontendApplication:
     # -----------------------------------------------------------------------
 
     # Prepare table elements and configuration
-    headers, rows = vuetify.dataframe_to_grid(self.inventory_df,
-                                              main_table_header_options)
+    headers, rows = v3.dataframe_to_grid(self.inventory_df,
+                                         main_table_header_options)
     main_table_config = {
         "headers": ("headers", headers),
         "items": ("rows", rows),
@@ -292,37 +293,37 @@ class FrontendApplication:
 
     # --- Inventory [HOME]
     with RouterViewLayout(self.server, "/", clicked=self.update_inventory_df, v_if="logged_in"):
-      with vuetify.VContainer(fluid=True):
+      with v3.VContainer(fluid=True):
         with VRow():
           # TODO Add refined search option
           VBtn('Refined search - Under Construction')
         with VRow(classes="justify-center ma-6", v_if="logged_in"):
           fig = vega.Figure(classes="ma-2", style="width: 100%;")
           self.ctrl.fig_update = fig.update
-          vuetify.VDataTable(**main_table_config, v_if="logged_in")
+          v3.VDataTable(**main_table_config, v_if="logged_in")
         with VRow(v_if="logged_in", dense=True):
           with VCol():
 
             # --- CONTROL BUTTONS ---
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VBtn(children=["Update Item", VIcon('mdi-swap-horizontal')],
+              VBtn(children=[VIcon('mdi-swap-horizontal')],
                    click=update_inventory_item,
                    outlined=True,
                    v_if="enable_privilege_mod_item")
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VBtn(children=["Delete Item", VIcon('mdi-trash-can-outline')],
+              VBtn(children=[VIcon('mdi-trash-can-outline')],
                    click=delete_inventory_item,
                    outlined=True,
                    v_if="enable_privilege_delete_item")
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-              VBtn(children=["Change Image", VIcon('mdi-camera')],
+              VBtn(children=[VIcon('mdi-camera')],
                    click=self.switch_show_img_change,
                    outlined=True,
                    v_if="enable_privilege_mod_item")
             with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
               VBtn(VIcon("mdi-cloud-print"),
-                                      click=self.print_label_from_id,
-                                      outlined=True)
+                   click=self.print_label_from_id,
+                   outlined=True)
 
           # --- CHANGE ITEM CONTROLS ---
           # TODO: This section is a mess and needs cleaning up
@@ -336,7 +337,7 @@ class FrontendApplication:
                   src=("image_src",),
                   max_width="400px",
                   classes="mb-5")
-              with vuetify.VAppBar(elevation=0):
+              with v3.VAppBar(elevation=0):
                 VIcon("mdi-arrow-up-bold-box", size=35, left=False)
                 VBtn("Change Current Image",
                      click=self.update_item_image_with_capture)
@@ -359,7 +360,7 @@ class FrontendApplication:
           with VCol(v_if="show_inventory_item_details"):
             fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
             self.ctrl.view_update = fig_item.update
-            with vuetify.VContainer(fluid=True):
+            with v3.VContainer(fluid=True):
               VTextField(
                   v_model=("item_name", ""),
                   label="Item Name",
@@ -402,17 +403,16 @@ class FrontendApplication:
 
     # --- Add inventory
     with RouterViewLayout(self.server, "/add inventory item", v_if="enable_privilege_add_item"):
-      with vuetify.VContainer(fluid=True):
+      with v3.VContainer(fluid=True):
         with VRow():
           with VCol():
-            with VRow():
-              # TODO Update title
-              VCardTitle("Add Inventory Item - Under Construction")
-              with VCardText():
-                VBtn(children=["Add item to Inventory", VIcon(
-                    "mdi-archive-plus")], click=add_inventory_item, outlined=True,)
-                VBtn(children=[VIcon("mdi-camera")],
-                     click=self.add_show_camera_feed, outlined=True)
+            # TODO Update title
+            VCardTitle("Add Inventory Item - Under Construction")
+            with VCardText():
+              VBtn(children=["", VIcon(
+                  "mdi-archive-plus")], click=add_inventory_item, outlined=True,)
+              VBtn(children=[VIcon("mdi-camera")],
+                   click=self.add_show_camera_feed, outlined=True)
             with VCol():
               with VRow():
                 VImg(
@@ -463,7 +463,7 @@ class FrontendApplication:
 
     # --- Checkout inventory
     with RouterViewLayout(self.server, "/checkout inventory item"):
-      with vuetify.VContainer(fluid=True):
+      with v3.VContainer(fluid=True):
         with VRow(v_if="logged_in"):
           fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
           self.ctrl.view_update = fig_item.update
@@ -471,17 +471,14 @@ class FrontendApplication:
             VCardTitle("Check-out Inventory Item")
 
             with VCardText():
-              VBtn(children=[
-                   VIcon("mdi-cart-check"),
-                   "Check-out inventory item"
-                   ],
-                   outlined=True,
-                   block=(self.state.is_checked_out == False),
-                   click=checkout_item)
               VTooltip(children=["Open camera to scan QR code",
                                  VBtn(VIcon("mdi-qrcode-scan"),
                                       outlined=True,
                                       click=self.checkout_show_camera_feed)])
+              VBtn(children=[VIcon("mdi-cart-check")],
+                   outlined=True,
+                   block=(self.state.is_checked_out == False),
+                   click=checkout_item)
 
             with VRow(tyle="margin-top: 10px;"):
               with VCol():
@@ -536,7 +533,7 @@ class FrontendApplication:
 
     # --- Return inventory
     with RouterViewLayout(self.server, "/return inventory item"):
-      with vuetify.VContainer(fluid=True):
+      with v3.VContainer(fluid=True):
         with VRow(v_if="logged_in"):
           fig_item2 = vega.Figure(classes="ma-2", style="width: 100%;")
           self.ctrl.view_update = fig_item2.update
@@ -544,17 +541,12 @@ class FrontendApplication:
             VCardTitle("Return Inventory Item")
 
             with VCardText():
-              VBtn(children=[
-                  VIcon("mdi-cart-check"),
-                  "Check-in inventory item"
-              ],
-                  outlined=True,
-                  block="state.is_checked_out",
-                  click=checkout_item)
-
               VBtn(VIcon("mdi-qrcode-scan"),
                    outlined=True,
                    click=self.return_show_camera_feed)
+              VBtn(VIcon("mdi-cart-check"),
+                   outlined=True,
+                   click=checkout_item)
 
             with VRow(tyle="margin-top: 20px;"):
               with VCol():
@@ -609,7 +601,7 @@ class FrontendApplication:
 
     # --- Settings
     with RouterViewLayout(self.server, "/settings"):
-      with vuetify.VContainer(fluid=True):
+      with v3.VContainer(fluid=True):
         with VRow(v_if="logged_in"):
           with VCol():
             # TODO Update title
@@ -658,7 +650,7 @@ class FrontendApplication:
             prepend_icon="mdi-magnify",
         )
         VSpacer()
-        vuetify.VSwitch(
+        v3.VSwitch(
             v_model="$vuetify.theme.dark",
             hide_detials=True,
             dense=True,
@@ -676,46 +668,46 @@ class FrontendApplication:
         VBtn("Log out", v_if="logged_in", click=self.logout, outlined=True,)
 
       with layout.content:
-        with vuetify.VContainer():
+        with v3.VContainer():
           router.RouterView()
 
       # add router buttons to the drawer
       with layout.drawer:
-        with vuetify.VList(shaped=True, v_if="logged_in", v_model=("selectedRoute", 0)):
-          vuetify.VSubheader("Inventory Actions")
+        with v3.VList(shaped=True, v_if="logged_in", v_model=("selectedRoute", 0)):
+          # v3.VSubheader("Inventory Actions")
 
           with VListItem(to="/", clicked=self.update_inventory_df):
-            with VListItemIcon():
-              VIcon("mdi-home")
-            with VListItemContent():
-              VListItemTitle("Inventory", clicked=self.update_inventory_df)
+            # with VListItemIcon():
+            #   VIcon("mdi-home")
+            # with VListItemContent():
+            VListItemTitle("Inventory", clicked=self.update_inventory_df)
 
           with VListItem(to="/add inventory item",
                          clicked=self.update_inventory_df,
                          v_if="enable_privilege_add_item"):
-            with VListItemIcon():
-              VIcon("mdi-plus", v_if="logged_in")
-            with VListItemContent():
-              VListItemTitle("Add Item", v_if="logged_in")
+            # with VListItemIcon():
+            #   VIcon("mdi-plus", v_if="logged_in")
+            # with VListItemContent():
+            VListItemTitle("Add Item", v_if="logged_in")
 
           with VListItem(to="/checkout inventory item"):
-            with VListItemIcon():
-              VIcon("mdi-check", v_if="logged_in")
-            with VListItemContent():
-              VListItemTitle("Checkout Item", v_if="logged_in")
+            # with VListItemIcon():
+            #   VIcon("mdi-check", v_if="logged_in")
+            # with VListItemContent():
+            VListItemTitle("Checkout Item", v_if="logged_in")
 
           with VListItem(to="/return inventory item"):
-            with VListItemIcon():
-              VIcon("mdi-arrow-right", v_if="logged_in")
-            with VListItemContent():
-              VListItemTitle("Return Item", v_if="logged_in")
+            # with VListItemIcon():
+            #   VIcon("mdi-arrow-right", v_if="logged_in")
+            # with VListItemContent():
+            VListItemTitle("Return Item", v_if="logged_in")
 
           with VListItem(to="/settings",
                          v_if="enable_privilege_add_item"):
-            with VListItemIcon():
-              VIcon("mdi-cog", v_if="logged_in")
-            with VListItemContent():
-              VListItemTitle("Settings", v_if="logged_in")
+            # with VListItemIcon():
+            #   VIcon("mdi-cog", v_if="logged_in")
+            # with VListItemContent():
+            VListItemTitle("Settings", v_if="logged_in")
 
     # -----------------------------------------------------------------------
     # Internal Callbacks

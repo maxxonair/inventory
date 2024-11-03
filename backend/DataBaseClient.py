@@ -35,7 +35,7 @@ class DataBaseClient():
 
       info("[x] Connected to the inventory database")
     except mariadb.Error as e:
-      error()
+      error('')
       error(f"Error connecting to MariaDB: {e}")
 
     # -- Ensure that database exists --

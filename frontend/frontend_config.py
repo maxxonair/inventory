@@ -30,7 +30,7 @@ frontend_host_port = 8080
 # the login page
 # [!] Note: Currently if login is disabled the log-in will be skipped and
 #     the user will automatically be logged in with full root access.
-enableLogin = True
+enableLogin = False
 
 # Flag to run frontend in debug mode
 # Server will only be hosted to local host. frontend_host_ip/frontend_host_port

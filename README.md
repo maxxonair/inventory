@@ -1,19 +1,91 @@
 # inventory
 
-Minimal inventory management system to track physical assets. The assets are
-identified by QR code, which are generated and recognized by inventory.
+Minimal inventory management system to track physical assets in a digital database. The assets are identified by QR code, which are generated and recognized by inventory. When creating a new item inventory tries to interface automatically with a Niimbot printer to print the corresponding QR label sticker. The QR label is read using a webcam interface.
 
 :construction: Work in Progress :construction:
 
-# Project Setup
+# Run with Docker
+
+:construction: Work in Progress :construction:
+
+## Run the Database Server with Docker
+
+Required dependencies to run the database
+
+```
+sudo apt install libmariadb3 libmariadb-dev
+```
+
+This project uses docker to run the database that is holding the inventory.
+To compose and run docker needs to be installed.
+
+Start the database container as follows
+
+```
+cd inventory/database
+
+docker compose up -d inventory
+
+```
+
+## Run the Main Application Server with Docker
+
+Build the main application docker container with the following command:
+
+```
+cd inventory/
+
+sudo docker build --tag "inventory" .
+
+```
+
+Run the container with:
+
+```
+
+sudo docker run --detach 'inventory'
+
+```
+
+Run the following for debbuging, to keep attached to the running container:
+
+```
+
+sudo docker run 'inventory'
+
+```
+
+## Useful Docker Commands
+
+To check the container status, run:
+
+```
+
+docker ps -a
+
+```
+
+Which should show the influxDb container up and running:
+
+```
+CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS                       PORTS                                       NAMES
+a9066efdb6e7   mariadb:2.1   "/entrypoint.sh infl…"   25 hours ago   Up About an hour (healthy)   0.0.0.0:3306->3306/tcp, :::8086->8086/tcp   inventory
+
+```
+
+# Install and Run Manually
+
+## Install required packages
 
 Required packages
 
 ```
-sudo apt-get install zbar-tools
+sudo apt-get install zbar-tools libmariadb3 libmariadb-dev
 ```
 
-# Python setup
+## Run the Database Server with Docker
+
+The database server currently needs to be run with Docker. See the Docker install & run section on how to run the database server.
 
 ## Setup virtual python environment
 
@@ -36,43 +108,59 @@ pip install -r requirements.txt
 
 ```
 
-# Docker setup
+## Run Application Manually
 
-Required database dependencies
+This is assuming the previous setup has been completed and the database
+container is up and running.
 
-```
-sudo apt install libmariadb3 libmariadb-dev
-```
-
-This project uses docker to run the database that is holding the inventory.
-To compose and run docker needs to be installed.
-
-Start the database container as follows
+Start the application with:
 
 ```
-cd inventory/database
-
-docker compose up -d inventory
-
+python app.py
 ```
 
-To check the container status, run:
+This command includes starting up and handling the following elements:
+
+- the database client
+- the camera server
+- the UI server
+
+Note that running the application requires having the database server already running.
+
+# Handy Commands
+
+## UV commands
+
+Compile platform independent requirements file from pip requirements.txt
+file with uv:
 
 ```
-
-docker ps -a
-
+uv pip compile requirements.txt --universal --output-file requirements.txt
 ```
 
-Which should show the influxDb container up and running:
+## User Management
+
+Adding, removing or modifying users is currently only possible in the terminal
+using helper functions. Make sure the database container is running, when
+running the following commands.
+
+Use the following commands to add, delete users, or list all existing database
+users. To modify user permissions it is currently required to first delete
+the user entirely and then create it again with the altered permissions.
 
 ```
-CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS                       PORTS                                       NAMES
-a9066efdb6e7   mariadb:2.1   "/entrypoint.sh infl…"   25 hours ago   Up About an hour (healthy)   0.0.0.0:3306->3306/tcp, :::8086->8086/tcp   inventory
-
+python util.create_user.py # Alternatively with uv $ uv run util.create_user.py
 ```
 
-### Troubleshooting
+```
+python util.delete_user.py # Alternatively with uv $ uv run util.delete_user.py
+```
+
+```
+python util.show_users.py # Alternatively with uv $ uv run util.show_users.py
+```
+
+# Troubleshooting
 
 The MariaDB docker container will use port 3306 which might conflict with
 running mysql services on the target machine, leading to the following error
@@ -103,21 +191,3 @@ disable the mysql service with:
 sudo systemctl disable mysql
 
 ```
-
-# Run Application
-
-This is assuming the previous setup has been completed and the database
-container is up and running.
-
-Start the application with:
-
-```
-python app.py
-```
-
-This command includes starting up and handling the following elements: 
-- the database client
-- the camera server
-- the UI server
-
-Note that running the application requires having the database server already running.
