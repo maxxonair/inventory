@@ -1,5 +1,5 @@
 """
-Frontend parameter file
+Parameter file configuring the UI application
 
 """
 from pathlib import Path
@@ -7,16 +7,16 @@ from pathlib import Path
 # -------------------------------------------------------------------------
 # ---- SETUP
 # -------------------------------------------------------------------------
-inventory_page_title = "B.I.G Material Library"
+inventory_page_title = "Inventory Library"
 
-inventory_main_window_title = "B.I.G Material Library"
+inventory_main_window_title = "Inventory Library"
 
 main_table_header_options = {"item_name": {"sortable": False}}
 
 media_directory = './database/media'
 
 # Host IP for the frontend server
-frontend_host_ip = "192.168.1.194"
+frontend_host_ip = "127.0.0.1"  # "192.168.1.194"
 
 # Default port for the frontend server
 frontend_host_port = 8080

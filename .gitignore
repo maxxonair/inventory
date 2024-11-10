@@ -22,3 +22,6 @@ database/media/*
 # Ignore all image files
 **/*.png
 **/*.jpeg
+
+
+**/*.example.py
