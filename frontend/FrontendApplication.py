@@ -1,4 +1,4 @@
-from trame.app import get_server
+
 from trame.widgets import vuetify as vuetify, vega, router, html
 from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
                                    VCol, VRow, VContainer, VImg, VCardTitle,
@@ -8,7 +8,7 @@ from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
 from trame.widgets.vuetify import (VListItemContent, VListItemIcon)
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
-
+import asyncio
 from multiprocessing import Process, Manager, Pipe, Value
 import time
 import cv2 as cv
@@ -34,7 +34,6 @@ from backend.DataBaseClient import DataBaseClient
 from backend.database_config import database_host
 from backend.InventoryItem import InventoryItem
 from backend.InventoryUser import InventoryUser, UserPrivileges
-from backend.CameraServer import CameraServer
 from backend.PrinterClient import PrinterClient
 
 # ---- Frontend imports
@@ -59,18 +58,18 @@ class FrontendApplication:
   # -----------------------------------------------------------------------------
   #                 [INIT]
   # -----------------------------------------------------------------------------
-  def __init__(self, camera_server: CameraServer = None):
+  def __init__(self, server, state, ctrl):
     # -----------------------------------------------------------------------
     # Main application server
     # ---------------------------------------------------------------------
-    # Create server instance and set client type to vuetify2
-    self.server = get_server(client_type="vue2")
-    self.state, self.ctrl = self.server.state, self.server.controller
+    self.server = server
+    self.state = state
+    self.ctrl = ctrl
 
     # Create server.state members
     self.state.selected_item_id = None
     self.state.dummy_id = 0
-    self.state.parsed_item_id = None
+    self.state.qr_message = None
     self.state.item_name = ""
     self.state.item_description = ""
     self.state.item_tags = ""
@@ -282,15 +281,20 @@ class FrontendApplication:
     main_table_config = {
         "headers": ("headers", headers),
         "items": ("rows", rows),
-        "v_model": ("selection", []),  # Link selection callback function
+        # Link selection callback function
+        "v_model": ("selection", []),
         "search": ("query", ""),
         "classes": "elevation-1 ma-4",
         "multi_sort": True,
         "dense": True,
-        "show_select": True,
-        "single_select": True,  # Only allow a single row to be selected at the time
+        # Only allow a single row to be selected at the time
+        "single_select": True,
         "item_key": "id",
     }
+
+    # TODO dummy function to be removed
+    def on_row_click():
+      print(f"Row clicked: ")
 
     # --- INVENTORY [HOME] ---
     with RouterViewLayout(self.server, "/", clicked=self.update_inventory_df, v_if="logged_in"):
@@ -384,11 +388,16 @@ class FrontendApplication:
               # TODO Add refined search option
               VBtn('Refined search - Under Construction')
             with VRow(classes="justify-center ma-6", v_if="logged_in"):
-              # with VRow():
-              # fig = vega.Figure(classes="ma-2", style="width: 100%;")
               fig = vega.Figure()
               self.ctrl.fig_update = fig.update
-              vuetify.VDataTable(**main_table_config, v_if="logged_in")
+              vuetify.VDataTable(**main_table_config,
+                                 v_if="logged_in",
+                                 # Set default 20 items per page
+                                 items_per_page=20,
+                                 # Hide select check boxes
+                                 show_select=True,
+                                 # Add callback function to select items
+                                 click_row=on_row_click)
 
             # # --- CHANGE ITEM CONTROLS ---
             # # TODO: This section is a mess and needs cleaning up
@@ -428,7 +437,6 @@ class FrontendApplication:
       with vuetify.VContainer(fluid=True, v_if="logged_in"):
         with VRow():
           with VCol(style="width: 300px; min-width: 150px; max-width: 600px;"):
-            # TODO Update title
             VCardTitle("Add Inventory Item")
 
             # ++ Controls
@@ -746,6 +754,7 @@ class FrontendApplication:
     # -----------------------------------------------------------------------
     # Internal Callbacks
     # -----------------------------------------------------------------------
+
     @ self.state.change("query")
     def on_query_change(query, **kwargs):
       update_table()
@@ -783,6 +792,7 @@ class FrontendApplication:
           TODO = True
           # TODO add callback to empty item state variables if no item
           #      is actively selected by the user
+
   # -----------------------------------------------------------------------------
   #                 [FUNCTIONS]
   # -----------------------------------------------------------------------------
@@ -865,6 +875,7 @@ class FrontendApplication:
     * Populate server.state variables with the collected data
 
     """
+    info(f'Load item from id {id}')
     # Create a DatabaseClient instance and connect to the inventory database
     db_client = DataBaseClient(host=database_host)
     # Get data for scanned item from database
@@ -1142,16 +1153,19 @@ class FrontendApplication:
     """
     # --- Start server ---
     if enableRunForDebug:
-      self.server.start(thread=True,
-                        open_browser=True,
-                        disable_logging=True,
-                        timeout=0)
+      task = self.server.start(thread=True,
+                               open_browser=True,
+                               disable_logging=True,
+                               timeout=0,
+                               exec_mode='task')
     else:
-      self.server.start(open_browser=False,
-                        host=frontend_host_ip,
-                        port=frontend_host_port,
-                        disable_logging=True,
-                        timeout=0)
+      task = self.server.start(open_browser=False,
+                               host=frontend_host_ip,
+                               port=frontend_host_port,
+                               disable_logging=True,
+                               timeout=0,
+                               exec_mode='task')
+    return task
 
 
 # Function to allow running the frontend in isolation
