@@ -4,7 +4,7 @@ Minimal inventory management system to track physical assets in a digital databa
 
 :construction: Work in Progress :construction:
 
-![inventory](https://github.com/maxxonair/inventory/tree/main/frontend/data/inventory_example_ui_home.png?raw=true)
+![inventory](https://github.com/maxxonair/inventory/blob/main/frontend/data/inventory_example_ui_home.png?raw=true)
 
 # Configuration
 
