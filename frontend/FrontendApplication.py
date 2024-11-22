@@ -160,7 +160,7 @@ class FrontendApplication:
     self.state.query = ""
     update_table()
 
-    def delete_inventory_item(self, *args):
+    def delete_inventory_item(*args):
       """
       Callback function to delete the currently selected inventory item
       """
@@ -177,7 +177,7 @@ class FrontendApplication:
         # Update the table view
         update_table()
 
-    def update_inventory_item(self, *args):
+    def update_inventory_item(*args):
       """
       Callback function to update the currently selected inventory item
       """
@@ -400,7 +400,8 @@ class FrontendApplication:
                                  click_row=on_row_click)
 
             # # --- CHANGE ITEM CONTROLS ---
-            # # TODO: This section is a mess and needs cleaning up
+            # # TODO: This section is a mess and needs cleaning up before
+            # #       activating it again.
             # with VCol(v_if="show_img_swap_page"):
             #   with VCard(classes="ma-5", v_if="show_img_swap_page",
             #              max_width="350px", elevation=2):

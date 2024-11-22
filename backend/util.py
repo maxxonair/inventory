@@ -30,7 +30,8 @@ def detect_and_decode_qr_marker(frame):
 
   """
   # ---------------------------------------------------------------------
-  # ----- Use Pyzbar
+  # ----- Decode QR message with Pyzbar
+  # ---------------------------------------------------------------------
   # Initialize flag to track if a marker has been found
   qr_marker_found = False
   # Initialize counter to track the number of markers detected in the image

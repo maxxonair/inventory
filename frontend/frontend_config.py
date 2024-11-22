@@ -16,7 +16,7 @@ main_table_header_options = {"item_name": {"sortable": False}}
 media_directory = './database/media'
 
 # Host IP for the frontend server
-frontend_host_ip = "127.0.0.1"  # "192.168.1.194"
+frontend_host_ip = "192.168.1.194"
 
 # Default port for the frontend server
 frontend_host_port = 8080
@@ -46,16 +46,17 @@ disableDatabaseColumnFilter = False
 # ---- CAMERA INTERFACE
 # -------------------------------------------------------------------------
 # Create HTML snipped to embed camera live stream from flask server
+# TODO parameterize camera server IP and port
 html_content_embed_camera_stream = """
 <div>
-    <img crossorigin="anonymous" src="http://127.0.0.1:5000" width="70%">
+    <img crossorigin="anonymous" src="http://127.0.0.1:5050" width="70%">
 </div>
 """
 
 # Create HTML snipped to embed camera live stream from flask server
 html_content_embed_camera_stream_large = """
 <div>
-    <img crossorigin="anonymous" src="http://127.0.0.1:5000" width="85%">
+    <img crossorigin="anonymous" src="http://127.0.0.1:5050" width="85%">
 </div>
 """
 

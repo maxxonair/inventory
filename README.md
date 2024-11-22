@@ -4,9 +4,27 @@ Minimal inventory management system to track physical assets in a digital databa
 
 :construction: Work in Progress :construction:
 
-# Run with Docker
+![inventory](https://github.com/maxxonair/inventory/tree/main/frontend/data/inventory_example_ui_home.png?raw=true)
+
+# Configuration
+
+## Configure Database
 
 :construction: Work in Progress :construction:
+
+## Configure Camera Server
+
+:construction: Work in Progress :construction:
+
+## Configure Printer Interface
+
+:construction: Work in Progress :construction:
+
+## Configure User Interface
+
+:construction: Work in Progress :construction:
+
+# Run with Docker
 
 ## Run the Database Server with Docker
 
@@ -28,7 +46,9 @@ docker compose up -d inventory
 
 ```
 
-## Run the Main Application Server with Docker
+## Run the UI Server with Docker
+
+:construction: Work in Progress :construction:
 
 Build the main application docker container with the following command:
 
@@ -73,7 +93,7 @@ a9066efdb6e7   mariadb:2.1   "/entrypoint.sh infl…"   25 hours ago   Up About 
 
 ```
 
-# Install and Run Manually
+# Install and Run Modules Manually
 
 ## Install required packages
 
