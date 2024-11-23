@@ -5,6 +5,8 @@ FROM python:3.12.3
 # Labels as key value pair
 LABEL Maintainer="maxxonair"
 
+ENV TRAME_CLIENT_TYPE=vue2
+
 # Install required packages 
 RUN apt-get update -y 
 RUN apt-get install zbar-tools libmariadb3 libmariadb-dev ffmpeg libsm6 libxext6 -y
@@ -35,5 +37,5 @@ RUN uv venv
 # Install python dependencies
 RUN uv pip install -r requirements.txt
 
-# Start the material library
+# Start the UI server
 CMD ["uv", "run", "app.py"]

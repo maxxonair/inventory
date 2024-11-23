@@ -6,6 +6,8 @@ from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
                                    VListItemTitle, VTooltip
                                    )
 from trame.widgets.vuetify import (VListItemContent, VListItemIcon)
+from trame.ui.vuetify2 import VAppLayout
+from trame.widgets import vuetify2
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
 import asyncio
@@ -200,7 +202,7 @@ class FrontendApplication:
       else:
         error('Adding Inventory item failed. Invalid user inputs')
 
-    def add_inventory_item(self, *args):
+    def add_inventory_item(*args):
       """
       Handle sequence of actions to add a new item to the Inventory:
       * Check input validity
@@ -259,7 +261,7 @@ class FrontendApplication:
       else:
         warning('Updating checkout status failed. No Point of Contact provided')
 
-    def checkin_item(self, *args):
+    def checkin_item(*args):
 
       self.inventory_item.set_checked_in(self.state.username)
       # Create a DatabaseClient instance and connect to the inventory database
@@ -292,10 +294,6 @@ class FrontendApplication:
         "item_key": "id",
     }
 
-    # TODO dummy function to be removed
-    def on_row_click():
-      print(f"Row clicked: ")
-
     # --- INVENTORY [HOME] ---
     with RouterViewLayout(self.server, "/", clicked=self.update_inventory_df, v_if="logged_in"):
       with vuetify.VContainer(fluid=True):
@@ -309,32 +307,50 @@ class FrontendApplication:
               with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
 
                 with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-                  with VBtn('',
-                            click=update_inventory_item,
-                            outlined=True,
-                            icon=True,
-                            v_if="enable_privilege_mod_item"):
-                    VIcon('mdi-swap-horizontal', color='primary')
+                  with vuetify2.VTooltip('Confirm Modification', bottom=True):
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                click=update_inventory_item,
+                                outlined=True,
+                                icon=True,
+                                v_if="enable_privilege_mod_item",
+                                v_bind='attrs',
+                                v_on='on'
+                                ):
+                        VIcon('mdi-swap-horizontal', color='primary')
                 with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-                  with VBtn('',
-                            click=delete_inventory_item,
-                            outlined=True,
-                            icon=True,
-                            v_if="enable_privilege_delete_item"):
-                    VIcon('mdi-trash-can-outline', color='primary')
+                  with vuetify2.VTooltip('Delete Item', bottom=True):
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                click=delete_inventory_item,
+                                outlined=True,
+                                icon=True,
+                                v_if="enable_privilege_delete_item",
+                                v_bind='attrs',
+                                v_on='on'):
+                        VIcon('mdi-trash-can-outline', color='primary')
                 with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-                  with VBtn('',
-                            click=self.switch_show_img_change,
-                            outlined=True,
-                            icon=True,
-                            v_if="enable_privilege_mod_item"):
-                    VIcon('mdi-camera', color='primary')
+                  with vuetify2.VTooltip('Open Camera', bottom=True):
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                click=self.switch_show_img_change,
+                                outlined=True,
+                                disabled=True,  # Disabled until TODO is resolved
+                                icon=True,
+                                v_if="enable_privilege_mod_item",
+                                v_bind='attrs',
+                                v_on='on'):
+                        VIcon('mdi-camera', color='primary')
                 with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-                  with VBtn('',
-                            click=self.print_label_from_id,
-                            icon=True,
-                            outlined=True):
-                    VIcon("mdi-cloud-print", color='primary')
+                  with vuetify2.VTooltip('Print Item Label', bottom=True):
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                click=self.print_label_from_id,
+                                icon=True,
+                                outlined=True,
+                                v_bind='attrs',
+                                v_on='on'):
+                        VIcon("mdi-cloud-print", color='primary')
 
               # --- item image ---
               with VCol(style="width: 300px; min-width: 60px; max-width: 400px;"):
@@ -395,9 +411,9 @@ class FrontendApplication:
                                  # Set default 20 items per page
                                  items_per_page=20,
                                  # Hide select check boxes
-                                 show_select=True,
-                                 # Add callback function to select items
-                                 click_row=on_row_click)
+                                 show_select=True)
+              # Add callback function to select items
+              # click_row=on_row_click)
 
             # # --- CHANGE ITEM CONTROLS ---
             # # TODO: This section is a mess and needs cleaning up before
@@ -442,12 +458,24 @@ class FrontendApplication:
 
             # ++ Controls
             with VCardText():
-              with VBtn(children=["", ], click=add_inventory_item,
-                        outlined=True, icon=True):
-                VIcon("mdi-archive-plus", color='primary')
-              with VBtn('',
-                        click=self.add_show_camera_feed, outlined=True, icon=True):
-                VIcon("mdi-camera", color='primary')
+              with vuetify2.VTooltip('Add Inventory Item', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=add_inventory_item,
+                            outlined=True,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-archive-plus", color='primary')
+              with vuetify2.VTooltip('Open Camera', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=self.add_show_camera_feed,
+                            outlined=True,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-camera", color='primary')
             with VCol():
               with VRow():
                 VImg(
@@ -509,17 +537,25 @@ class FrontendApplication:
             VCardTitle("Check-out Inventory Item")
 
             with VCardText():
-              with VBtn('',
-                        outlined=True,
-                        click=self.checkout_show_camera_feed,
-                        icon=True):
-                VTooltip("Open camera to scan QR code")
-                VIcon("mdi-qrcode-scan", color='primary')
-              with VBtn('',
-                        outlined=True,
-                        block=(self.state.is_checked_out == False),
-                        click=checkout_item, icon=True):
-                VIcon("mdi-cart-check", color='primary')
+              with vuetify2.VTooltip('Open Camera', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            outlined=True,
+                            click=self.checkout_show_camera_feed,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-qrcode-scan", color='primary')
+              with vuetify2.VTooltip('Check-out Item', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            outlined=True,
+                            block=(self.state.is_checked_out == False),
+                            click=checkout_item,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-cart-check", color='primary')
 
             with VRow(tyle="margin-top: 10px;"):
               with VCol():
@@ -582,14 +618,24 @@ class FrontendApplication:
             VCardTitle("Return Inventory Item")
 
             with VCardText():
-              with VBtn('',
-                        outlined=True,
-                        click=self.return_show_camera_feed, icon=True):
-                VIcon("mdi-qrcode-scan", color='primary')
-              with VBtn('',
-                        outlined=True,
-                        click=checkout_item, icon=True):
-                VIcon("mdi-cart-check", color='primary')
+              with vuetify2.VTooltip('Open Camera', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            outlined=True,
+                            click=self.return_show_camera_feed,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-qrcode-scan", color='primary')
+              with vuetify2.VTooltip('Return Item', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            outlined=True,
+                            click=checkin_item,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-cart-check", color='primary')
 
             with VRow(tyle="margin-top: 20px;"):
               with VCol():
@@ -671,7 +717,7 @@ class FrontendApplication:
             VCardText("{{ error_message }}",
                       classes="red--text text-center")
       else:
-        # Debug option - Log in disabled
+        # ---- BEBUG -> LOG IN DISABLED ----
         # Force logged in state with debug user
         self.state.username = 'debugger'
         self.state.logged_in = True
@@ -693,22 +739,44 @@ class FrontendApplication:
             prepend_icon="mdi-magnify",
         )
         VSpacer()
+
+        # Switch to control theme
         vuetify.VSwitch(
             v_model="$vuetify.theme.dark",
             hide_detials=True,
             dense=True,
+            hint='Theme'
         )
 
+        # Button Export database to file
         # TODO Callback to be added
-        with VBtn("", v_if="logged_in", disabled=True, outlined=True, icon=True):
-          VIcon('mdi-file-export', color='primary')
+        with vuetify2.VTooltip('Export Database to File', bottom=True):
+          with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+            with VBtn("", v_if="logged_in",
+                      disabled=True,
+                      outlined=True,
+                      icon=True,
+                      v_bind='attrs',
+                      v_on='on'):
+              VIcon('mdi-file-export', color='primary')
+
+        # INDICATOR -> Current User
         with VCard(classes="mx-5", max_height="50px",
                    outlined=True):
           with VCardText("User: {{ username }} "):
             VIcon('mdi-card-account-details', color='secondary')
 
-        with VBtn("", v_if="logged_in", click=self.logout, outlined=True, icon=True):
-          VIcon('mdi-logout', color='primary')
+        # Log-out Button
+        with vuetify2.VTooltip('Log Out', bottom=True):
+          with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+            with VBtn("",
+                      # v_if="logged_in",
+                      click=self.logout,
+                      outlined=True,
+                      icon=True,
+                      v_bind='attrs',
+                      v_on='on'):
+              VIcon('mdi-logout', color='primary')
 
       with layout.content:
         with vuetify.VContainer():
@@ -882,62 +950,71 @@ class FrontendApplication:
     # Get data for scanned item from database
     item_data_df = db_client.get_inventory_item_as_df(id)
 
-    # [!] Make sure the global inventory_item is synchronized with the latest
-    #     data grab
-    self.inventory_item = db_client.get_inventory_item_as_object(id)
+    # Only proceed if item is found in the database
+    if not item_data_df.empty:
+      # [!] Make sure the global inventory_item is synchronized with the latest
+      #     data grab
+      self.inventory_item = db_client.get_inventory_item_as_object(id)
 
-    self.state.parsed_item_id = id
+      self.state.parsed_item_id = id
 
-    # Handle loading and encoding image from media data
-    img_path = Path(str(item_data_df.iloc[0]['item_image']))
-    info(f'Image file path {img_path.absolute().as_posix()}')
+      # Handle loading and encoding image from media data
+      # Only update images that contain a valid path
+      if Path(str(item_data_df.iloc[0]['item_image'])).name != 'inventory':
+        img_path = Path(str(item_data_df.iloc[0]['item_image']))
+        info(f'Image file path {img_path.absolute().as_posix()}')
 
-    if img_path.exists():
-      self.state.item_image_path = img_path.absolute().as_posix()
-      try:
-        # encode_image_from_path(img_path.absolute().as_posix())
-        self.state.image_src = f"data:image/png;base64,{
-            self.encode_image_from_path(self.state.item_image_path)}"
-      except:
-        self.state.image_src = f"data:image/png;base64,{
-            self.encode_image_from_path(image_not_found_path)}"
-        warning(f'Encoding image url failed for path {
-                self.state.item_image_path}')
+        if img_path.exists():
+          self.state.item_image_path = img_path.absolute().as_posix()
+          try:
+            # encode_image_from_path(img_path.absolute().as_posix())
+            self.state.image_src = f"data:image/png;base64,{
+                self.encode_image_from_path(self.state.item_image_path)}"
+          except:
+            self.state.image_src = f"data:image/png;base64,{
+                self.encode_image_from_path(image_not_found_path)}"
+            warning(f'Encoding image url failed for path {
+                    self.state.item_image_path}')
 
+        else:
+          warning(f'Failed to locate media file {
+                  img_path.absolute().as_posix()}')
+          self.state.item_image_path = image_not_found_path
+          self.state.image_src = f"data:image/png;base64,{
+              self.encode_image_from_path(image_not_found_path)}"
+
+      # Update state
+      self.state.update({"item_name": f'{item_data_df.iloc[0]["item_name"]}'})
+      self.state.item_manufacturer = f'{item_data_df.iloc[0]['manufacturer']}'
+      self.state.item_manufacturer_details = f'{
+          item_data_df.iloc[0]['manufacturer_contact']}'
+      is_checkout_temp = (
+          f'{item_data_df.iloc[0]['is_checked_out']}')
+      self.state.check_out_date = f'{item_data_df.iloc[0]['check_out_date']}'
+      self.state.check_out_poc = f'{item_data_df.iloc[0]['check_out_poc']}'
+      self.state.date_added = f'{item_data_df.iloc[0]['date_added']}'
+      self.state.item_description = f'{
+          item_data_df.iloc[0]['item_description']}'
+      self.state.item_tags = f'{item_data_df.iloc[0]['item_tags']}'
+
+      # Handle cases where for whichever reason the checkout status is set
+      # to None
+      if is_checkout_temp == 'None':
+        self.state.is_checked_out = 0
+      else:
+        self.state.is_checked_out = int(is_checkout_temp)
+
+      if self.state.is_checked_out == 1:
+        self.state.checkout_status_summary = f' Item is checked out since {
+            self.state.check_out_date} by {self.state.check_out_poc}'
+      else:
+        self.state.checkout_status_summary = ' Item has not been checked out.'
+
+      # Flush state and update UI
+      self.state.flush()
+      self.ctrl.view_update()
     else:
-      warning(f'Failed to locate media file {
-              img_path.absolute().as_posix()}')
-      self.state.item_image_path = image_not_found_path
-      self.state.image_src = f"data:image/png;base64,{
-          self.encode_image_from_path(image_not_found_path)}"
-
-    # Update state
-    self.state.item_name = f'{item_data_df.iloc[0]["item_name"]}'
-    self.state.item_manufacturer = f'{item_data_df.iloc[0]['manufacturer']}'
-    self.state.item_manufacturer_details = f'{
-        item_data_df.iloc[0]['manufacturer_contact']}'
-    is_checkout_temp = (
-        f'{item_data_df.iloc[0]['is_checked_out']}')
-    self.state.check_out_date = f'{item_data_df.iloc[0]['check_out_date']}'
-    self.state.check_out_poc = f'{item_data_df.iloc[0]['check_out_poc']}'
-    self.state.date_added = f'{item_data_df.iloc[0]['date_added']}'
-    self.state.item_description = f'{item_data_df.iloc[0]['item_description']}'
-    self.state.item_tags = f'{item_data_df.iloc[0]['item_tags']}'
-
-    # Handle cases where for whichever reason the checkout status is set
-    # to None
-    if is_checkout_temp == 'None':
-      self.state.is_checked_out = 0
-    else:
-      self.state.is_checked_out = int(is_checkout_temp)
-
-    if self.state.is_checked_out == 1:
-      self.state.checkout_status_summary = f' Item is checked out since {
-          self.state.check_out_date} by {self.state.check_out_poc}'
-    else:
-      self.state.checkout_status_summary = ' Item has not been checked out.'
-
-    print(f'--- {self.state.item_name}')
+      warning(f'ITEM NOT FOUND in the database! ID = {id}')
 
   def read_item_user_input_to_object(self):
     """
@@ -1093,7 +1170,7 @@ class FrontendApplication:
     else:
       self.state.error_message = "Invalid credentials, please try again"
 
-  def start_server(self):
+  async def run(self):
     """
     Main function to start the inventory frontend server
 

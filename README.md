@@ -8,21 +8,34 @@ Minimal inventory management system to track physical assets in a digital databa
 
 # Configuration
 
+Settings of different elements of the front and backend are configurable via their respective config file. The following gives a brief overview where to find these files and which parameters to adjust.
+
 ## Configure Database
 
-:construction: Work in Progress :construction:
+Configure the Database server via the backend/database_config.py file. Make
+sure the IP address of the database server is configured correctly.
 
 ## Configure Camera Server
 
-:construction: Work in Progress :construction:
+Configure the UI server via the backend/camera_config.py file. Default is to
+run the camera server on localhost. This requires to run the UI server and
+camera server on the same machine, but can be configured otherwise.
 
 ## Configure Printer Interface
 
-:construction: Work in Progress :construction:
+Configure the printer interface via the backend/printer_config.py file. Make sure
+the printers Mac address is configured correctly. Default settings can be
+kept when using the Niimbot D110, which is the only tested printer so far.
+
+Note: The printer needs to be on, bluetooth enabled on the machine that runs
+the UI server. The printer will not connect permanently, but only
+for the short period the print command is sent.
 
 ## Configure User Interface
 
-:construction: Work in Progress :construction:
+Configure the UI server via the frontend/frontend_config.py file. Make sure
+the IP and port of the server are configured correctly, as well as IP and
+port of the camera server for the embedded html content.
 
 # Run with Docker
 
@@ -209,5 +222,25 @@ disable the mysql service with:
 
 ```
 sudo systemctl disable mysql
+
+```
+
+# Hardware Requirements
+
+Inventory is intended to run on any operating system and with any webcam connected to the system that hosts the front-end server. It is developped and tested with a mini PC but could also be hosted on a raspberry Pi in a minimal configuration.
+The current label printer interface only works with Niimbot printers (tested only with D110). Inventory was developped and tested with the following hardware:
+
+- BMAX mini PC (to run UI server and database)
+- Logitec C270 webcam (item imaging and QR code detection)
+- Niimbot D110 label printer (to print item QR code labels)
+
+## Label Printer setup
+
+To set up a new printer, the printer MAC address needs to be updated in
+backend/printer_config.py
+
+```
+# Mac address of the Niimbot D110 printer used to print inventory labels
+niimbot_d110_inventory_mac_address = '04:08:04:01:31:04'
 
 ```

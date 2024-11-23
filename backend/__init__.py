@@ -13,3 +13,5 @@ from backend.util import detect_and_decode_qr_marker
 from backend.database_config import *
 from backend.qr_config import decode_id_from_qr_message
 from backend.qr_config import encode_id_to_qr_message
+from backend.camera_config import camera_server_ip
+from backend.camera_config import camera_server_port

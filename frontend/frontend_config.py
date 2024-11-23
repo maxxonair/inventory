@@ -30,7 +30,7 @@ frontend_host_port = 8080
 # the login page
 # [!] Note: Currently if login is disabled the log-in will be skipped and
 #     the user will automatically be logged in with full root access.
-enableLogin = False
+enableLogin = True
 
 # Flag to run frontend in debug mode
 # Server will only be hosted to local host. frontend_host_ip/frontend_host_port
@@ -42,6 +42,8 @@ enableRunForDebug = False
 # the GUI
 disableDatabaseColumnFilter = False
 
+# TODO add data base table display column selection to this config
+
 # -------------------------------------------------------------------------
 # ---- CAMERA INTERFACE
 # -------------------------------------------------------------------------
@@ -49,14 +51,14 @@ disableDatabaseColumnFilter = False
 # TODO parameterize camera server IP and port
 html_content_embed_camera_stream = """
 <div>
-    <img crossorigin="anonymous" src="http://127.0.0.1:5050" width="70%">
+    <img crossorigin="anonymous" src="http://127.0.0.1:5000" width="70%">
 </div>
 """
 
 # Create HTML snipped to embed camera live stream from flask server
 html_content_embed_camera_stream_large = """
 <div>
-    <img crossorigin="anonymous" src="http://127.0.0.1:5050" width="85%">
+    <img crossorigin="anonymous" src="http://127.0.0.1:5000" width="85%">
 </div>
 """
 
