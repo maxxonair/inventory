@@ -34,7 +34,7 @@ state.trame__title = "inventory"
 
 # Init default field for the parsed item ID (used by both camera server and
 # UI)
-state.parsed_item_id = None
+state.item_id = None
 
 
 def update_id(id: int):
@@ -42,7 +42,7 @@ def update_id(id: int):
   Set item id and upate UI
   """
   global server, state, ctrl, ui_server
-  state.parsed_item_id = id
+  state.item_id = id
   ui_server.populate_item_from_id(id)
 
 

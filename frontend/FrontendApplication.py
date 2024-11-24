@@ -73,7 +73,6 @@ class FrontendApplication:
     self.camera_server = camera_server
 
     # Create server.state members
-    self.state.selected_item_id = None
     self.state.dummy_id = 0
     self.state.qr_message = None
     self.state.item_name = ""
@@ -120,12 +119,18 @@ class FrontendApplication:
     # If true show the camera feed in the add item section
     self.state.show_add_camera_feed = False
 
+    # Flag, True if the user is logged-in, False otheriwse
     self.state.logged_in = False
-    self.state.show_img_swap_page = False
-    self.state.show_inventory_item_details = True
+
+    # Note: if show_home_item_image is True, show_home_camera must be false!
+    self.state.show_home_camera = False
+    self.state.show_home_item_image = True
 
     # Temporary array to store the captured item image
     self.display_img = None
+
+    # Tooltip text shown for the come camera button
+    self.state.home_tooltip_text = "Open Camera"
     # -----------------------------------------------------------------------
     # -- TRAME WINDOW SETUP
     # -----------------------------------------------------------------------
@@ -171,11 +176,11 @@ class FrontendApplication:
       Callback function to delete the currently selected inventory item
       """
       # Only delete item if one is selected
-      if self.state.selected_item_id is not None:
+      if self.state.item_id is not None:
           # Create a DatabaseClient instance and connect to the inventory database
         db_client = DataBaseClient(host=database_host)
         # Command: DELETE item from inventory
-        db_client.delete_inventory_item(int(self.state.selected_item_id))
+        db_client.delete_inventory_item(int(self.state.item_id))
 
         # Update the dataframe so the table reflects the updated DB state
         self.update_inventory_df()
@@ -190,13 +195,21 @@ class FrontendApplication:
       valid_data, inventoryItem = self.read_item_user_input_to_object()
 
       if valid_data:
-          # Create a DatabaseClient instance and connect to the inventory database
+
+        # Create a DatabaseClient instance and connect to the inventory database
         db_client = DataBaseClient(host=database_host)
-        print(f'[update_inventory_item] -- {inventoryItem.manufacturer}')
+        info(f'[x] Update inventory item: {
+             inventoryItem.item_name} - image path {inventoryItem.item_image}')
 
         # Update the item in the database
         db_client.update_inventory_item(inventory_item=inventoryItem,
-                                        id=self.state.selected_item_id)
+                                        id=self.state.item_id)
+
+        # TODO: This currently needs to be called after
+        #       db_client.update_inventory_item because the image file path
+        #       is not properly set by read_item_user_input_to_object()
+        # Update item image
+        self.update_item_image_last_captured_image()
 
         # Update the dataframe so the table reflects the updated DB state
         self.update_inventory_df()
@@ -246,7 +259,7 @@ class FrontendApplication:
           warning('Fetched ID of created item invalid.')
         else:
           # Update ID in state
-          self.state.parsed_item_id = temp_id
+          self.state.item_id = temp_id
 
         # Update the dataframe so the table reflects the updated DB state
         self.update_inventory_df()
@@ -267,7 +280,7 @@ class FrontendApplication:
           # Create a DatabaseClient instance and connect to the inventory database
         db_client = DataBaseClient(host=database_host)
         # Update checkout status in database
-        db_client.update_inventory_item_checkout_status(id=self.state.parsed_item_id,
+        db_client.update_inventory_item_checkout_status(id=self.state.item_id,
                                                         inventory_item=self.inventory_item)
         # Update the dataframe so the table reflects the updated DB state
         self.update_inventory_df()
@@ -282,7 +295,7 @@ class FrontendApplication:
       # Create a DatabaseClient instance and connect to the inventory database
       db_client = DataBaseClient(host=database_host)
       # Update checkout status in database
-      db_client.update_inventory_item_checkout_status(id=self.state.parsed_item_id,
+      db_client.update_inventory_item_checkout_status(id=self.state.item_id,
                                                       inventory_item=self.inventory_item)
       # Update the dataframe so the table reflects the updated DB state
       self.update_inventory_df()
@@ -315,7 +328,7 @@ class FrontendApplication:
         # --- main row to contain all elements of this page
         with VRow():
           # --- inventory item data and image
-          with VCol(v_if="show_inventory_item_details"):
+          with VCol():
             # --- row containing the control buttons and the item image
             with VRow():
               # --- control button column ---
@@ -345,12 +358,13 @@ class FrontendApplication:
                                 v_on='on'):
                         VIcon('mdi-trash-can-outline', color='primary')
                 with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
-                  with vuetify2.VTooltip('Open Camera', bottom=True):
+                  with vuetify2.VTooltip(bottom=True):
+                    vuetify2.Template("{{ home_tooltip_text }}")
                     with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                       with VBtn('',
-                                click=self.switch_show_img_change,
+                                click=self.handle_home_camera_action,
                                 outlined=True,
-                                disabled=True,  # Disabled until TODO is resolved
+                                disabled=False,
                                 icon=True,
                                 v_if="enable_privilege_mod_item",
                                 v_bind='attrs',
@@ -372,11 +386,15 @@ class FrontendApplication:
                 VImg(
                     src=("image_src",),
                     max_width="400px",
-                    classes="mb-5")
+                    classes="mb-5",
+                    v_if="show_home_item_image")
+                # Embed camera stream in this sub-page
+                html.Div(html_content_embed_camera_stream,
+                         v_if="show_home_camera")
 
             # --- inventory item meta data
             with VRow(v_if="logged_in"):
-              with VCol(v_if="show_inventory_item_details", style="width: 300px; min-width: 60px; max-width: 600px;"):
+              with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
                 fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
                 self.ctrl.view_update = fig_item.update
                 with vuetify.VContainer(fluid=True):
@@ -414,7 +432,7 @@ class FrontendApplication:
                       "Check out status: {{ checkout_status_summary }}")
 
           # --- inventory table
-          with VCol(v_if="show_inventory_item_details"):
+          with VCol():
             with VRow():
               # TODO Add refined search option
               VBtn('Refined search - Under Construction')
@@ -429,40 +447,6 @@ class FrontendApplication:
                                  show_select=True)
               # Add callback function to select items
               # click_row=on_row_click)
-
-            # # --- CHANGE ITEM CONTROLS ---
-            # # TODO: This section is a mess and needs cleaning up before
-            # #       activating it again.
-            # with VCol(v_if="show_img_swap_page"):
-            #   with VCard(classes="ma-5", v_if="show_img_swap_page",
-            #              max_width="350px", elevation=2):
-            #     fig = vega.Figure(classes="ma-2", style="width: 100%;")
-            #     self.ctrl.fig_update = fig.update
-            #     VCardText("Current Item Image")
-            #     VImg(
-            #         src=("image_src",),
-            #         max_width="400px",
-            #         classes="mb-5")
-            #     with vuetify.VAppBar(elevation=0):
-            #       VIcon("mdi-arrow-up-bold-box", size=35, left=False)
-            #       VBtn("Change Current Image",
-            #            click=self.update_item_image_with_capture)
-            #       VIcon("mdi-arrow-up-bold-box", size=35, left=True)
-            #     VCardText("Captured Image")
-            #     VImg(
-            #         src=("display_img_src",),
-            #         max_width="400px",
-            #         classes="mb-5")
-            # with VCol(v_if="show_img_swap_page"):
-            #   VCardText("Place the item in front of the camera!")
-            #   VBtn(children=["Capture Image", VIcon('mdi-camera-plus-outline')],
-            #        click=self.capture_image,
-            #        outlined=True,
-            #        variant='outlined')
-            #   # Embed camera stream in this sub-page
-            #   html.Div(html_content_embed_camera_stream_large)
-
-            # --- item data ---
 
     # --- ADD IVENTORY ITEM ---
     with RouterViewLayout(self.server, "/add inventory item", v_if="enable_privilege_add_item"):
@@ -866,7 +850,7 @@ class FrontendApplication:
           info(f'Select item with ID: {current_id}')
 
           # Update state data ID
-          self.state.selected_item_id = current_id
+          self.state.item_id = current_id
 
           # Populate state data with item information
           self.populate_item_from_id(current_id)
@@ -976,7 +960,7 @@ class FrontendApplication:
       #     data grab
       self.inventory_item = db_client.get_inventory_item_as_object(id)
 
-      self.state.parsed_item_id = id
+      self.state.item_id = id
 
       # Handle loading and encoding image from media data
       # Only update images that contain a valid path
@@ -1072,11 +1056,10 @@ class FrontendApplication:
     Callback function to capture an image of an inventory item before adding
     it to the database
     """
-    global display_img
     try:
       # Get last recorded frame from the camera
       self.display_img = self.camera_server.get_last_frame()
-      info(f'Image catpured {self._getdatetime()}')
+      info(f'IMAGE CAPTURED ---  {self._getdatetime()}')
 
       # Encode recorded frame to display it in UI
       self.state.image_src = f"data:image/png;base64,{
@@ -1089,8 +1072,8 @@ class FrontendApplication:
     Callback to print the label for the currently selected Item
     """
     client = PrinterClient()
-    if self.state.parsed_item_id is not None:
-      client.print_qr_label_from_id(int(self.state.parsed_item_id))
+    if self.state.item_id is not None:
+      client.print_qr_label_from_id(int(self.state.item_id))
 
   def _getdatetime(self) -> str:
     """
@@ -1099,45 +1082,61 @@ class FrontendApplication:
     time_now = datetime.now()
     return time_now.strftime("%d/%m/%Y %H:%M:%S")
 
-  def update_item_image_with_capture(self):
+  def update_item_image_last_captured_image(self):
     """
     Take the latest captured image and set it as the currently selected items
     image
     """
+    if self.display_img is not None:
 
-    if self.state.display_img_src is not None:
-      self.state.image_src = self.state.display_img_src
-
-      cam_img_bytes = display_img.tobytes()
+      # Create hash of image data array
+      cam_img_bytes = self.display_img .tobytes()
       hash_object = hashlib.sha256(cam_img_bytes)
       hash_hex = hash_object.hexdigest()
 
-      img_path = Path(media_directory) / f'{hash_hex}.png'
-      self.state.item_image_path = img_path.absolute().as_posix()
+      self.state.item_image_path = (
+          Path(media_directory) / f'{hash_hex}.png').absolute().as_posix()
 
       # Save item image to file
-      cv.imwrite(img_path, display_img)
-
-      try:
-        # encode_image_from_path(img_path.absolute().as_posix())
-        self.state.image_src = f"data:image/png;base64,{
-            self.encode_image_from_path(self.state.item_image_path)}"
-      except:
-        self.state.image_src = f"data:image/png;base64,{
-            self.encode_image_from_path(image_not_found_path)}"
-        warning(f'Encoding image url failed for path {
-                self.state.item_image_path}')
+      cv.imwrite(self.state.item_image_path, self.display_img)
 
       # Update the path in the database
-      if self.state.selected_item_id is not None:
-        # Create a DatabaseClient instance and connect to the inventory database
+      if self.state.item_id is not None:
+        # Create a DatabaseClient instance and connect to the inventory
+        # database
+        info(
+            f'[+] Set {self.state.item_id} item image path to {self.state.item_image_path}')
         db_client = DataBaseClient(host=database_host)
-        db_client.update_inventory_item_image_path(self.state.selected_item_id,
-                                                   img_path.absolute().as_posix())
+        db_client.update_inventory_item_image_path(self.state.item_id,
+                                                   self.state.item_image_path)
+      else:
+        warning(f'Attempt to save image while display_img was None!')
 
-  def switch_show_img_change(self, *args):
-    self.state.show_inventory_item_details = not self.state.show_inventory_item_details
-    self.state.show_img_swap_page = not self.state.show_img_swap_page
+  def handle_home_camera_action(self, *args):
+    """
+    Handle actions when the camera button is pressed on the Home page:
+    * If static image is shown -> switch to camera feed
+    * If camera feed is on -> Capture image and switch back to static image
+
+    """
+    if self.state.show_home_item_image:
+      # CASE - Item image is displayed -> Switch to camera feed
+      # Switch visibility states of static image and camera feed
+      self.state.home_tooltip_text = "Capture Image"
+    elif self.state.show_home_camera:
+      # CASE - Camera feed is displayed -> Capture image and switch back to
+      # static image display
+      self.state.home_tooltip_text = "Open Camera"
+      # Capture image
+      self.capture_image()
+    else:
+      error(f'Inconsistent image display state: image flag {
+            self.state.show_home_item_image} / camera flag {self.state.show_home_camera}')
+
+    # Flip visibility static image <-> camera live feed
+    self.state.show_home_camera = (not self.state.show_home_camera)
+    self.state.show_home_item_image = (not self.state.show_home_item_image)
+    self.state.flush()
 
   def logout(self, *args):
     """
