@@ -244,14 +244,39 @@ class DataBaseClient():
     # Commit the transaction
     self.connection.commit()
 
-  def add_inventory_item(self, inventory_item: InventoryItem):
+  def _get_last_inserted_id(self) -> int:
+    """
+    Returns the ID of the most recent added item
+
+    """
+    sql = 'SELECT LAST_INSERT_ID()'
+    # Execute the query
+    self.exec_sql_cmd(sql, [])
+
+    # Fetch all rows from the executed query
+    id_list = self.cursor.fetchall()
+    id_out = -1
+    if len(id_list) == 1:
+      id_out = id_list[0]
+      id_out = int(id_out[0])
+
+    print(f'+----- {id_out}')
+
+    return id_out
+
+  def add_inventory_item(self, inventory_item: InventoryItem) -> id:
     """
     Create column in INVENTORY_TABLE_NAME 
+
+
+    returns ID of the created inventory item
     """
     # SQL query to insert a new row into the table
     sql, values = inventory_item.get_sql_query_add_item()
 
     self.exec_sql_cmd(sql, values)
+
+    return self._get_last_inserted_id()
 
   def update_inventory_item(self, inventory_item: InventoryItem, id: int):
     """

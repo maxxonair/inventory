@@ -5,6 +5,10 @@ from backend.PrinterClient import PrinterClient
 
 # --- [Data Classes]
 from backend.InventoryItem import InventoryItem
+from backend.InventoryUser import InventoryUser
+
+# --- [Enums]
+from backend.InventoryUser import UserPrivileges
 
 # --- [Utility Functions]
 from backend.util import detect_and_decode_qr_marker

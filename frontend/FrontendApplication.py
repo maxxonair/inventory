@@ -23,6 +23,7 @@ import logging
 import sys
 import pandas as pd
 import os
+from datetime import datetime
 
 # --------------------------------------------------------------------------
 #                           [Inventory Imports]
@@ -32,15 +33,15 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
 # ---- Backend imports
-from backend.DataBaseClient import DataBaseClient
-from backend.database_config import database_host
-from backend.InventoryItem import InventoryItem
-from backend.InventoryUser import InventoryUser, UserPrivileges
-from backend.PrinterClient import PrinterClient
+from backend import (CameraServer,
+                     PrinterClient,
+                     InventoryUser,
+                     UserPrivileges,
+                     database_host,
+                     InventoryItem,
+                     DataBaseClient)
 
 # ---- Frontend imports
-
-# Import configuration parameters
 from frontend.frontend_config import (inventory_page_title,
                                       inventory_main_window_title,
                                       main_table_header_options,
@@ -60,13 +61,16 @@ class FrontendApplication:
   # -----------------------------------------------------------------------------
   #                 [INIT]
   # -----------------------------------------------------------------------------
-  def __init__(self, server, state, ctrl):
+  def __init__(self, server, state, ctrl, camera_server: CameraServer):
     # -----------------------------------------------------------------------
     # Main application server
     # ---------------------------------------------------------------------
     self.server = server
     self.state = state
     self.ctrl = ctrl
+
+    # Add camera server - This is used to capture item images
+    self.camera_server = camera_server
 
     # Create server.state members
     self.state.selected_item_id = None
@@ -120,8 +124,8 @@ class FrontendApplication:
     self.state.show_img_swap_page = False
     self.state.show_inventory_item_details = True
 
-    local_image_dir = ''
-
+    # Temporary array to store the captured item image
+    self.display_img = None
     # -----------------------------------------------------------------------
     # -- TRAME WINDOW SETUP
     # -----------------------------------------------------------------------
@@ -218,26 +222,37 @@ class FrontendApplication:
         # If an image has been captured
         # -> Save image to file
         # -> Update image path in item data
-        if display_img is not None:
-          cam_img_bytes = display_img.tobytes()
+        if self.display_img is not None:
+          cam_img_bytes = self.display_img.tobytes()
           hash_object = hashlib.sha256(cam_img_bytes)
           hash_hex = hash_object.hexdigest()
 
           img_path = Path(media_directory) / f'{hash_hex}.png'
 
           # Save item image to file
-          cv.imwrite(img_path, display_img)
+          cv.imwrite(img_path, self.display_img)
 
           # Update image path in InventoryItem instance
           inventoryItem.set_img_path(img_path)
 
-        # Create a DatabaseClient instance and connect to the inventory database
+        # Create a temporary DatabaseClient instance and connect to the
+        # inventory database
         db_client = DataBaseClient(host=database_host)
         # Add item to database
-        db_client.add_inventory_item(inventoryItem)
+        temp_id = db_client.add_inventory_item(inventoryItem)
+
+        if temp_id == -1:
+          # Fetching ID failed -> don't update state variable
+          warning('Fetched ID of created item invalid.')
+        else:
+          # Update ID in state
+          self.state.parsed_item_id = temp_id
 
         # Update the dataframe so the table reflects the updated DB state
         self.update_inventory_df()
+
+        # Print QR code label
+        self.print_label_from_id()
 
         update_table()
       else:
@@ -518,14 +533,19 @@ class FrontendApplication:
                 )
           with VCol(v_if="show_add_camera_feed"):
             with VRow(align='center', justify='center'):
-              VCardText("Place the item in front of the camera!")
+              with VCardText("Place Item in Front of the Camera!"):
+                with vuetify2.VTooltip('Capture Image', bottom=True):
+                  with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                    with VBtn('',
+                              click=self.capture_image,
+                              outlined=True,
+                              icon=True,
+                              x_large=True,
+                              v_bind='attrs',
+                              v_on='on'):
+                      VIcon("mdi-camera", color='primary')
             with VRow():
               html.Div(html_content_embed_camera_stream_large)
-            with VRow(align='center', justify='center'):
-              with VBtn('',
-                        click=self.capture_image, outlined=True, icon=True,
-                        x_large=True):
-                VIcon("mdi-camera", color='primary')
 
     # --- CHECKOUT INVENTORY ITEM ---
     with RouterViewLayout(self.server, "/checkout inventory item"):
@@ -604,7 +624,7 @@ class FrontendApplication:
                 )
           with VCol():
             with VRow(v_if="show_checkout_camera_feed", style="margin-top: 10px;"):
-              VCardText("Place the item QR code in front of the camera!")
+              VCardText("Place QR label in Front of the Camera!")
               # Embed camera stream in this sub-page
               html.Div(html_content_embed_camera_stream)
 
@@ -684,7 +704,7 @@ class FrontendApplication:
                 )
           with VCol():
             with VRow(v_if="show_return_camera_feed", style="margin-top: 10px;"):
-              VCardText("Place the item QR code in front of the camera!")
+              VCardText("Place QR label in Front of the Camera!")
               # Embed camera stream in this sub-page
               html.Div(html_content_embed_camera_stream)
 
@@ -1054,10 +1074,13 @@ class FrontendApplication:
     """
     global display_img
     try:
-      display_img = self.camera_server.get_last_frame()
+      # Get last recorded frame from the camera
+      self.display_img = self.camera_server.get_last_frame()
+      info(f'Image catpured {self._getdatetime()}')
 
-      self.state.display_img_src = f"data:image/png;base64,{
-          self.encode_image(display_img)}"
+      # Encode recorded frame to display it in UI
+      self.state.image_src = f"data:image/png;base64,{
+          self.encode_image(self.display_img)}"
     except:
       warning('[capture_image] Capturing image failed.')
 
@@ -1068,6 +1091,13 @@ class FrontendApplication:
     client = PrinterClient()
     if self.state.parsed_item_id is not None:
       client.print_qr_label_from_id(int(self.state.parsed_item_id))
+
+  def _getdatetime(self) -> str:
+    """
+    Get current datetime as string fromat: %d/%m/%Y %H:%M:%S
+    """
+    time_now = datetime.now()
+    return time_now.strftime("%d/%m/%Y %H:%M:%S")
 
   def update_item_image_with_capture(self):
     """

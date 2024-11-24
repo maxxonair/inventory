@@ -22,8 +22,10 @@ from backend.DataBaseClient import DataBaseClient
 # --- Config imports
 from backend.database_config import database_host, INVENTORY_DB_NAME
 
-# camera_process = None
-# ui_process = None
+# Initialize logging
+logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.INFO)
 
 # Create Trame server
 server = get_server(client_type="vue2")
@@ -33,12 +35,6 @@ state.trame__title = "inventory"
 # Init default field for the parsed item ID (used by both camera server and
 # UI)
 state.parsed_item_id = None
-
-# -----------------------------------------------------------------------
-# -- FRONTEND SERVER
-# -----------------------------------------------------------------------
-# --- Create camera server instance
-ui_server = FrontendApplication(server, state, ctrl)
 
 
 def update_id(id: int):
@@ -55,6 +51,11 @@ def update_id(id: int):
 # -----------------------------------------------------------------------
 # --- Create camera server instance
 camera_server = CameraServer(update_id)
+# -----------------------------------------------------------------------
+# -- FRONTEND SERVER
+# -----------------------------------------------------------------------
+# --- Create camera server instance
+ui_server = FrontendApplication(server, state, ctrl, camera_server)
 
 
 def do_cleanup_event_loop(loop):
@@ -129,10 +130,6 @@ def main():
 
 
 if __name__ == "__main__":
-  # Initialize logging
-  logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
-                      datefmt='%H:%M:%S',
-                      level=logging.INFO)
 
   # Start main application
   main()

@@ -1,6 +1,6 @@
 # inventory
 
-Minimal inventory management system to track physical assets in a digital database. The assets are identified by QR code, which are generated and recognized by inventory. When creating a new item inventory tries to interface automatically with a Niimbot printer to print the corresponding QR label sticker. The QR label is read using a webcam interface.
+Minimal inventory management system to track physical assets in a digital database. The assets are identified by QR code labels, which are generated and recognized by inventory. When creating a new item inventory tries to interface automatically with a Niimbot printer to print the corresponding QR label sticker. The QR label is read using a webcam interface.
 
 :construction: Work in Progress :construction:
 
@@ -230,7 +230,7 @@ sudo systemctl disable mysql
 Inventory is intended to run on any operating system and with any webcam connected to the system that hosts the front-end server. It is developped and tested with a mini PC but could also be hosted on a raspberry Pi in a minimal configuration.
 The current label printer interface only works with Niimbot printers (tested only with D110). Inventory was developped and tested with the following hardware:
 
-- BMAX mini PC (to run UI server and database)
+- BMAX mini PC (to run UI server and database) running Ubuntu 24.04.1
 - Logitec C270 webcam (item imaging and QR code detection)
 - Niimbot D110 label printer (to print item QR code labels)
 

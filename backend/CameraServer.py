@@ -1,6 +1,5 @@
 from flask_cors import CORS
-from flask import Flask, Response, render_template
-from multiprocessing import Manager
+from flask import Flask, Response
 import cv2 as cv
 from logging import warning, error, info, debug
 import numpy as np
@@ -9,8 +8,9 @@ import sys
 import asyncio
 
 from frontend import FrontendApplication
-from backend import decode_id_from_qr_message
-from backend import camera_server_ip, camera_server_port
+from backend import (decode_id_from_qr_message,
+                     camera_server_ip,
+                     camera_server_port)
 
 # Get the parent directory and add it to the sys.path
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -36,11 +36,8 @@ class CameraServer():
     # Enable CORS
     CORS(self.app)
 
-    self.manager = Manager()
-    self.qr_message = self.manager.Value('d', '')
-
-    self.image_manager = Manager()
-    self.captured_frame = self.image_manager.Value('d', '')
+    # Initialize array to store last captured frame to black image
+    self.captured_frame = np.zeros((512, 512), dtype=int)
 
     self.fnct_update_id = fnct_update_id
 
@@ -53,11 +50,13 @@ class CameraServer():
     while True:
       # Capture frame-by-frame
       success, frame = camera.read()
+
       if not success:
         error('Failed to conntect to camera.')
         break
       else:
-
+        # Save the most recent valid frame without marker drawings
+        self.captured_frame = frame
         # Detect and mark QR markers in frame
         (frame,
          _,
@@ -136,10 +135,13 @@ class CameraServer():
     return await asyncio.to_thread(start_flask)
 
   def get_last_frame(self):
-    return np.array(self.captured_frame.value)
+    """
+    Returns the last captured frame as a numpy array. 
 
-  def get_qr_message(self):
-    return str(self.qr_message.value)
+    This function is inteded to be used by the UI to capture inventory 
+    item images for the database.
+    """
+    return np.array(self.captured_frame)
 
 
 if __name__ == "__main__":
