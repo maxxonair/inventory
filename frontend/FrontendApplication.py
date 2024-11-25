@@ -384,6 +384,19 @@ class FrontendApplication:
                                 v_bind='attrs',
                                 v_on='on'):
                         VIcon('mdi-camera', color='primary')
+                with VRow(v_if="show_home_camera", style="margin-bottom: 16px;"):
+                  with vuetify2.VTooltip(bottom=True):
+                    vuetify2.Template("Switch-off Camera")
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                click=self.switch_off_home_camera,
+                                outlined=True,
+                                disabled=False,
+                                icon=True,
+                                v_if="enable_privilege_mod_item",
+                                v_bind='attrs',
+                                v_on='on'):
+                        VIcon('mdi-camera-off', color='primary')
                 with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
                   with vuetify2.VTooltip('Print Item Label', bottom=True):
                     with vuetify2.Template(v_slot_activator="{ on, attrs }"):
@@ -766,8 +779,7 @@ class FrontendApplication:
             hint='Theme'
         )
 
-        # Button Export database to file
-        # TODO Callback to be added
+        # Button Export database to file (.csv)
         with vuetify2.VTooltip('Export Database to csv', bottom=True, v_if="logged_in"):
           with vuetify2.Template(v_slot_activator="{ on, attrs }"):
             with VBtn("",
@@ -1125,6 +1137,17 @@ class FrontendApplication:
                                                    self.state.item_image_path)
       else:
         warning(f'Attempt to save image while display_img was None!')
+
+  def switch_off_home_camera(self, *args):
+    """
+    Callback function to switch off the camera in the home section without
+    action
+
+    """
+    # Flip visibility static image <-> camera live feed
+    self.state.show_home_camera = (not self.state.show_home_camera)
+    self.state.show_home_item_image = (not self.state.show_home_item_image)
+    self.state.flush()
 
   def handle_home_camera_action(self, *args):
     """
