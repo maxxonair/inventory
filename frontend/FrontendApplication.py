@@ -10,13 +10,12 @@ from trame.ui.vuetify2 import VAppLayout
 from trame.widgets import vuetify2
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
-import asyncio
+from io import StringIO
 from multiprocessing import Process, Manager, Pipe, Value
 import time
 import cv2 as cv
 import base64
 import hashlib
-import multiprocessing
 from pathlib import Path
 from logging import info, error, warning, debug
 import logging
@@ -131,6 +130,9 @@ class FrontendApplication:
 
     # Tooltip text shown for the come camera button
     self.state.home_tooltip_text = "Open Camera"
+
+    self.state.time_str = ''
+    self.state.inventory_csv_string = pd.DataFrame([])
     # -----------------------------------------------------------------------
     # -- TRAME WINDOW SETUP
     # -----------------------------------------------------------------------
@@ -162,6 +164,18 @@ class FrontendApplication:
       """
       Update the table view
       """
+      # Store a full copy of the inventory in the state
+      # TODO: Find a smarter way to do this
+      db_client = DataBaseClient(database_host)
+
+      # Convert DataFrame to CSV format as string
+      csv_buffer = StringIO()
+      db_client.get_inventory_as_df().to_csv(csv_buffer, index=False)
+      self.state.inventory_csv_string = csv_buffer.getvalue()
+
+      time_now = datetime.now()
+      self.state.time_str = time_now.strftime("%d_%m_%Y__%H_%M_%S")
+
       filtered_df = filter_inventory_df(self.state.query)
       headers, rows = vuetify.dataframe_to_grid(
           filtered_df, main_table_header_options)
@@ -754,12 +768,13 @@ class FrontendApplication:
 
         # Button Export database to file
         # TODO Callback to be added
-        with vuetify2.VTooltip('Export Database to File', bottom=True):
+        with vuetify2.VTooltip('Export Database to csv', bottom=True, v_if="logged_in"):
           with vuetify2.Template(v_slot_activator="{ on, attrs }"):
-            with VBtn("", v_if="logged_in",
-                      disabled=True,
+            with VBtn("",
+                      disabled=False,
                       outlined=True,
                       icon=True,
+                      click="utils.download('inventory.csv', inventory_csv_string, 'text/csv')",
                       v_bind='attrs',
                       v_on='on'):
               VIcon('mdi-file-export', color='primary')
@@ -771,10 +786,9 @@ class FrontendApplication:
             VIcon('mdi-card-account-details', color='secondary')
 
         # Log-out Button
-        with vuetify2.VTooltip('Log Out', bottom=True):
+        with vuetify2.VTooltip('Log Out', bottom=True, v_if="logged_in"):
           with vuetify2.Template(v_slot_activator="{ on, attrs }"):
             with VBtn("",
-                      # v_if="logged_in",
                       click=self.logout,
                       outlined=True,
                       icon=True,

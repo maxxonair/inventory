@@ -112,7 +112,7 @@ def main():
 
     # Create and start file watcher to monitor saved qr messages
     observer = Observer()
-    print((Path(__file__).parent / 'temp' / 'qr').resolve())
+
     observer.schedule(
         UpdateUIOnChange(),
         (Path(__file__).parent / 'temp' / 'qr').resolve(),
