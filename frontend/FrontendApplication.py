@@ -132,7 +132,7 @@ class FrontendApplication:
     self.state.home_tooltip_text = "Open Camera"
 
     self.state.time_str = ''
-    self.state.inventory_csv_string = pd.DataFrame([])
+    self.state.inventory_csv_string = ''
     # -----------------------------------------------------------------------
     # -- TRAME WINDOW SETUP
     # -----------------------------------------------------------------------
@@ -300,8 +300,12 @@ class FrontendApplication:
         self.update_inventory_df()
 
         update_table()
+        self.state.is_checked_out = 1
+        self.state.check_out_poc = self.state.username
+        self.state.check_out_date = self.inventory_item.check_out_date
+        self._update_checkout_status()
       else:
-        warning('Updating checkout status failed. No Point of Contact provided')
+        warning('Updating checkout status failed. No user set.')
 
     def checkin_item(*args):
 
@@ -315,6 +319,8 @@ class FrontendApplication:
       self.update_inventory_df()
 
       update_table()
+      self.state.is_checked_out = 0
+      self._update_checkout_status()
     # -----------------------------------------------------------------------
     # -- GUI
     # -----------------------------------------------------------------------
@@ -1026,7 +1032,7 @@ class FrontendApplication:
       self.state.item_description = f'{
           item_data_df.iloc[0]['item_description']}'
       self.state.item_tags = f'{item_data_df.iloc[0]['item_tags']}'
-
+      self._update_checkout_status()
       # Handle cases where for whichever reason the checkout status is set
       # to None
       if is_checkout_temp == 'None':
@@ -1034,17 +1040,19 @@ class FrontendApplication:
       else:
         self.state.is_checked_out = int(is_checkout_temp)
 
-      if self.state.is_checked_out == 1:
-        self.state.checkout_status_summary = f' Item is checked out since {
-            self.state.check_out_date} by {self.state.check_out_poc}'
-      else:
-        self.state.checkout_status_summary = ' Item has not been checked out.'
-
       # Flush state and update UI
       self.state.flush()
       self.ctrl.view_update()
     else:
       warning(f'ITEM NOT FOUND in the database! ID = {id}')
+
+  def _update_checkout_status(self):
+    if self.state.is_checked_out == 1:
+      self.state.checkout_status_summary = f' Item is CHECKED-OUT by {self.state.check_out_poc} since {
+          self.state.check_out_date}'
+    else:
+      self.state.checkout_status_summary = ' Item has not been checked out.'
+    self.state.flush()
 
   def read_item_user_input_to_object(self):
     """
