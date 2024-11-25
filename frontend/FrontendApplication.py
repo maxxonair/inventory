@@ -13,6 +13,7 @@ from trame.ui.router import RouterViewLayout
 from io import StringIO
 from multiprocessing import Process, Manager, Pipe, Value
 import time
+import asyncio
 import cv2 as cv
 import base64
 import hashlib
@@ -57,6 +58,10 @@ from frontend.frontend_config import (inventory_page_title,
 
 class FrontendApplication:
 
+  # Time to display VAlert messages
+  delay_success_messages_s = 2
+  delay_warning_messages_s = 20
+  
   # -----------------------------------------------------------------------------
   #                 [INIT]
   # -----------------------------------------------------------------------------
@@ -124,6 +129,30 @@ class FrontendApplication:
     # Note: if show_home_item_image is True, show_home_camera must be false!
     self.state.show_home_camera = False
     self.state.show_home_item_image = True
+    
+    self.state.show_modify_item_alert_success = False
+    self.state.modify_item_alert_text_success = ''
+
+    self.state.show_modify_item_alert_warning = False
+    self.state.modify_item_alert_text_warning = ''
+    
+    self.state.show_add_item_alert_success = False
+    self.state.add_item_alert_text_success = ''
+
+    self.state.show_add_item_alert_warning = False
+    self.state.add_item_alert_text_warning = ''
+
+    self.state.show_checkout_alert_success = False
+    self.state.checkout_alert_text_success = ''
+
+    self.state.show_checkout_alert_warning = False
+    self.state.checkout_alert_text_warning = ''
+    
+    self.state.show_return_alert_success = False
+    self.state.return_alert_text_success = ''
+
+    self.state.show_return_alert_warning = False
+    self.state.return_alert_text_warning = ''
 
     # Temporary array to store the captured item image
     self.display_img = None
@@ -201,6 +230,7 @@ class FrontendApplication:
 
         # Update the table view
         update_table()
+        self.display_success('Item deleted successfully', 'modify_item')
 
     def update_inventory_item(*args):
       """
@@ -230,8 +260,10 @@ class FrontendApplication:
 
         # Update the table view
         update_table()
+        self.display_success('Item updated successfully', 'modify_item')
       else:
         error('Adding Inventory item failed. Invalid user inputs')
+        self.display_warning('Item update failed!', 'modify_item')
 
     def add_inventory_item(*args):
       """
@@ -282,13 +314,18 @@ class FrontendApplication:
         self.print_label_from_id()
 
         update_table()
+        self.display_success('Item added successfully', 'add_item')
       else:
-        # TODO Add error field to show in UI
+        self.display_warning('Adding item failed! Invalid user inputs', 'add_item')
         error('Adding Inventory item failed. Invalid user inputs')
+        
+        
+      self.state.flush()
 
     def checkout_item(*args):
 
       ret = self.inventory_item.set_checked_out(self.state.username)
+
 
       if ret:
           # Create a DatabaseClient instance and connect to the inventory database
@@ -304,8 +341,13 @@ class FrontendApplication:
         self.state.check_out_poc = self.state.username
         self.state.check_out_date = self.inventory_item.check_out_date
         self._update_checkout_status()
+
+        self.display_success('Item checked-out successful!', 'checkout')
       else:
+        self.display_warning('Item checked-out failed. No User set!', 'checkout')
         warning('Updating checkout status failed. No user set.')
+        
+      self.state.flush()
 
     def checkin_item(*args):
 
@@ -321,6 +363,8 @@ class FrontendApplication:
       update_table()
       self.state.is_checked_out = 0
       self._update_checkout_status()
+      self.display_success('Item returned successfully!', 'return')
+      
     # -----------------------------------------------------------------------
     # -- GUI
     # -----------------------------------------------------------------------
@@ -416,6 +460,12 @@ class FrontendApplication:
 
               # --- item image ---
               with VCol(style="width: 300px; min-width: 60px; max-width: 400px;"):
+                
+                vuetify.VAlert("{{ modify_item_alert_text_success }}",
+                              type="success", v_if="show_modify_item_alert_success")
+                vuetify.VAlert("{{ modify_item_alert_text_warning }}",
+                              type="warning", v_if="show_modify_item_alert_warning")
+                
                 VImg(
                     src=("image_src",),
                     max_width="400px",
@@ -508,6 +558,12 @@ class FrontendApplication:
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-camera", color='primary')
+                    
+            vuetify.VAlert("{{ add_item_alert_text_success }}",
+                            type="success", v_if="show_add_item_alert_success")
+            vuetify.VAlert("{{ add_item_alert_text_warning }}",
+                            type="warning", v_if="show_add_item_alert_warning")
+              
             with VCol():
               with VRow():
                 VImg(
@@ -564,7 +620,7 @@ class FrontendApplication:
             with VRow():
               html.Div(html_content_embed_camera_stream_large)
 
-    # --- CHECKOUT INVENTORY ITEM ---
+    # --- CHECK-OUT INVENTORY ITEM ---
     with RouterViewLayout(self.server, "/checkout inventory item"):
       with vuetify.VContainer(fluid=True):
         with VRow(v_if="logged_in"):
@@ -593,6 +649,12 @@ class FrontendApplication:
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-cart-check", color='primary')
+
+            vuetify.VAlert("{{ checkout_alert_text_success }}",
+                            type="success", v_if="show_checkout_alert_success")
+            vuetify.VAlert("{{ checkout_alert_text_warning }}",
+                            type="warning", v_if="show_checkout_alert_warning")
+
 
             with VRow(tyle="margin-top: 10px;"):
               with VCol():
@@ -673,7 +735,12 @@ class FrontendApplication:
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-cart-check", color='primary')
-
+                    
+              vuetify.VAlert("{{ return_alert_text_success }}",
+                              type="success", v_if="show_return_alert_success")
+              vuetify.VAlert("{{ return_alert_text_warning }}",
+                              type="warning", v_if="show_return_alert_warning")
+              
             with VRow(tyle="margin-top: 20px;"):
               with VCol():
                 VImg(
@@ -863,6 +930,46 @@ class FrontendApplication:
     @ self.state.change("query")
     def on_query_change(query, **kwargs):
       update_table()
+   
+    @ self.state.change("modify_item_alert_text_success")
+    def on_query_change(query, **kwargs):
+      if self.state.modify_item_alert_text_success:
+        self.state.show_modify_item_alert_success = True
+      
+    @ self.state.change("modify_item_alert_text_warning")
+    def on_query_change(query, **kwargs):
+      if self.state.modify_item_alert_text_warning:
+        self.state.show_modify_item_alert_warning = True 
+     
+    @ self.state.change("add_item_alert_text_success")
+    def on_query_change(query, **kwargs):
+      if self.state.add_item_alert_text_success:
+        self.state.show_add_item_alert_success = True
+      
+    @ self.state.change("add_item_alert_text_warning")
+    def on_query_change(query, **kwargs):
+      if self.state.add_item_alert_text_warning:
+        self.state.show_add_item_alert_warning = True
+      
+    @ self.state.change("checkout_alert_text_success")
+    def on_query_change(query, **kwargs):
+      if self.state.checkout_alert_text_success:
+        self.state.show_checkout_alert_success = True
+      
+    @ self.state.change("checkout_alert_text_warning")
+    def on_query_change(query, **kwargs):
+      if self.state.checkout_alert_text_warning:
+        self.state.show_checkout_alert_warning = True
+        
+    @ self.state.change("return_alert_text_success")
+    def on_query_change(query, **kwargs):
+      if self.state.return_alert_text_success:
+        self.state.show_return_alert_success = True
+      
+    @ self.state.change("return_alert_text_warning")
+    def on_query_change(query, **kwargs):
+      if self.state.return_alert_text_warning:
+        self.state.show_return_alert_warning = True
 
     @ self.state.change('item_name')
     def update_item_textfields(**kwargs):
@@ -917,6 +1024,62 @@ class FrontendApplication:
   #   UI CALLBACK FUNCTIONS
   # -------------------------------------------------------------------------
 
+    
+  def hide_all_alerts(self):
+    """
+    Function: Hide all VAlert fields
+    """
+    self.state.show_modify_item_alert_success = False
+    self.state.show_modify_item_alert_warning = False
+    self.state.show_add_item_alert_success = False
+    self.state.show_add_item_alert_warning = False
+    self.state.show_checkout_alert_success = False
+    self.state.show_checkout_alert_warning = False
+    self.state.show_return_alert_success = False
+    self.state.show_return_alert_warning = False
+    
+  def display_success(self, message: str, section: str):
+    
+    async def countdown():
+      await asyncio.sleep(self.delay_success_messages_s)  
+      self.hide_all_alerts()
+      self.state.flush()  
+      
+    if section == 'modify_item':
+      self.state.modify_item_alert_text_success = message
+    elif section == 'add_item':
+      self.state.add_item_alert_text_success = message
+    elif section == 'checkout':
+      self.state.checkout_alert_text_success = message
+    elif section == 'return':
+      self.state.show_return_alert_success = message
+    else:
+      error('Invalid section selected!')
+    self.state.flush()
+    
+    asyncio.create_task(countdown())
+      
+  def display_warning(self, message: str, section: str):
+    
+    async def countdown():
+      await asyncio.sleep(self.delay_warning_messages_s)  
+      self.hide_all_alerts()
+      self.state.flush()  
+    
+    if section == 'modify_item':
+      self.state.modify_item_alert_text_warning = message
+    elif section == 'add_item':
+      self.state.add_item_alert_text_warning = message
+    elif section == 'checkout':
+      self.state.checkout_alert_text_warning = message
+    elif section == 'return':
+      self.state.return_alert_text_warning = message
+    else:
+      error('Invalid section selected!')
+    self.state.flush()
+    
+    asyncio.create_task(countdown())
+
   def checkout_show_camera_feed(self):
     """
     If camera feed NOT shown -> show camera feed
@@ -954,6 +1117,9 @@ class FrontendApplication:
     # Create a DatabaseClient instance and connect to the inventory database
     db_client = DataBaseClient(host=database_host)
     self.inventory_df = db_client.get_inventory_as_df()
+
+    # Reset checkout alert visibility
+    self.hide_all_alerts()
 
     if not disableDatabaseColumnFilter:
       # -- Remove columns that should not be displayed
