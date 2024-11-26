@@ -312,10 +312,10 @@ class FrontendApplication:
         # Print QR code label
         if not self.print_label_from_id():
           self.display_warning(
-            'Item added to inventory. Failed to connect to printer', 'add_item')
-        else:      
+              'Item added to inventory. Failed to connect to printer', 'add_item')
+        else:
           self.display_success(
-          'Item added successfully!', 'add_item')
+              'Item added successfully!', 'add_item')
 
         update_table()
       else:
@@ -562,12 +562,12 @@ class FrontendApplication:
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-camera", color='primary')
-                    
+
             vuetify.VAlert("{{ add_item_alert_text_success }}",
-                          type="success", v_if="show_add_item_alert_success")
+                           type="success", v_if="show_add_item_alert_success")
             vuetify.VAlert("{{ add_item_alert_text_warning }}",
-                          type="warning", v_if="show_add_item_alert_warning")
-              
+                           type="warning", v_if="show_add_item_alert_warning")
+
             with VCol():
               with VRow():
                 VImg(
@@ -655,9 +655,9 @@ class FrontendApplication:
                     VIcon("mdi-cart-check", color='primary')
 
               vuetify.VAlert("{{ checkout_alert_text_success }}",
-                            type="success", v_if="show_checkout_alert_success")
+                             type="success", v_if="show_checkout_alert_success")
               vuetify.VAlert("{{ checkout_alert_text_warning }}",
-                            type="warning", v_if="show_checkout_alert_warning")
+                             type="warning", v_if="show_checkout_alert_warning")
 
             with VRow(tyle="margin-top: 10px;"):
               with VCol():
@@ -1041,22 +1041,23 @@ class FrontendApplication:
     self.state.show_return_alert_warning = False
     self._reset_all_alert_messages()
     self.state.flush()
-    
+
   def _reset_all_alert_messages(self):
-    self.state.modify_item_alert_text_success=''
-    self.state.add_item_alert_text_success=''
-    self.state.checkout_alert_text_success=''
-    self.state.return_alert_text_success=''
-    self.state.modify_item_alert_text_warning=''
-    self.state.add_item_alert_text_warning=''
-    self.state.checkout_alert_text_warning=''
-    self.state.return_alert_text_warning=''
-    
+    self.state.modify_item_alert_text_success = ''
+    self.state.add_item_alert_text_success = ''
+    self.state.checkout_alert_text_success = ''
+    self.state.return_alert_text_success = ''
+    self.state.modify_item_alert_text_warning = ''
+    self.state.add_item_alert_text_warning = ''
+    self.state.checkout_alert_text_warning = ''
+    self.state.return_alert_text_warning = ''
+
   def display_success(self, message: str, section: str):
     """
     Function to display a success message within a section displayed as a VAlert
     """
     info(f'[Alert] display success < {message} > in section [{section}]')
+
     async def countdown_to_hide():
       await asyncio.sleep(self.delay_success_messages_s)
       self.hide_all_alerts()
@@ -1081,6 +1082,7 @@ class FrontendApplication:
     Function to warning a success message within a section displayed as a VAlert
     """
     info(f'[Alert] display warning < {message} > in section [{section}]')
+
     async def countdown_to_hide():
       await asyncio.sleep(self.delay_warning_messages_s)
       self.hide_all_alerts()
@@ -1157,7 +1159,7 @@ class FrontendApplication:
                                                             'date_added': 'Date Added',
                                                             'item_tags': 'Tags'})
 
-  def populate_item_from_id(self, id: int):
+  def populate_item_from_id(self, id: int, is_update_from_qr_scan: bool = False):
     """
     Callback function to be called when scanning a QR code from an existing
     Inventory item.
@@ -1166,6 +1168,11 @@ class FrontendApplication:
     * Populate server.state variables with the collected data
 
     """
+    if is_update_from_qr_scan:
+      # If update from QR scan show alert in both sections
+      self.display_success(f'QR scanned -> ID {id}', section='checkout')
+      self.display_success(f'QR scanned -> ID {id}', section='return')
+
     info(f'Load item from id {id}')
     # Create a DatabaseClient instance and connect to the inventory database
     db_client = DataBaseClient(host=database_host)
@@ -1295,7 +1302,7 @@ class FrontendApplication:
     print_success = False
     if self.state.item_id is not None:
       print_success = client.print_qr_label_from_id(int(self.state.item_id))
-      
+
     return print_success
 
   def _getdatetime(self) -> str:

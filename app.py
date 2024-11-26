@@ -43,7 +43,7 @@ def update_id(id: int):
   """
   global server, state, ctrl, ui_server
   state.item_id = id
-  ui_server.populate_item_from_id(id)
+  ui_server.populate_item_from_id(id, is_update_from_qr_scan=True)
 
 
 # -----------------------------------------------------------------------
