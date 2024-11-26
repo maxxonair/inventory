@@ -84,7 +84,7 @@ class PrinterClient():
 
 
     """
-    # TODO add return code?
+    print_success = False
     if self._establish_printer_connection():
       qr_message = encode_id_to_qr_message(item_id)
 
@@ -111,6 +111,8 @@ class PrinterClient():
 
       # Send print command
       self.printer.print_image(self.image, density=self.density)
+      print_success = True
+    return print_success
 
   # ------------------------------------------------------------------------
   #                     PRIVATE METHODS

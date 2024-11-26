@@ -260,8 +260,6 @@ class DataBaseClient():
       id_out = id_list[0]
       id_out = int(id_out[0])
 
-    print(f'+----- {id_out}')
-
     return id_out
 
   def add_inventory_item(self, inventory_item: InventoryItem) -> id:
