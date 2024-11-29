@@ -6,7 +6,6 @@ from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
                                    VListItemTitle, VTooltip
                                    )
 from trame.widgets.vuetify import (VListItemContent, VListItemIcon)
-from trame.ui.vuetify2 import VAppLayout
 from trame.widgets import vuetify2
 from trame.ui.vuetify import SinglePageWithDrawerLayout
 from trame.ui.router import RouterViewLayout
@@ -84,7 +83,7 @@ class FrontendApplication:
     self.state.item_tags = ""
     self.state.item_manufacturer = ""
     self.state.item_manufacturer_details = ""
-    self.state.is_checked_out = ""
+    self.state.is_checked_out = 0
     self.state.check_out_date = ""
     self.state.check_out_poc = ""
     self.state.date_added = ""
@@ -153,6 +152,12 @@ class FrontendApplication:
 
     self.state.show_return_alert_warning = False
     self.state.return_alert_text_warning = ''
+
+    self.state.show_home_checkout_status_alert_warning = False
+    self.state.show_home_checkout_status_alert_success = False
+
+    self.state.show_home_inventory_table = True
+    self.state.show_home_item_details = False
 
     # Temporary array to store the captured item image
     self.display_img = None
@@ -394,7 +399,47 @@ class FrontendApplication:
       with vuetify.VContainer(fluid=True):
         # --- main row to contain all elements of this page
         with VRow():
-          # --- inventory item data and image
+          with VCol():
+            with VRow(v_if="show_home_inventory_table"):
+              with vuetify2.VTooltip('Show Item Details', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  # Display button to exand item detials (and hide the full
+                  # table)
+                  with VBtn('',
+                            click=self.switch_home_visiblity,
+                            icon=True,
+                            outlined=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-expand-all-outline", color='primary')
+              # Show thumbnail of the item image
+              VImg(
+                  src=("image_src",),
+                  max_width="100px",
+                  classes="mb-5",
+                  v_if="show_home_item_image")
+              with VCol():
+                # Display the name of the selected item
+                vuetify.VAlert("{{ item_name }} ",
+                               type="info",
+                               v_if="show_home_checkout_status_alert_success",
+                               dense=True)
+                vuetify.VAlert(" {{ item_name }} -- {{ checkout_status_summary }}",
+                               type="warning",
+                               v_if="show_home_checkout_status_alert_warning",
+                               dense=True)
+            with VRow(v_if="show_home_item_details"):
+              with vuetify2.VTooltip('Close Item Details', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=self.switch_home_visiblity,
+                            icon=True,
+                            outlined=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-close-circle-outline", color='primary')
+        # --- inventory item data and image
+        with VRow(v_if="show_home_item_details"):
           with VCol():
             # --- row containing the control buttons and the item image
             with VRow():
@@ -460,14 +505,39 @@ class FrontendApplication:
                                 v_bind='attrs',
                                 v_on='on'):
                         VIcon("mdi-cloud-print", color='primary')
+                with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+                  with vuetify2.VTooltip('Open Camera', bottom=True):
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                outlined=True,
+                                click=self.handle_home_camera_action,
+                                icon=True,
+                                v_bind='attrs',
+                                v_on='on'):
+                        VIcon("mdi-qrcode-scan", color='primary')
+                with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+                  with vuetify2.VTooltip('Check-out Item', bottom=True):
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                outlined=True,
+                                block=(self.state.is_checked_out == False),
+                                click=checkout_item,
+                                icon=True,
+                                v_bind='attrs',
+                                v_on='on'):
+                        VIcon("mdi-cart-check", color='primary')
 
               # --- item image ---
-              with VCol(style="width: 300px; min-width: 60px; max-width: 400px;"):
+              with VCol(style="width: 300px; min-width: 120px; max-width: 400px;"):
 
                 vuetify.VAlert("{{ modify_item_alert_text_success }}",
                                type="success", v_if="show_modify_item_alert_success")
                 vuetify.VAlert("{{ modify_item_alert_text_warning }}",
                                type="warning", v_if="show_modify_item_alert_warning")
+                vuetify.VAlert("{{ checkout_alert_text_success }}",
+                               type="success", v_if="show_checkout_alert_success")
+                vuetify.VAlert("{{ checkout_alert_text_warning }}",
+                               type="warning", v_if="show_checkout_alert_warning")
 
                 VImg(
                     src=("image_src",),
@@ -478,9 +548,14 @@ class FrontendApplication:
                 html.Div(html_content_embed_camera_stream,
                          v_if="show_home_camera")
 
-            # --- inventory item meta data
-            with VRow(v_if="logged_in"):
-              with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
+              # --- inventory item meta data
+              with VCol(style="width: 300px; min-width: 200px; max-width: 600px;"):
+                vuetify.VAlert("{{ checkout_status_summary }}",
+                               type="warning",
+                               v_if="show_home_checkout_status_alert_warning")
+                vuetify.VAlert("{{ checkout_status_summary }}",
+                               type="success",
+                               v_if="show_home_checkout_status_alert_success")
                 fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
                 self.ctrl.view_update = fig_item.update
                 with vuetify.VContainer(fluid=True):
@@ -514,25 +589,19 @@ class FrontendApplication:
                       placeholder="Enter item manufacturer details",
                       prepend_icon="mdi-anvil"
                   )
-                  VCardText(
-                      "Check out status: {{ checkout_status_summary }}")
 
-          # --- inventory table
-          with VCol():
-            with VRow():
-              # TODO Add refined search option
-              VBtn('Refined search - Under Construction')
-            with VRow(classes="justify-center ma-6", v_if="logged_in"):
-              fig = vega.Figure()
-              self.ctrl.fig_update = fig.update
-              vuetify.VDataTable(**main_table_config,
-                                 v_if="logged_in",
-                                 # Set default 20 items per page
-                                 items_per_page=20,
-                                 # Hide select check boxes
-                                 show_select=True)
-              # Add callback function to select items
-              # click_row=on_row_click)
+        # --- inventory table
+        with VRow(classes="justify-center ma-6", v_if="show_home_inventory_table"):
+          fig = vega.Figure()
+          self.ctrl.fig_update = fig.update
+          vuetify.VDataTable(**main_table_config,
+                             v_if="logged_in",
+                             # Set default 20 items per page
+                             items_per_page=20,
+                             # Hide select check boxes
+                             show_select=True)
+          # Add callback function to select items
+          # click_row=on_row_click)
 
     # --- ADD IVENTORY ITEM ---
     with RouterViewLayout(self.server, "/add inventory item", v_if="enable_privilege_add_item"):
@@ -624,91 +693,91 @@ class FrontendApplication:
             with VRow():
               html.Div(html_content_embed_camera_stream_large)
 
-    # --- CHECK-OUT INVENTORY ITEM ---
-    with RouterViewLayout(self.server, "/checkout inventory item"):
-      with vuetify.VContainer(fluid=True):
-        with VRow(v_if="logged_in"):
-          fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
-          self.ctrl.view_update = fig_item.update
-          with VCol():
-            VCardTitle("Check-out Inventory Item")
+    # # --- CHECK-OUT INVENTORY ITEM ---
+    # with RouterViewLayout(self.server, "/checkout inventory item"):
+    #   with vuetify.VContainer(fluid=True):
+    #     with VRow(v_if="logged_in"):
+    #       fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
+    #       self.ctrl.view_update = fig_item.update
+    #       with VCol():
+    #         VCardTitle("Check-out Inventory Item")
 
-            with VCardText():
-              with vuetify2.VTooltip('Open Camera', bottom=True):
-                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
-                  with VBtn('',
-                            outlined=True,
-                            click=self.checkout_show_camera_feed,
-                            icon=True,
-                            v_bind='attrs',
-                            v_on='on'):
-                    VIcon("mdi-qrcode-scan", color='primary')
-              with vuetify2.VTooltip('Check-out Item', bottom=True):
-                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
-                  with VBtn('',
-                            outlined=True,
-                            block=(self.state.is_checked_out == False),
-                            click=checkout_item,
-                            icon=True,
-                            v_bind='attrs',
-                            v_on='on'):
-                    VIcon("mdi-cart-check", color='primary')
+    #         with VCardText():
+    #           with vuetify2.VTooltip('Open Camera', bottom=True):
+    #             with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+    #               with VBtn('',
+    #                         outlined=True,
+    #                         click=self.checkout_show_camera_feed,
+    #                         icon=True,
+    #                         v_bind='attrs',
+    #                         v_on='on'):
+    #                 VIcon("mdi-qrcode-scan", color='primary')
+    #           with vuetify2.VTooltip('Check-out Item', bottom=True):
+    #             with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+    #               with VBtn('',
+    #                         outlined=True,
+    #                         block=(self.state.is_checked_out == False),
+    #                         click=checkout_item,
+    #                         icon=True,
+    #                         v_bind='attrs',
+    #                         v_on='on'):
+    #                 VIcon("mdi-cart-check", color='primary')
 
-              vuetify.VAlert("{{ checkout_alert_text_success }}",
-                             type="success", v_if="show_checkout_alert_success")
-              vuetify.VAlert("{{ checkout_alert_text_warning }}",
-                             type="warning", v_if="show_checkout_alert_warning")
+    #           vuetify.VAlert("{{ checkout_alert_text_success }}",
+    #                          type="success", v_if="show_checkout_alert_success")
+    #           vuetify.VAlert("{{ checkout_alert_text_warning }}",
+    #                          type="warning", v_if="show_checkout_alert_warning")
 
-            with VRow(tyle="margin-top: 10px;"):
-              with VCol():
-                VImg(
-                    src=("image_src",), max_width="400px", classes="mb-5")
-            with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-              with VRow():
-                VTextField(
-                    v_model=("item_name", ""),
-                    label="Item Name",
-                    placeholder="Enter item name",
-                    prepend_icon="mdi-rename-box-outline",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_description", ""),
-                    label="Item Description",
-                    placeholder="Enter item description",
-                    prepend_icon="mdi-image-text",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_tags", ""),
-                    label="Tags",
-                    placeholder="Enter item tags",
-                    prepend_icon="mdi-tag",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_manufacturer", ""),
-                    label="Manufacturer",
-                    placeholder="Enter Manufacturer",
-                    prepend_icon="mdi-anvil",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_manufacturer_details", ""),
-                    label="Manufacturer Contact Details",
-                    placeholder="Enter Manufacturer Details",
-                    prepend_icon="mdi-anvil",
-                    disabled=True
-                )
-          with VCol():
-            with VRow(v_if="show_checkout_camera_feed", style="margin-top: 10px;"):
-              VCardText("Place QR label in Front of the Camera!")
-              # Embed camera stream in this sub-page
-              html.Div(html_content_embed_camera_stream)
+    #         with VRow(tyle="margin-top: 10px;"):
+    #           with VCol():
+    #             VImg(
+    #                 src=("image_src",), max_width="400px", classes="mb-5")
+    #         with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
+    #           with VRow():
+    #             VTextField(
+    #                 v_model=("item_name", ""),
+    #                 label="Item Name",
+    #                 placeholder="Enter item name",
+    #                 prepend_icon="mdi-rename-box-outline",
+    #                 disabled=True
+    #             )
+    #           with VRow():
+    #             VTextField(
+    #                 v_model=("item_description", ""),
+    #                 label="Item Description",
+    #                 placeholder="Enter item description",
+    #                 prepend_icon="mdi-image-text",
+    #                 disabled=True
+    #             )
+    #           with VRow():
+    #             VTextField(
+    #                 v_model=("item_tags", ""),
+    #                 label="Tags",
+    #                 placeholder="Enter item tags",
+    #                 prepend_icon="mdi-tag",
+    #                 disabled=True
+    #             )
+    #           with VRow():
+    #             VTextField(
+    #                 v_model=("item_manufacturer", ""),
+    #                 label="Manufacturer",
+    #                 placeholder="Enter Manufacturer",
+    #                 prepend_icon="mdi-anvil",
+    #                 disabled=True
+    #             )
+    #           with VRow():
+    #             VTextField(
+    #                 v_model=("item_manufacturer_details", ""),
+    #                 label="Manufacturer Contact Details",
+    #                 placeholder="Enter Manufacturer Details",
+    #                 prepend_icon="mdi-anvil",
+    #                 disabled=True
+    #             )
+    #       with VCol():
+    #         with VRow(v_if="show_checkout_camera_feed", style="margin-top: 10px;"):
+    #           VCardText("Place QR label in Front of the Camera!")
+    #           # Embed camera stream in this sub-page
+    #           html.Div(html_content_embed_camera_stream)
 
     # --- RETURN INVENTORY ITEM ---
     with RouterViewLayout(self.server, "/return inventory item"):
@@ -847,12 +916,18 @@ class FrontendApplication:
         )
         VSpacer()
 
+        # INDICATOR -> Current User
+        vuetify.VAlert("{{ username }}   ",
+                       type="info",
+                       v_if="logged_in",
+                       icon='mdi-card-account-details')
+
         # Switch to control theme
         vuetify.VSwitch(
             v_model="$vuetify.theme.dark",
             hide_detials=True,
             dense=True,
-            hint='Theme'
+            hint='Theme',
         )
 
         # Button Export database to file (.csv)
@@ -866,12 +941,6 @@ class FrontendApplication:
                       v_bind='attrs',
                       v_on='on'):
               VIcon('mdi-file-export', color='primary')
-
-        # INDICATOR -> Current User
-        with VCard(classes="mx-5", max_height="50px",
-                   outlined=True):
-          with VCardText("User: {{ username }} "):
-            VIcon('mdi-card-account-details', color='secondary')
 
         # Log-out Button
         with vuetify2.VTooltip('Log Out', bottom=True, v_if="logged_in"):
@@ -907,11 +976,11 @@ class FrontendApplication:
             with VListItemContent():
               VListItemTitle("Add Item", v_if="logged_in")
 
-          with VListItem(to="/checkout inventory item"):
-            with VListItemIcon():
-              VIcon("mdi-check", v_if="logged_in", color='primary')
-            with VListItemContent():
-              VListItemTitle("Checkout Item", v_if="logged_in")
+          # with VListItem(to="/checkout inventory item"):
+          #   with VListItemIcon():
+          #     VIcon("mdi-check", v_if="logged_in", color='primary')
+          #   with VListItemContent():
+          #     VListItemTitle("Checkout Item", v_if="logged_in")
 
           with VListItem(to="/return inventory item"):
             with VListItemIcon():
@@ -1225,13 +1294,15 @@ class FrontendApplication:
       self.state.item_description = f'{
           item_data_df.iloc[0]['item_description']}'
       self.state.item_tags = f'{item_data_df.iloc[0]['item_tags']}'
-      self._update_checkout_status()
+
       # Handle cases where for whichever reason the checkout status is set
       # to None
-      if is_checkout_temp == 'None':
+      if is_checkout_temp == 'None' or is_checkout_temp is None:
         self.state.is_checked_out = 0
       else:
         self.state.is_checked_out = int(is_checkout_temp)
+
+      self._update_checkout_status(self.state.is_checked_out)
 
       # Flush state and update UI
       self.state.flush()
@@ -1239,11 +1310,22 @@ class FrontendApplication:
     else:
       warning(f'ITEM NOT FOUND in the database! ID = {id}')
 
-  def _update_checkout_status(self):
-    if self.state.is_checked_out == 1:
+  def _update_checkout_status(self, status):
+    """
+    Update the checkout status of a selected item.
+    The checkout status is displayed by two VAlerts.
+    Warning - If the item has been checked out
+    Success - If the item is available
+
+    """
+    if status:
+      self.state.show_home_checkout_status_alert_warning = True
+      self.state.show_home_checkout_status_alert_success = False
       self.state.checkout_status_summary = f' Item is CHECKED-OUT by {self.state.check_out_poc} since {
           self.state.check_out_date}'
     else:
+      self.state.show_home_checkout_status_alert_warning = False
+      self.state.show_home_checkout_status_alert_success = True
       self.state.checkout_status_summary = ' Item has not been checked out.'
     self.state.flush()
 
@@ -1312,6 +1394,14 @@ class FrontendApplication:
     time_now = datetime.now()
     return time_now.strftime("%d/%m/%Y %H:%M:%S")
 
+  def switch_home_visiblity(self):
+    """
+    Switch visibility in the home section to either show the entire table or the home controls
+
+    """
+    self.state.show_home_inventory_table = not self.state.show_home_inventory_table
+    self.state.show_home_item_details = not self.state.show_home_item_details
+
   def update_item_image_last_captured_image(self):
     """
     Take the latest captured image and set it as the currently selected items
@@ -1358,6 +1448,32 @@ class FrontendApplication:
     Handle actions when the camera button is pressed on the Home page:
     * If static image is shown -> switch to camera feed
     * If camera feed is on -> Capture image and switch back to static image
+
+    """
+    if self.state.show_home_item_image:
+      # CASE - Item image is displayed -> Switch to camera feed
+      # Switch visibility states of static image and camera feed
+      self.state.home_tooltip_text = "Capture Image"
+    elif self.state.show_home_camera:
+      # CASE - Camera feed is displayed -> Capture image and switch back to
+      # static image display
+      self.state.home_tooltip_text = "Open Camera"
+      # Capture image
+      self.capture_image()
+    else:
+      error(f'Inconsistent image display state: image flag {
+            self.state.show_home_item_image} / camera flag {self.state.show_home_camera}')
+
+    # Flip visibility static image <-> camera live feed
+    self.state.show_home_camera = (not self.state.show_home_camera)
+    self.state.show_home_item_image = (not self.state.show_home_item_image)
+    self.state.flush()
+
+  def handle_home_camera_for_qr_scan(self, *args):
+    """
+    Handle actions when the qr code button is pressed in the home seciton
+    * If static image is shown -> switch to camera feed
+    * If camera feed is on -> switch to static image
 
     """
     if self.state.show_home_item_image:
