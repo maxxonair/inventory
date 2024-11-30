@@ -18,6 +18,11 @@ WORKDIR /usr/app/inventory
 RUN mkdir backend
 RUN mkdir frontend
 RUN mkdir frontend/data
+RUN mkdir temp/
+
+# This file must exist to start up correctly, but it doesn't need to contain
+# anything
+RUN touch temp/qr
 
 # [COPY] all required files to run the application
 COPY backend/* ./backend/

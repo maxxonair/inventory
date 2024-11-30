@@ -112,15 +112,28 @@ class FrontendApplication:
     self.state.enable_privilege_delete_item = False
     self.state.enable_privilege_mod_item = False
     self.state.enable_privilege_settings = False
+    self.state.enable_privilege_export = False
 
-    # If true show the camera feed in the Checkout Item section
+    self.state.disable_privilege_add_item = True
+    self.state.disable_privilege_delete_item = True
+    self.state.disable_privilege_mod_item = True
+    self.state.disable_privilege_settings = True
+    self.state.disable_privilege_export = True
+
+    # If true show the camera feed in the CHECKOUT section
     self.state.show_checkout_camera_feed = False
-    # If true show the camera feed in the return Item section
+    self.state.show_checkout_static_image = True
+    # If true show the camera feed in the RETURN_ITEM section
     self.state.show_return_camera_feed = False
-    # If true show the camera feed in the Inventory overview section
+    self.state.show_return_static_image = True
+    # If true show the camera feed in the HOME section
     self.state.show_inventory_camera_feed = False
-    # If true show the camera feed in the add item section
-    self.state.show_add_camera_feed = False
+    # If true show the camera feed in the ADD_ITEMsection
+    self.state.show_add_item_camera_feed = False
+    self.state.show_add_item_static_image = True
+    # If true show the camera feed in the FIND_ITEM section
+    self.state.show_find_item_camera_feed = True
+    self.state.show_find_item_static_image = False
 
     # Flag, True if the user is logged-in, False otheriwse
     self.state.logged_in = False
@@ -153,6 +166,12 @@ class FrontendApplication:
     self.state.show_return_alert_warning = False
     self.state.return_alert_text_warning = ''
 
+    self.state.show_find_item_alert_success = False
+    self.state.find_item_alert_text_success = ''
+
+    self.state.show_find_item_alert_warning = False
+    self.state.find_item_alert_text_warning = ''
+
     self.state.show_home_checkout_status_alert_warning = False
     self.state.show_home_checkout_status_alert_success = False
 
@@ -165,8 +184,21 @@ class FrontendApplication:
     # Tooltip text shown for the come camera button
     self.state.home_tooltip_text = "Open Camera"
 
+    self.state.checkout_qr_tooltip_text = "Open Camera to Scan QR"
+
+    self.state.add_item_tooltip_text = "Open Camera"
+
+    self.state.return_item_qr_tooltip_text = "Open Camera to Scan QR"
+
+    self.state.find_item_qr_tooltip_text = "Close Camera"
+
     self.state.time_str = ''
+
+    # This is to save the inventory as complete set and as a filtered set
+    # in string format. This is used by export function allowing to download
+    # the inventory as a whole or as a filtered subset in csv format.
     self.state.inventory_csv_string = ''
+    self.state.inventory_filtered_csv_string = ''
     # -----------------------------------------------------------------------
     # -- TRAME WINDOW SETUP
     # -----------------------------------------------------------------------
@@ -215,6 +247,11 @@ class FrontendApplication:
           filtered_df, main_table_header_options)
       self.state.headers = headers
       self.state.rows = rows
+
+      # Convert DataFrame to CSV format as string
+      csv_buffer = StringIO()
+      filtered_df.to_csv(csv_buffer, index=False)
+      self.state.inventory_filtered_csv_string = csv_buffer.getvalue()
 
     self.state.query = ""
     update_table()
@@ -347,7 +384,7 @@ class FrontendApplication:
         self.state.is_checked_out = 1
         self.state.check_out_poc = self.state.username
         self.state.check_out_date = self.inventory_item.check_out_date
-        self._update_checkout_status()
+        self._update_checkout_status(self.state.is_checked_out)
 
         self.display_success('Item checked-out successful!', 'checkout')
       else:
@@ -370,7 +407,7 @@ class FrontendApplication:
 
       update_table()
       self.state.is_checked_out = 0
-      self._update_checkout_status()
+      self._update_checkout_status(self.state.is_checked_out)
       self.display_success('Item returned successfully!', 'return')
 
     # -----------------------------------------------------------------------
@@ -398,9 +435,9 @@ class FrontendApplication:
     with RouterViewLayout(self.server, "/", clicked=self.update_inventory_df, v_if="logged_in"):
       with vuetify.VContainer(fluid=True):
         # --- main row to contain all elements of this page
-        with VRow():
-          with VCol():
-            with VRow(v_if="show_home_inventory_table"):
+        with VRow(v_if="show_home_inventory_table", style="margin-bottom: 16px;"):
+          with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
+            with VRow(style="margin-bottom: 10px;"):
               with vuetify2.VTooltip('Show Item Details', bottom=True):
                 with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                   # Display button to exand item detials (and hide the full
@@ -412,32 +449,57 @@ class FrontendApplication:
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-expand-all-outline", color='primary')
-              # Show thumbnail of the item image
-              VImg(
-                  src=("image_src",),
-                  max_width="100px",
-                  classes="mb-5",
-                  v_if="show_home_item_image")
-              with VCol():
-                # Display the name of the selected item
-                vuetify.VAlert("{{ item_name }} ",
-                               type="info",
-                               v_if="show_home_checkout_status_alert_success",
-                               dense=True)
-                vuetify.VAlert(" {{ item_name }} -- {{ checkout_status_summary }}",
-                               type="warning",
-                               v_if="show_home_checkout_status_alert_warning",
-                               dense=True)
-            with VRow(v_if="show_home_item_details"):
-              with vuetify2.VTooltip('Close Item Details', bottom=True):
+            with VRow(v_if="enable_privilege_delete_item", style="margin-bottom: 10px;"):
+              with vuetify2.VTooltip('Delete Item', bottom=True):
                 with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                   with VBtn('',
-                            click=self.switch_home_visiblity,
+                            click=delete_inventory_item,
+                            outlined=True,
+                            icon=True,
+                            v_if="enable_privilege_delete_item",
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon('mdi-trash-can-outline', color='primary')
+            with VRow(style="margin-bottom: 10px;"):
+              with vuetify2.VTooltip('Print Item Label', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=self.print_label_from_id,
                             icon=True,
                             outlined=True,
                             v_bind='attrs',
                             v_on='on'):
-                    VIcon("mdi-close-circle-outline", color='primary')
+                    VIcon("mdi-cloud-print", color='primary')
+
+          with VCol(style="width: 180px; min-width: 100px; max-width: 180px;"):
+            # Show thumbnail of the item image
+            VImg(
+                src=("image_src",),
+                max_width="100px",
+                classes="mb-5",
+                v_if="show_home_item_image")
+          with VCol(style="width: 600px; min-width: 100px; max-width: 600px;"):
+            # Display the name of the selected item
+            vuetify.VAlert("{{ item_name }} ",
+                           type="info",
+                           v_if="show_home_checkout_status_alert_success",
+                           dense=True)
+            vuetify.VAlert(" {{ item_name }} -- {{ checkout_status_summary }}",
+                           type="warning",
+                           v_if="show_home_checkout_status_alert_warning",
+                           dense=True)
+
+        with VRow(v_if="show_home_item_details", style="margin-bottom: 16px;"):
+          with vuetify2.VTooltip('Close Item Details', bottom=True):
+            with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+              with VBtn('',
+                        click=self.switch_home_visiblity,
+                        icon=True,
+                        outlined=True,
+                        v_bind='attrs',
+                        v_on='on'):
+                VIcon("mdi-close-circle-outline", color='primary')
+
         # --- inventory item data and image
         with VRow(v_if="show_home_item_details"):
           with VCol():
@@ -446,7 +508,7 @@ class FrontendApplication:
               # --- control button column ---
               with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
 
-                with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+                with VRow(v_if="enable_privilege_mod_item", style="margin-bottom: 16px;"):
                   with vuetify2.VTooltip('Confirm Modification', bottom=True):
                     with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                       with VBtn('',
@@ -458,7 +520,7 @@ class FrontendApplication:
                                 v_on='on'
                                 ):
                         VIcon('mdi-swap-horizontal', color='primary')
-                with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+                with VRow(v_if="enable_privilege_mod_item", style="margin-bottom: 16px;"):
                   with vuetify2.VTooltip('Delete Item', bottom=True):
                     with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                       with VBtn('',
@@ -469,7 +531,7 @@ class FrontendApplication:
                                 v_bind='attrs',
                                 v_on='on'):
                         VIcon('mdi-trash-can-outline', color='primary')
-                with VRow(v_if="logged_in", style="margin-bottom: 16px;"):
+                with VRow(v_if="enable_privilege_mod_item", style="margin-bottom: 16px;"):
                   with vuetify2.VTooltip(bottom=True):
                     vuetify2.Template("{{ home_tooltip_text }}")
                     with vuetify2.Template(v_slot_activator="{ on, attrs }"):
@@ -563,35 +625,41 @@ class FrontendApplication:
                       v_model=("item_name", ""),
                       label="Item Name",
                       placeholder="Enter item name",
-                      prepend_icon="mdi-rename-box-outline"
+                      prepend_icon="mdi-rename-box-outline",
+                      disabled=("disable_privilege_mod_item",)
                   )
                   VTextField(
                       v_model=("item_description", ""),
                       label="Item Description",
                       placeholder="Enter item description",
-                      prepend_icon="mdi-image-text"
+                      prepend_icon="mdi-image-text",
+                      disabled=("disable_privilege_mod_item",)
                   )
                   VTextField(
                       v_model=("item_tags", ""),
                       label="Tags",
                       placeholder="Enter item tags",
-                      prepend_icon="mdi-tag"
+                      prepend_icon="mdi-tag",
+                      disabled=("disable_privilege_mod_item",)
                   )
                   VTextField(
                       v_model=("item_manufacturer", ""),
                       label="Manufacturer",
                       placeholder="Enter item manufacturer",
-                      prepend_icon="mdi-anvil"
+                      prepend_icon="mdi-anvil",
+                      disabled=("disable_privilege_mod_item",)
                   )
                   VTextField(
                       v_model=("item_manufacturer_details", ""),
                       label="Manufacturer Details",
                       placeholder="Enter item manufacturer details",
-                      prepend_icon="mdi-anvil"
+                      prepend_icon="mdi-anvil",
+                      disabled=("disable_privilege_mod_item",)
                   )
 
         # --- inventory table
-        with VRow(classes="justify-center ma-6", v_if="show_home_inventory_table"):
+        # with VRow(classes="justify-center ma-6", v_if="show_home_inventory_table"):
+        with VRow(classes="justify-left ma-6", v_if="show_home_inventory_table"):
           fig = vega.Figure()
           self.ctrl.fig_update = fig.update
           vuetify.VDataTable(**main_table_config,
@@ -600,19 +668,134 @@ class FrontendApplication:
                              items_per_page=20,
                              # Hide select check boxes
                              show_select=True)
-          # Add callback function to select items
-          # click_row=on_row_click)
+
+    # --- FIND INVENTORY ITEM ---
+    with RouterViewLayout(self.server, "/find inventory item"):
+      with vuetify.VContainer(fluid=True):
+        with VRow():
+
+          # --- [SECTION -- FIND_ITEM] COLUMN -> Item Controls
+          with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
+            with VRow(v_if="enable_privilege_mod_item", style="margin-bottom: 16px;"):
+              with vuetify2.VTooltip('Confirm Modification', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=update_inventory_item,
+                            outlined=True,
+                            icon=True,
+                            v_if="enable_privilege_mod_item",
+                            v_bind='attrs',
+                            v_on='on'
+                            ):
+                    VIcon('mdi-swap-horizontal', color='primary')
+            with VRow(v_if="enable_privilege_delete_item", style="margin-bottom: 10px;"):
+              with vuetify2.VTooltip('Delete Item', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=delete_inventory_item,
+                            outlined=True,
+                            icon=True,
+                            v_if="enable_privilege_delete_item",
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon('mdi-trash-can-outline', color='primary')
+            with VRow(style="margin-bottom: 10px;"):
+              with vuetify2.VTooltip('Print Item Label', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=self.print_label_from_id,
+                            icon=True,
+                            outlined=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-cloud-print", color='primary')
+            with VRow(style="margin-bottom: 16px;"):
+              with vuetify2.VTooltip('{{ find_item_qr_tooltip_text }}', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            outlined=True,
+                            click=self.switch_find_item_camera_visibility,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-qrcode-scan", color='primary')
+
+          # --- [SECTION -- FIND_ITEM] COLUMN -> Item Image & Checkout Alerts
+          with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
+            vuetify.VAlert("{{ find_item_alert_text_success }}",
+                           type="success", v_if="show_find_item_alert_success")
+            vuetify.VAlert("{{ find_item_alert_text_warning }}",
+                           type="warning", v_if="show_find_item_alert_warning")
+
+            # Display the name of the selected item
+            vuetify.VAlert("{{ checkout_status_summary }}",
+                           type="success",
+                           v_if="show_home_checkout_status_alert_success",
+                           dense=True)
+            vuetify.VAlert("{{ checkout_status_summary }}",
+                           type="warning",
+                           v_if="show_home_checkout_status_alert_warning",
+                           dense=True)
+
+            VImg(
+                src=("image_src",), max_width="400px", classes="mb-5",
+                v_if="show_find_item_static_image")
+
+            VCardText("Place QR label in Front of the Camera!",
+                      v_if="show_find_item_camera_feed")
+            html.Div(html_content_embed_camera_stream_large,
+                     v_if="show_find_item_camera_feed")
+
+          # --- [SECTION -- FIND_ITEM] COLUMN -> Item Details
+          with VCol(style="width: 300px; min-width: 150px; max-width: 600px;"):
+            with VRow():
+              VTextField(
+                  v_model=("item_name", ""),
+                  label="Item Name",
+                  placeholder="Enter item name",
+                  prepend_icon="mdi-rename-box-outline",
+                  disabled=("disable_privilege_mod_item",)
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_description", ""),
+                  label="Item Description",
+                  placeholder="Enter item description",
+                  prepend_icon="mdi-image-text",
+                  disabled=("disable_privilege_mod_item",)
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_tags", ""),
+                  label="Tags",
+                  placeholder="Enter item tags",
+                  prepend_icon="mdi-tag",
+                  disabled=("disable_privilege_mod_item",)
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer", ""),
+                  label="Manufacturer",
+                  placeholder="Enter Manufacturer",
+                  prepend_icon="mdi-anvil",
+                  disabled=("disable_privilege_mod_item",)
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer_details", ""),
+                  label="Manufacturer Contact Details",
+                  placeholder="Enter Manufacturer Details",
+                  prepend_icon="mdi-anvil",
+                  disabled=("disable_privilege_mod_item",)
+              )
 
     # --- ADD IVENTORY ITEM ---
     with RouterViewLayout(self.server, "/add inventory item", v_if="enable_privilege_add_item"):
       with vuetify.VContainer(fluid=True, v_if="logged_in"):
         with VRow():
-          # with VCol(style="width: 300px; min-width: 150px; max-width: 600px;"):
-          with VCol():
-            VCardTitle("Add Inventory Item")
-
-            # ++ Controls
-            with VCardText():
+          # --- [SECTION -- ADD_ITEM] COLUMN -> Item Controls
+          with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
+            with VRow(style="margin-bottom: 16px;"):
               with vuetify2.VTooltip('Add Inventory Item', bottom=True):
                 with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                   with VBtn('',
@@ -622,182 +805,186 @@ class FrontendApplication:
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-archive-plus", color='primary')
-              with vuetify2.VTooltip('Open Camera', bottom=True):
+            with VRow(v_if="show_add_item_camera_feed", style="margin-bottom: 16px;"):
+              with vuetify2.VTooltip(bottom=True):
+                vuetify2.Template("Switch-off Camera")
                 with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                   with VBtn('',
-                            click=self.add_show_camera_feed,
+                            click=self.switch_off_add_item_camera,
+                            outlined=True,
+                            disabled=False,
+                            icon=True,
+                            v_if="enable_privilege_mod_item",
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon('mdi-camera-off', color='primary')
+            with VRow(style="margin-bottom: 16px;"):
+              with vuetify2.VTooltip('{{ add_item_tooltip_text }}', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            click=self.handle_add_item_camera_action,
                             outlined=True,
                             icon=True,
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-camera", color='primary')
 
+          # --- [SECTION -- ADD_ITEM] COLUMN -> Item Image & Checkout Alerts
+          with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
             vuetify.VAlert("{{ add_item_alert_text_success }}",
                            type="success", v_if="show_add_item_alert_success")
             vuetify.VAlert("{{ add_item_alert_text_warning }}",
                            type="warning", v_if="show_add_item_alert_warning")
+            VImg(
+                src=("image_src",), max_width="400px", classes="mb-5",
+                v_if="show_add_item_static_image")
+            VCardText("Place Item in Front of the Camera!",
+                      v_if="show_add_item_camera_feed")
+            html.Div(html_content_embed_camera_stream_large,
+                     v_if="show_add_item_camera_feed")
 
-            with VCol():
-              with VRow():
-                VImg(
-                    src=("image_src",), max_width="400px", classes="mb-5")
-            with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-              with VRow():
-                VTextField(
-                    v_model=("item_name", ""),
-                    label="Item Name",
-                    placeholder="Enter item name",
-                    prepend_icon="mdi-rename-box-outline"
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_description", ""),
-                    label="Item Description",
-                    placeholder="Enter item description",
-                    prepend_icon="mdi-image-text"
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_tags", ""),
-                    label="Tags",
-                    placeholder="Enter item tags",
-                    prepend_icon="mdi-tag"
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_manufacturer", ""),
-                    label="Manufacturer",
-                    placeholder="Enter Manufacturer",
-                    prepend_icon="mdi-anvil"
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_manufacturer_details", ""),
-                    label="Manufacturer Contact Details",
-                    placeholder="Enter Manufacturer Details",
-                    prepend_icon="mdi-anvil"
-                )
-          with VCol(v_if="show_add_camera_feed"):
-            with VRow(align='center', justify='center'):
-              with VCardText("Place Item in Front of the Camera!"):
-                with vuetify2.VTooltip('Capture Image', bottom=True):
-                  with vuetify2.Template(v_slot_activator="{ on, attrs }"):
-                    with VBtn('',
-                              click=self.capture_image,
-                              outlined=True,
-                              icon=True,
-                              x_large=True,
-                              v_bind='attrs',
-                              v_on='on'):
-                      VIcon("mdi-camera", color='primary')
+          # --- [SECTION -- ADD_ITEM] COLUMN -> Item Details
+          with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
             with VRow():
-              html.Div(html_content_embed_camera_stream_large)
+              VTextField(
+                  v_model=("item_name", ""),
+                  label="Item Name",
+                  placeholder="Enter item name",
+                  prepend_icon="mdi-rename-box-outline"
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_description", ""),
+                  label="Item Description",
+                  placeholder="Enter item description",
+                  prepend_icon="mdi-image-text"
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_tags", ""),
+                  label="Tags",
+                  placeholder="Enter item tags",
+                  prepend_icon="mdi-tag"
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer", ""),
+                  label="Manufacturer",
+                  placeholder="Enter Manufacturer",
+                  prepend_icon="mdi-anvil"
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer_details", ""),
+                  label="Manufacturer Contact Details",
+                  placeholder="Enter Manufacturer Details",
+                  prepend_icon="mdi-anvil"
+              )
 
-    # # --- CHECK-OUT INVENTORY ITEM ---
-    # with RouterViewLayout(self.server, "/checkout inventory item"):
-    #   with vuetify.VContainer(fluid=True):
-    #     with VRow(v_if="logged_in"):
-    #       fig_item = vega.Figure(classes="ma-2", style="width: 100%;")
-    #       self.ctrl.view_update = fig_item.update
-    #       with VCol():
-    #         VCardTitle("Check-out Inventory Item")
-
-    #         with VCardText():
-    #           with vuetify2.VTooltip('Open Camera', bottom=True):
-    #             with vuetify2.Template(v_slot_activator="{ on, attrs }"):
-    #               with VBtn('',
-    #                         outlined=True,
-    #                         click=self.checkout_show_camera_feed,
-    #                         icon=True,
-    #                         v_bind='attrs',
-    #                         v_on='on'):
-    #                 VIcon("mdi-qrcode-scan", color='primary')
-    #           with vuetify2.VTooltip('Check-out Item', bottom=True):
-    #             with vuetify2.Template(v_slot_activator="{ on, attrs }"):
-    #               with VBtn('',
-    #                         outlined=True,
-    #                         block=(self.state.is_checked_out == False),
-    #                         click=checkout_item,
-    #                         icon=True,
-    #                         v_bind='attrs',
-    #                         v_on='on'):
-    #                 VIcon("mdi-cart-check", color='primary')
-
-    #           vuetify.VAlert("{{ checkout_alert_text_success }}",
-    #                          type="success", v_if="show_checkout_alert_success")
-    #           vuetify.VAlert("{{ checkout_alert_text_warning }}",
-    #                          type="warning", v_if="show_checkout_alert_warning")
-
-    #         with VRow(tyle="margin-top: 10px;"):
-    #           with VCol():
-    #             VImg(
-    #                 src=("image_src",), max_width="400px", classes="mb-5")
-    #         with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-    #           with VRow():
-    #             VTextField(
-    #                 v_model=("item_name", ""),
-    #                 label="Item Name",
-    #                 placeholder="Enter item name",
-    #                 prepend_icon="mdi-rename-box-outline",
-    #                 disabled=True
-    #             )
-    #           with VRow():
-    #             VTextField(
-    #                 v_model=("item_description", ""),
-    #                 label="Item Description",
-    #                 placeholder="Enter item description",
-    #                 prepend_icon="mdi-image-text",
-    #                 disabled=True
-    #             )
-    #           with VRow():
-    #             VTextField(
-    #                 v_model=("item_tags", ""),
-    #                 label="Tags",
-    #                 placeholder="Enter item tags",
-    #                 prepend_icon="mdi-tag",
-    #                 disabled=True
-    #             )
-    #           with VRow():
-    #             VTextField(
-    #                 v_model=("item_manufacturer", ""),
-    #                 label="Manufacturer",
-    #                 placeholder="Enter Manufacturer",
-    #                 prepend_icon="mdi-anvil",
-    #                 disabled=True
-    #             )
-    #           with VRow():
-    #             VTextField(
-    #                 v_model=("item_manufacturer_details", ""),
-    #                 label="Manufacturer Contact Details",
-    #                 placeholder="Enter Manufacturer Details",
-    #                 prepend_icon="mdi-anvil",
-    #                 disabled=True
-    #             )
-    #       with VCol():
-    #         with VRow(v_if="show_checkout_camera_feed", style="margin-top: 10px;"):
-    #           VCardText("Place QR label in Front of the Camera!")
-    #           # Embed camera stream in this sub-page
-    #           html.Div(html_content_embed_camera_stream)
-
-    # --- RETURN INVENTORY ITEM ---
-    with RouterViewLayout(self.server, "/return inventory item"):
+    # --- CHECK-OUT INVENTORY ITEM ---
+    with RouterViewLayout(self.server, "/checkout inventory item"):
       with vuetify.VContainer(fluid=True):
-        with VRow(v_if="logged_in"):
-          fig_item2 = vega.Figure(classes="ma-2", style="width: 100%;")
-          self.ctrl.view_update = fig_item2.update
-          with VCol():
-            VCardTitle("Return Inventory Item")
+        with VRow():
 
-            with VCardText():
-              with vuetify2.VTooltip('Open Camera', bottom=True):
+          # --- [SECTION -- CHECKOUT] COLUMN -> Item Controls
+          with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
+
+            with VRow(style="margin-bottom: 16px;"):
+              with vuetify2.VTooltip('Check-out Item', bottom=True):
                 with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                   with VBtn('',
                             outlined=True,
-                            click=self.return_show_camera_feed,
+                            click=checkout_item,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-cart-check", color='primary')
+            with VRow(style="margin-bottom: 16px;"):
+              with vuetify2.VTooltip('{{ checkout_qr_tooltip_text }}', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            outlined=True,
+                            click=self.switch_checkout_camera_visibility,
                             icon=True,
                             v_bind='attrs',
                             v_on='on'):
                     VIcon("mdi-qrcode-scan", color='primary')
+
+          # --- [SECTION -- CHECKOUT] COLUMN -> Item Image & Checkout Alerts
+          with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
+            vuetify.VAlert("{{ checkout_alert_text_success }}",
+                           type="success", v_if="show_checkout_alert_success")
+            vuetify.VAlert("{{ checkout_alert_text_warning }}",
+                           type="warning", v_if="show_checkout_alert_warning")
+            # Display the name of the selected item
+            vuetify.VAlert("{{ checkout_status_summary }}",
+                           type="success",
+                           v_if="show_home_checkout_status_alert_success",
+                           dense=True)
+            vuetify.VAlert("{{ checkout_status_summary }}",
+                           type="warning",
+                           v_if="show_home_checkout_status_alert_warning",
+                           dense=True)
+            VImg(
+                src=("image_src",), max_width="400px", classes="mb-5",
+                v_if="show_checkout_static_image")
+
+            VCardText("Place QR label in Front of the Camera!",
+                      v_if="show_checkout_camera_feed")
+            html.Div(html_content_embed_camera_stream_large,
+                     v_if="show_checkout_camera_feed")
+
+          # --- [SECTION -- CHECKOUT] COLUMN -> Item Details
+          with VCol(style="width: 300px; min-width: 150px; max-width: 600px;"):
+            with VRow():
+              VTextField(
+                  v_model=("item_name", ""),
+                  label="Item Name",
+                  placeholder="Enter item name",
+                  prepend_icon="mdi-rename-box-outline",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_description", ""),
+                  label="Item Description",
+                  placeholder="Enter item description",
+                  prepend_icon="mdi-image-text",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_tags", ""),
+                  label="Tags",
+                  placeholder="Enter item tags",
+                  prepend_icon="mdi-tag",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer", ""),
+                  label="Manufacturer",
+                  placeholder="Enter Manufacturer",
+                  prepend_icon="mdi-anvil",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer_details", ""),
+                  label="Manufacturer Contact Details",
+                  placeholder="Enter Manufacturer Details",
+                  prepend_icon="mdi-anvil",
+                  disabled=True)
+
+    # --- RETURN INVENTORY ITEM ---
+    with RouterViewLayout(self.server, "/return inventory item"):
+      with vuetify.VContainer(fluid=True):
+        with VRow():
+
+          # --- [SECTION -- RETURN_ITEM] COLUMN -> Item Controls
+          with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
+
+            with VRow(style="margin-bottom: 16px;"):
               with vuetify2.VTooltip('Return Item', bottom=True):
                 with vuetify2.Template(v_slot_activator="{ on, attrs }"):
                   with VBtn('',
@@ -806,63 +993,85 @@ class FrontendApplication:
                             icon=True,
                             v_bind='attrs',
                             v_on='on'):
-                    VIcon("mdi-cart-check", color='primary')
+                    VIcon("mdi-arrow-right", color='primary')
+            with VRow(style="margin-bottom: 16px;"):
+              with vuetify2.VTooltip('{{ return_item_qr_tooltip_text }}', bottom=True):
+                with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                  with VBtn('',
+                            outlined=True,
+                            click=self.switch_return_camera_visibility,
+                            icon=True,
+                            v_bind='attrs',
+                            v_on='on'):
+                    VIcon("mdi-qrcode-scan", color='primary')
 
+          # --- [SECTION -- RETURN_ITEM] COLUMN -> Item Image & Checkout Alerts
+          with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
             vuetify.VAlert("{{ return_alert_text_success }}",
                            type="success", v_if="show_return_alert_success")
             vuetify.VAlert("{{ return_alert_text_warning }}",
                            type="warning", v_if="show_return_alert_warning")
+            # Display the name of the selected item
+            vuetify.VAlert("{{ checkout_status_summary }}",
+                           type="success",
+                           v_if="show_home_checkout_status_alert_success",
+                           dense=True)
+            vuetify.VAlert("{{ checkout_status_summary }}",
+                           type="warning",
+                           v_if="show_home_checkout_status_alert_warning",
+                           dense=True)
 
-            with VRow(tyle="margin-top: 20px;"):
-              with VCol():
-                VImg(
-                    src=("image_src",), max_width="400px", classes="mb-5")
-            with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-              with VRow():
-                VTextField(
-                    v_model=("item_name", ""),
-                    label="Item Name",
-                    placeholder="Enter item name",
-                    prepend_icon="mdi-rename-box-outline",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_description", ""),
-                    label="Item Description",
-                    placeholder="Enter item description",
-                    prepend_icon="mdi-image-text",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_tags", ""),
-                    label="Tags",
-                    placeholder="Enter item tags",
-                    prepend_icon="mdi-tag",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_manufacturer", ""),
-                    label="Manufacturer",
-                    placeholder="Enter Manufacturer",
-                    prepend_icon="mdi-anvil",
-                    disabled=True
-                )
-              with VRow():
-                VTextField(
-                    v_model=("item_manufacturer_details", ""),
-                    label="Manufacturer Contact Details",
-                    placeholder="Enter Manufacturer Details",
-                    prepend_icon="mdi-anvil",
-                    disabled=True
-                )
-          with VCol():
-            with VRow(v_if="show_return_camera_feed", style="margin-top: 10px;"):
-              VCardText("Place QR label in Front of the Camera!")
-              # Embed camera stream in this sub-page
-              html.Div(html_content_embed_camera_stream)
+            VImg(
+                src=("image_src",), max_width="400px", classes="mb-5",
+                v_if="show_return_static_image")
+
+            VCardText("Place QR label in Front of the Camera!",
+                      v_if="show_return_camera_feed")
+            html.Div(html_content_embed_camera_stream_large,
+                     v_if="show_return_camera_feed")
+
+          # --- [SECTION -- RETURN_ITEM] COLUMN -> Item Details
+          with VCol(style="width: 300px; min-width: 150px; max-width: 600px;"):
+            with VRow():
+              VTextField(
+                  v_model=("item_name", ""),
+                  label="Item Name",
+                  placeholder="Enter item name",
+                  prepend_icon="mdi-rename-box-outline",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_description", ""),
+                  label="Item Description",
+                  placeholder="Enter item description",
+                  prepend_icon="mdi-image-text",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_tags", ""),
+                  label="Tags",
+                  placeholder="Enter item tags",
+                  prepend_icon="mdi-tag",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer", ""),
+                  label="Manufacturer",
+                  placeholder="Enter Manufacturer",
+                  prepend_icon="mdi-anvil",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_manufacturer_details", ""),
+                  label="Manufacturer Contact Details",
+                  placeholder="Enter Manufacturer Details",
+                  prepend_icon="mdi-anvil",
+                  disabled=True
+              )
 
     # --- Settings
     with RouterViewLayout(self.server, "/settings"):
@@ -931,14 +1140,28 @@ class FrontendApplication:
         )
 
         # Button Export database to file (.csv)
+        # TODO Add this function
+        with vuetify2.VTooltip('Export Selected Search to csv', bottom=True, v_if="logged_in"):
+          with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+            with VBtn("",
+                      disabled=("enable_privilege_export",),
+                      outlined=True,
+                      icon=True,
+                      click="utils.download('inventory_selection.csv', inventory_filtered_csv_string, 'text/csv')",
+                      v_bind='attrs',
+                      small=True,
+                      v_on='on'):
+              VIcon('mdi-folder-arrow-down-outline', color='primary')
+        # Button Export database to file (.csv)
         with vuetify2.VTooltip('Export Database to csv', bottom=True, v_if="logged_in"):
           with vuetify2.Template(v_slot_activator="{ on, attrs }"):
             with VBtn("",
-                      disabled=False,
+                      disabled=("enable_privilege_export",),
                       outlined=True,
                       icon=True,
                       click="utils.download('inventory.csv', inventory_csv_string, 'text/csv')",
                       v_bind='attrs',
+                      small=True,
                       v_on='on'):
               VIcon('mdi-file-export', color='primary')
 
@@ -950,6 +1173,7 @@ class FrontendApplication:
                       outlined=True,
                       icon=True,
                       v_bind='attrs',
+                      small=True,
                       v_on='on'):
               VIcon('mdi-logout', color='primary')
 
@@ -968,6 +1192,13 @@ class FrontendApplication:
             with VListItemContent():
               VListItemTitle("Inventory", clicked=self.update_inventory_df)
 
+          with VListItem(to="/find inventory item"):
+            with VListItemIcon():
+              VIcon("mdi-home-search-outline",
+                    v_if="logged_in", color='primary')
+            with VListItemContent():
+              VListItemTitle("Find Item with QR", v_if="logged_in")
+
           with VListItem(to="/add inventory item",
                          clicked=self.update_inventory_df,
                          v_if="enable_privilege_add_item"):
@@ -976,11 +1207,11 @@ class FrontendApplication:
             with VListItemContent():
               VListItemTitle("Add Item", v_if="logged_in")
 
-          # with VListItem(to="/checkout inventory item"):
-          #   with VListItemIcon():
-          #     VIcon("mdi-check", v_if="logged_in", color='primary')
-          #   with VListItemContent():
-          #     VListItemTitle("Checkout Item", v_if="logged_in")
+          with VListItem(to="/checkout inventory item"):
+            with VListItemIcon():
+              VIcon("mdi-check", v_if="logged_in", color='primary')
+            with VListItemContent():
+              VListItemTitle("Checkout Item", v_if="logged_in")
 
           with VListItem(to="/return inventory item"):
             with VListItemIcon():
@@ -1171,33 +1402,61 @@ class FrontendApplication:
     # Start counter until alert is hidden again
     asyncio.create_task(countdown_to_hide())
 
-  def checkout_show_camera_feed(self):
+  def switch_checkout_camera_visibility(self):
     """
     If camera feed NOT shown -> show camera feed
     If camera feed shown -> hide camera feed
     """
     self.state.show_checkout_camera_feed = not self.state.show_checkout_camera_feed
+    self.state.show_checkout_static_image = not self.state.show_checkout_static_image
+    if self.state.show_checkout_static_image:
+      self.state.checkout_qr_tooltip_text = "Open Camera to Scan QR"
+    else:
+      self.state.checkout_qr_tooltip_text = "Close Camera"
+    self.state.flush()
 
-  def return_show_camera_feed(self):
+  def turn_off_qr_camera_visibility(self):
+    """
+    This function switches off the QR camera feed visibility for section:
+    * Find item (TBD)
+    * Check-out
+    * Return
+    """
+    # --- SECTION - FIND_ITEM
+    self.state.show_find_item_camera_feed = False
+    self.state.show_find_item_static_image = True
+    # --- SECTION - CHECKOUT
+    self.state.show_checkout_camera_feed = False
+    self.state.show_checkout_static_image = True
+    # --- SECTION - RETURN
+    self.state.show_return_camera_feed = False
+    self.state.show_return_static_image = True
+
+  def switch_return_camera_visibility(self):
     """
     If camera feed NOT shown -> show camera feed
     If camera feed shown -> hide camera feed
     """
     self.state.show_return_camera_feed = not self.state.show_return_camera_feed
+    self.state.show_return_static_image = not self.state.show_return_static_image
+    if self.state.show_return_static_image:
+      self.state.return_item_qr_tooltip_text = "Open Camera to Scan QR"
+    else:
+      self.state.return_item_qr_tooltip_text = "Close Camera"
+    self.state.flush()
 
-  def inventory_show_camera_feed(self):
+  def switch_find_item_camera_visibility(self):
     """
     If camera feed NOT shown -> show camera feed
     If camera feed shown -> hide camera feed
     """
-    self.state.show_inventory_camera_feed = not self.state.show_inventory_camera_feed
-
-  def add_show_camera_feed(self):
-    """
-    If camera feed NOT shown -> show camera feed
-    If camera feed shown -> hide camera feed
-    """
-    self.state.show_add_camera_feed = not self.state.show_add_camera_feed
+    self.state.show_find_item_camera_feed = not self.state.show_find_item_camera_feed
+    self.state.show_find_item_static_image = not self.state.show_find_item_static_image
+    if self.state.show_find_item_static_image:
+      self.state.find_item_item_qr_tooltip_text = "Open Camera to Scan QR"
+    else:
+      self.state.find_item_item_qr_tooltip_text = "Close Camera"
+    self.state.flush()
 
   def update_inventory_df(self):
     """
@@ -1241,6 +1500,10 @@ class FrontendApplication:
       # If update from QR scan show alert in both sections
       self.display_success(f'QR scanned -> ID {id}', section='checkout')
       self.display_success(f'QR scanned -> ID {id}', section='return')
+
+      # If we are here that means we successfully scanned a QR code
+      # -> Switch off all open QR code scan camera feeds.
+      self.turn_off_qr_camera_visibility()
 
     info(f'Load item from id {id}')
     # Create a DatabaseClient instance and connect to the inventory database
@@ -1432,6 +1695,47 @@ class FrontendApplication:
       else:
         warning(f'Attempt to save image while display_img was None!')
 
+  def switch_off_add_item_camera(self, *args):
+    """
+    Callback function to switch off the camera in the add-item section 
+    without action.
+
+    """
+    # Flip visibility static image <-> camera live feed
+    self.state.show_add_item_camera_feed = (
+        not self.state.show_add_item_camera_feed)
+    self.state.show_add_item_static_image = (
+        not self.state.show_add_item_static_image)
+    self.state.flush()
+
+  def handle_add_item_camera_action(self, *args):
+    """
+    Handle actions when the camera button is pressed on the add_item page:
+    * If static image is shown -> switch to camera feed
+    * If camera feed is on -> Capture image and switch back to static image
+
+    """
+    if self.state.show_add_item_static_image:
+      # CASE - Item image is displayed -> Switch to camera feed
+      # Switch visibility states of static image and camera feed
+      self.state.add_item_tooltip_text = "Capture Image"
+    elif self.state.show_add_item_camera_feed:
+      # CASE - Camera feed is displayed -> Capture image and switch back to
+      # static image display
+      self.state.add_item_tooltip_text = "Open Camera"
+      # Capture image
+      self.capture_image()
+    else:
+      error(f'Inconsistent image display state: image flag {
+            self.state.show_add_item_static_image} / camera flag {self.state.show_add_item_camera_feed}')
+
+    # Flip visibility static image <-> camera live feed
+    self.state.show_add_item_camera_feed = (
+        not self.state.show_add_item_camera_feed)
+    self.state.show_add_item_static_image = (
+        not self.state.show_add_item_static_image)
+    self.state.flush()
+
   def switch_off_home_camera(self, *args):
     """
     Callback function to switch off the camera in the home section without
@@ -1524,8 +1828,8 @@ class FrontendApplication:
     elif inventoryUser.is_password(password):
       self.state.logged_in = True
       self.state.error_message = ""
-      info(f'[x] User {username} with {UserPrivileges(
-          inventoryUser.user_privileges)} logged in')
+      info(f'[x] +---- User {username} with {UserPrivileges(
+          inventoryUser.user_privileges)} logged in ----+')
       self.state.privileges = inventoryUser.user_privileges
 
       # Manage user exposure corresponding to privileges
@@ -1533,26 +1837,35 @@ class FrontendApplication:
       self.state.enable_privilege_delete_item = False
       self.state.enable_privilege_mod_item = False
       self.state.enable_privilege_settings = False
+      self.state.enable_privilege_export = False
 
       if inventoryUser.user_privileges == UserPrivileges.REPORTER.value:
-        self.state.enable_privilege_add_item = False
-        self.state.enable_privilege_delete_item = False
-        self.state.enable_privilege_mod_item = False
+        self.state.enable_privilege_export = True
       elif inventoryUser.user_privileges == UserPrivileges.DEVELOPPER.value:
         self.state.enable_privilege_add_item = True
-        self.state.enable_privilege_delete_item = False
         self.state.enable_privilege_mod_item = True
+        self.state.enable_privilege_export = True
       elif inventoryUser.user_privileges == UserPrivileges.MAINTAINER.value:
         self.state.enable_privilege_add_item = True
         self.state.enable_privilege_delete_item = True
         self.state.enable_privilege_mod_item = True
         self.state.enable_privilege_settings = True
+        self.state.enable_privilege_export = True
       elif inventoryUser.user_privileges == UserPrivileges.OWNER.value:
         self.state.enable_privilege_add_item = True
         self.state.enable_privilege_delete_item = True
         self.state.enable_privilege_mod_item = True
         self.state.enable_privilege_settings = True
+        self.state.enable_privilege_export = True
 
+      # Opposite flags needed for automatic state links
+      self.state.disable_privilege_add_item = not self.state.enable_privilege_add_item
+      self.state.disable_privilege_delete_item = not self.state.enable_privilege_delete_item
+      self.state.disable_privilege_mod_item = not self.state.enable_privilege_mod_item
+      self.state.disable_privilege_settings = not self.state.enable_privilege_settings
+      self.state.enable_privilege_export = not self.state.enable_privilege_export
+
+      self.state.flush()
     else:
       self.state.error_message = "Invalid credentials, please try again"
 

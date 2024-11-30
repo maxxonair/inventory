@@ -193,6 +193,19 @@ python util.delete_user.py # Alternatively with uv $ uv run util.delete_user.py
 python util.show_users.py # Alternatively with uv $ uv run util.show_users.py
 ```
 
+### User Privileges
+
+Users must be created with a privelege level defined.
+The following privelege levels are currently maintained, the table shows their associated editing and visibility rights:
+
+| Privelege           | GUEST | REPORTER | DEVELOPPER | MAINTAINER | OWNER |
+| ------------------- | ----- | -------- | ---------- | ---------- | ----- |
+| **Add Item**        | -     | -        | x          | x          | x     |
+| **Delete Item**     | -     | -        | -          | x          | x     |
+| **Modify Item**     | -     | -        | x          | x          | x     |
+| **Export to CSV**   | -     | x        | x          | x          | x     |
+| **Settings Access** | -     | -        | -          | x          | x     |
+
 # Troubleshooting
 
 The MariaDB docker container will use port 3306 which might conflict with
