@@ -50,9 +50,10 @@ from frontend.frontend_config import (inventory_page_title,
                                       html_content_embed_camera_stream_large,
                                       media_directory,
                                       image_not_found_path,
-                                      enableLogin,
-                                      enableRunForDebug,
-                                      disableDatabaseColumnFilter)
+                                      enable_login,
+                                      enable_debug_run,
+                                      disable_main_table_col_filter,
+                                      main_table_drop_cols)
 
 
 class FrontendApplication:
@@ -223,15 +224,28 @@ class FrontendApplication:
       inventory_df (pd.DataFrame): The DataFrame to filter.
 
       Returns:
-      pd.DataFrame: A DataFrame containing rows where the string is found in 
-      any column.
-      """      
+      filtered_df (pd.DataFrame): A DataFrame with rows and columns removed.
+      filtered_full_df (pd.DataFrame): A DataFrame with rows removed, but 
+                                       containing all columns of the DB.
+      """
       if not isinstance(inventory_df, pd.DataFrame):
         raise ValueError("[!] inventory_df must be a pandas DataFrame.")
 
       # Filter rows where any column contains the search string
-      filtered_df = inventory_df[inventory_df.apply(lambda row: row.astype(str).str.contains(query, case=False, na=False).any(), axis=1)]
-      return filtered_df
+      filtered_full_df = inventory_df[inventory_df.apply(lambda row: row.astype(
+          str).str.contains(query, case=False, na=False).any(), axis=1)]
+
+      if not disable_main_table_col_filter:
+        # Filter columns to not show in this overview
+        filtered_df = filtered_full_df.drop(columns=main_table_drop_cols)
+        # Rename columns for a more user friendly table view
+        filtered_df = filtered_df.rename(columns={'item_name': 'Item',
+                                                  'manufacturer': 'Manufacturer',
+                                                  'is_checked_out': 'Checked-Out',
+                                                  'check_out_date': 'Checkout Date',
+                                                  'check_out_poc': 'Checked-Out By',
+                                                  'item_tags': 'Tags'})
+      return filtered_df, filtered_full_df
 
     def update_table():
       """
@@ -250,15 +264,16 @@ class FrontendApplication:
       time_now = datetime.now()
       self.state.time_str = time_now.strftime("%d_%m_%Y__%H_%M_%S")
 
-      filtered_df = filter_inventory_df(self.state.query,
-                                        db_client.get_inventory_as_df())
-      (self.state.headers, 
-       self.state.rows )= vuetify.dataframe_to_grid(filtered_df, 
+      (filtered_df,
+       filtered_full_df) = filter_inventory_df(self.state.query,
+                                               db_client.get_inventory_as_df())
+      (self.state.headers,
+       self.state.rows) = vuetify.dataframe_to_grid(filtered_df,
                                                     main_table_header_options)
 
       # Convert DataFrame to CSV format as string
       csv_buffer_filtered = StringIO()
-      filtered_df.to_csv(csv_buffer_filtered, index=False)
+      filtered_full_df.to_csv(csv_buffer_filtered, index=False)
       self.state.inventory_filtered_csv_string = csv_buffer_filtered.getvalue()
 
     self.state.query = ""
@@ -1092,7 +1107,7 @@ class FrontendApplication:
     # Main page content
     with SinglePageWithDrawerLayout(self.server) as layout:
       layout.title.set_text(inventory_page_title)
-      if enableLogin:
+      if enable_login:
         # Login form
         with layout.content:
           with VCard(max_width="400px", v_if="!logged_in", outlined=True,
@@ -1478,22 +1493,6 @@ class FrontendApplication:
 
     # Reset checkout alert visibility
     self.hide_all_alerts()
-
-    if not disableDatabaseColumnFilter:
-      # -- Remove columns that should not be displayed
-      self.inventory_df = self.inventory_df.drop('item_image', axis=1)
-      self.inventory_df = self.inventory_df.drop(
-          'manufacturer_contact', axis=1)
-
-      # Rename columns for a more user friendly table view
-      self.inventory_df = self.inventory_df.rename(columns={'item_name': 'Item',
-                                                            'item_description': 'Description',
-                                                            'manufacturer': 'Manufacturer',
-                                                            'is_checked_out': 'Checked-Out',
-                                                            'check_out_date': 'Checkout Date',
-                                                            'check_out_poc': 'Checked-Out By',
-                                                            'date_added': 'Date Added',
-                                                            'item_tags': 'Tags'})
 
   def populate_item_from_id(self, id: int, is_update_from_qr_scan: bool = False):
     """
@@ -1937,7 +1936,7 @@ class FrontendApplication:
 
     """
     # --- Start server ---
-    if enableRunForDebug:
+    if enable_debug_run:
       task = self.server.start(thread=True,
                                open_browser=True,
                                disable_logging=True,

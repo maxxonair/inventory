@@ -13,6 +13,14 @@ inventory_main_window_title = "Inventory Library"
 
 main_table_header_options = {"item_name": {"sortable": False}}
 
+# All columns in this list will NOT be shown in the main table
+main_table_drop_cols = ['item_description',
+                        'manufacturer_contact',
+                        'date_added',
+                        'item_image']
+
+# Directory where media files (e.g. item images) corresponding to database
+# items will be stored
 media_directory = './database/media'
 
 # Host IP for the frontend server
@@ -30,17 +38,17 @@ frontend_host_port = 8080
 # the login page
 # [!] Note: Currently if login is disabled the log-in will be skipped and
 #     the user will automatically be logged in with full root access.
-enableLogin = True
+enable_login = True
 
 # Flag to run frontend in debug mode
 # Server will only be hosted to local host. frontend_host_ip/frontend_host_port
 # will not be used.
-enableRunForDebug = False
+enable_debug_run = False
 
 # Flag to disable column filtering from the raw data base export
 # If True all columns that are in the backend database will be displayed in
 # the GUI
-disableDatabaseColumnFilter = False
+disable_main_table_col_filter = False
 
 # TODO add data base table display column selection to this config
 
