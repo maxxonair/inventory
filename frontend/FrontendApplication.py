@@ -611,6 +611,16 @@ class FrontendApplication:
                                 v_bind='attrs',
                                 v_on='on'):
                         VIcon("mdi-cart-check", color='primary')
+                with VRow(style="margin-bottom: 16px;"):
+                  with vuetify2.VTooltip('Return Item', bottom=True):
+                    with vuetify2.Template(v_slot_activator="{ on, attrs }"):
+                      with VBtn('',
+                                outlined=True,
+                                click=checkin_item,
+                                icon=True,
+                                v_bind='attrs',
+                                v_on='on'):
+                        VIcon("mdi-arrow-right", color='primary')
 
               # --- item image ---
               with VCol(style="width: 300px; min-width: 120px; max-width: 400px;"):
@@ -688,7 +698,7 @@ class FrontendApplication:
           vuetify.VDataTable(**main_table_config,
                              v_if="logged_in",
                              # Set default 20 items per page
-                             items_per_page=10,
+                             items_per_page=-1,
                              # Show/Hide select check boxes
                              show_select=True)
 
