@@ -213,18 +213,25 @@ class FrontendApplication:
     # -- TABLE FUNCTIONS
     # -----------------------------------------------------------------------
 
-    def filter_inventory_df(query):
+    def filter_inventory_df(query, inventory_df):
       """
-      Filter invetory dataframe by user search query
+      Filters a DataFrame to return rows that contain the given string in any 
+      column.
 
-      """
-      if not query:
-        return self.inventory_df
-      else:
-        query = query.lower()
-        filtered_df = self.inventory_df[self.inventory_df.astype(str).apply(
-            lambda x: x.str.lower().str.contains(query).any(axis=1))]
-        return filtered_df
+      Parameters:
+      query (str): The string to search for.
+      inventory_df (pd.DataFrame): The DataFrame to filter.
+
+      Returns:
+      pd.DataFrame: A DataFrame containing rows where the string is found in 
+      any column.
+      """      
+      if not isinstance(inventory_df, pd.DataFrame):
+        raise ValueError("[!] inventory_df must be a pandas DataFrame.")
+
+      # Filter rows where any column contains the search string
+      filtered_df = inventory_df[inventory_df.apply(lambda row: row.astype(str).str.contains(query, case=False, na=False).any(), axis=1)]
+      return filtered_df
 
     def update_table():
       """
@@ -236,22 +243,23 @@ class FrontendApplication:
 
       # Convert DataFrame to CSV format as string
       csv_buffer = StringIO()
-      db_client.get_inventory_as_df().to_csv(csv_buffer, index=False)
+      self.inventory_df = db_client.get_inventory_as_df()
+      self.inventory_df.to_csv(csv_buffer, index=False)
       self.state.inventory_csv_string = csv_buffer.getvalue()
 
       time_now = datetime.now()
       self.state.time_str = time_now.strftime("%d_%m_%Y__%H_%M_%S")
 
-      filtered_df = filter_inventory_df(self.state.query)
-      headers, rows = vuetify.dataframe_to_grid(
-          filtered_df, main_table_header_options)
-      self.state.headers = headers
-      self.state.rows = rows
+      filtered_df = filter_inventory_df(self.state.query,
+                                        db_client.get_inventory_as_df())
+      (self.state.headers, 
+       self.state.rows )= vuetify.dataframe_to_grid(filtered_df, 
+                                                    main_table_header_options)
 
       # Convert DataFrame to CSV format as string
-      csv_buffer = StringIO()
-      filtered_df.to_csv(csv_buffer, index=False)
-      self.state.inventory_filtered_csv_string = csv_buffer.getvalue()
+      csv_buffer_filtered = StringIO()
+      filtered_df.to_csv(csv_buffer_filtered, index=False)
+      self.state.inventory_filtered_csv_string = csv_buffer_filtered.getvalue()
 
     self.state.query = ""
     update_table()
@@ -665,8 +673,8 @@ class FrontendApplication:
           vuetify.VDataTable(**main_table_config,
                              v_if="logged_in",
                              # Set default 20 items per page
-                             items_per_page=20,
-                             # Hide select check boxes
+                             items_per_page=10,
+                             # Show/Hide select check boxes
                              show_select=True)
 
     # --- FIND INVENTORY ITEM ---
@@ -1141,7 +1149,7 @@ class FrontendApplication:
 
         # Button Export database to file (.csv)
         # TODO Add this function
-        with vuetify2.VTooltip('Export Selected Search to csv', bottom=True, v_if="logged_in"):
+        with vuetify2.VTooltip('Export Selection to csv', bottom=True, v_if="logged_in"):
           with vuetify2.Template(v_slot_activator="{ on, attrs }"):
             with VBtn("",
                       disabled=("enable_privilege_export",),
