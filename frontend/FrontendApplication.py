@@ -85,6 +85,7 @@ class FrontendApplication:
     self.state.item_manufacturer = ""
     self.state.item_manufacturer_details = ""
     self.state.is_checked_out = 0
+    self.state.item_location = ""
     self.state.check_out_date = ""
     self.state.check_out_poc = ""
     self.state.date_added = ""
@@ -244,7 +245,8 @@ class FrontendApplication:
                                                   'is_checked_out': 'Checked-Out',
                                                   'check_out_date': 'Checkout Date',
                                                   'check_out_poc': 'Checked-Out By',
-                                                  'item_tags': 'Tags'})
+                                                  'item_tags': 'Tags',
+                                                  'item_location': 'Location'})
       return filtered_df, filtered_full_df
 
     def update_table():
@@ -689,6 +691,13 @@ class FrontendApplication:
                       prepend_icon="mdi-anvil",
                       disabled=("disable_privilege_mod_item",)
                   )
+                  VTextField(
+                      v_model=("item_location", ""),
+                      label="Storage Location",
+                      placeholder="Enter the items storage location",
+                      prepend_icon="mdi-map-marker-radius",
+                      disabled=("disable_privilege_mod_item",)
+                  )
 
         # --- inventory table
         # with VRow(classes="justify-center ma-6", v_if="show_home_inventory_table"):
@@ -821,6 +830,14 @@ class FrontendApplication:
                   prepend_icon="mdi-anvil",
                   disabled=("disable_privilege_mod_item",)
               )
+            with VRow():
+              VTextField(
+                  v_model=("item_location", ""),
+                  label="Storage Location",
+                  placeholder="Enter the items storage location",
+                  prepend_icon="mdi-map-marker-radius",
+                  disabled=("disable_privilege_mod_item",)
+              )
 
     # --- ADD IVENTORY ITEM ---
     with RouterViewLayout(self.server, "/add inventory item", v_if="enable_privilege_add_item"):
@@ -912,6 +929,13 @@ class FrontendApplication:
                   label="Manufacturer Contact Details",
                   placeholder="Enter Manufacturer Details",
                   prepend_icon="mdi-anvil"
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_location", ""),
+                  label="Storage Location",
+                  placeholder="Enter the items storage location",
+                  prepend_icon="mdi-map-marker-radius",
               )
 
     # --- CHECK-OUT INVENTORY ITEM ---
@@ -1008,6 +1032,14 @@ class FrontendApplication:
                   placeholder="Enter Manufacturer Details",
                   prepend_icon="mdi-anvil",
                   disabled=True)
+            with VRow():
+              VTextField(
+                  v_model=("item_location", ""),
+                  label="Storage Location",
+                  placeholder="Enter the items storage location",
+                  prepend_icon="mdi-map-marker-radius",
+                  disabled=True
+              )
 
     # --- RETURN INVENTORY ITEM ---
     with RouterViewLayout(self.server, "/return inventory item"):
@@ -1103,6 +1135,14 @@ class FrontendApplication:
                   label="Manufacturer Contact Details",
                   placeholder="Enter Manufacturer Details",
                   prepend_icon="mdi-anvil",
+                  disabled=True
+              )
+            with VRow():
+              VTextField(
+                  v_model=("item_location", ""),
+                  label="Storage Location",
+                  placeholder="Enter the items storage location",
+                  prepend_icon="mdi-map-marker-radius",
                   disabled=True
               )
 
@@ -1566,6 +1606,8 @@ class FrontendApplication:
       self.state.item_manufacturer = f'{item_data_df.iloc[0]['manufacturer']}'
       self.state.item_manufacturer_details = f'{
           item_data_df.iloc[0]['manufacturer_contact']}'
+      self.state.item_location = f'{
+          item_data_df.iloc[0]['item_location']}'
       is_checkout_temp = (
           f'{item_data_df.iloc[0]['is_checked_out']}')
       self.state.check_out_date = f'{item_data_df.iloc[0]['check_out_date']}'
@@ -1635,6 +1677,7 @@ class FrontendApplication:
       inventoryItem.manufacturer = str(self.state.item_manufacturer)
       inventoryItem.manufacturer_contact = str(
           self.state.item_manufacturer_details)
+      inventoryItem.item_location = str(self.state.item_location)
       inventoryItem.item_tags = str(self.state.item_tags)
       inventoryItem.set_img_path(Path(self.state.item_image_path))
 
@@ -1861,6 +1904,7 @@ class FrontendApplication:
       elif inventoryUser.user_privileges == UserPrivileges.DEVELOPPER.value:
         self.state.enable_privilege_add_item = True
         self.state.enable_privilege_mod_item = True
+        self.state.enable_privilege_delete_item = True
         self.state.enable_privilege_export = True
       elif inventoryUser.user_privileges == UserPrivileges.MAINTAINER.value:
         self.state.enable_privilege_add_item = True

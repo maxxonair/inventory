@@ -17,7 +17,8 @@ class InventoryItem():
                is_checked_out: bool = False,
                check_out_poc: str = None,
                check_out_date: datetime = None,
-               item_tags: str = None):
+               item_tags: str = None,
+               item_location: str = None):
     """
     This function initializes the inventory item instance and makes sure that
     the dictorionary contains ALL properties of that item. When updating item
@@ -49,8 +50,9 @@ class InventoryItem():
     self.check_out_poc = check_out_poc
     self.check_out_date = check_out_date_str
     self.item_tags = item_tags
+    self.item_location = item_location
 
-    self.date_added = date_time_now.strftime("%m/%d/%Y, %H:%M:%S")
+    self.date_added = date_time_now.strftime("%m/%d/%Y, %H:%M")
 
     self._update_dict()
 
@@ -71,6 +73,7 @@ class InventoryItem():
         "check_out_poc": str(self.check_out_poc),
         "date_added": str(self.date_added),
         "item_tags": str(self.item_tags),
+        "item_location": str(self.item_location),
     }
 
   def set_img_path(self, img_path: Path):
@@ -139,6 +142,7 @@ class InventoryItem():
         self.item_image = Path('')
       self.item_description = item_data_df.iloc[0]['item_description']
       self.item_tags = item_data_df.iloc[0]['item_tags']
+      self.item_location = item_data_df.iloc[0]['item_location']
     else:
       warning('Attempted to populate InventoryItem from empty DataFrame')
 
@@ -161,6 +165,7 @@ class InventoryItem():
     create_table_query += f'check_out_poc VARCHAR(1055) ,'
     create_table_query += f'date_added VARCHAR(255) )'
     create_table_query += f'item_tags VARCHAR(1055) )'
+    create_table_query += f'item_location VARCHAR(1055) )'
 
     return create_table_query
 

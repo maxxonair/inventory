@@ -2,9 +2,27 @@
 
 Minimal inventory management system to track physical assets in a digital database. The assets are identified by QR code labels, which are generated and recognized by inventory. When creating a new item inventory tries to interface automatically with a Niimbot printer to print the corresponding QR label sticker. The QR label is read using a webcam interface.
 
-:construction: Work in Progress :construction:
-
 ![inventory](https://github.com/maxxonair/inventory/blob/main/frontend/data/inventory_example_ui_home.png?raw=true)
+
+### Item Data
+
+The following shows the currently implemented meta data that is recorded for
+each item in the inventory.
+
+| Meta Data Class          | Description                                                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ID**                   | Unique item ID, value is handled by the database interface in the background. Cannot be altered.                                                           |
+| **Name**                 | Item Name. Does not need to be unique                                                                                                                      |
+| **Description**          | Field for more detailled description of the item                                                                                                           |
+| **Manufacturer**         | Manufacturer                                                                                                                                               |
+| **Manufacturer Details** | Manufacturer details, mainly contact details.                                                                                                              |
+| **Image**                | Item image. Images are stored as png's outside the database in the media directory. The database holds the path to the respective image in that directory. |
+| **Check-out Status**     | Flag, True if the item is currently checked-out                                                                                                            |
+| **Check-out Date**       | Check-out date and time                                                                                                                                    |
+| **Check-out PoC**        | Check-out point of contact, aka the person responsible for the item from the moment it has been checked out.                                               |
+| **Date Added**           | Date when the item has been added to the database. Automatically handled in the background.                                                                |
+| **Tags**                 | Tags to identify item. Tags should be separated by a semicolon                                                                                             |
+| **Storage Location**     | Storage location of the item                                                                                                                               |
 
 # Configuration
 
@@ -201,7 +219,7 @@ The following privelege levels are currently maintained, the table shows their a
 | Privelege           | GUEST | REPORTER | DEVELOPPER | MAINTAINER | OWNER |
 | ------------------- | ----- | -------- | ---------- | ---------- | ----- |
 | **Add Item**        | -     | -        | x          | x          | x     |
-| **Delete Item**     | -     | -        | -          | x          | x     |
+| **Delete Item**     | -     | -        | x          | x          | x     |
 | **Modify Item**     | -     | -        | x          | x          | x     |
 | **Export to CSV**   | -     | x        | x          | x          | x     |
 | **Settings Access** | -     | -        | -          | x          | x     |

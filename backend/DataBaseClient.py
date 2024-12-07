@@ -264,7 +264,7 @@ class DataBaseClient():
 
   def add_inventory_item(self, inventory_item: InventoryItem) -> id:
     """
-    Create column in INVENTORY_TABLE_NAME 
+    Create row in INVENTORY_TABLE_NAME 
 
 
     returns ID of the created inventory item
