@@ -144,35 +144,11 @@ class FrontendApplication:
     self.state.show_home_camera = False
     self.state.show_home_item_image = True
 
-    self.state.show_modify_item_alert_success = False
-    self.state.modify_item_alert_text_success = ''
+    self.state.show_item_alert_success = False
+    self.state.item_alert_text_success = ''
 
-    self.state.show_modify_item_alert_warning = False
-    self.state.modify_item_alert_text_warning = ''
-
-    self.state.show_add_item_alert_success = False
-    self.state.add_item_alert_text_success = ''
-
-    self.state.show_add_item_alert_warning = False
-    self.state.add_item_alert_text_warning = ''
-
-    self.state.show_checkout_alert_success = False
-    self.state.checkout_alert_text_success = ''
-
-    self.state.show_checkout_alert_warning = False
-    self.state.checkout_alert_text_warning = ''
-
-    self.state.show_return_alert_success = False
-    self.state.return_alert_text_success = ''
-
-    self.state.show_return_alert_warning = False
-    self.state.return_alert_text_warning = ''
-
-    self.state.show_find_item_alert_success = False
-    self.state.find_item_alert_text_success = ''
-
-    self.state.show_find_item_alert_warning = False
-    self.state.find_item_alert_text_warning = ''
+    self.state.show_item_alert_warning = False
+    self.state.item_alert_text_warning = ''
 
     self.state.show_home_checkout_status_alert_warning = False
     self.state.show_home_checkout_status_alert_success = False
@@ -297,7 +273,7 @@ class FrontendApplication:
 
         # Update the table view
         update_table()
-        self.display_success('Item deleted successfully', 'modify_item')
+        self.display_item_success('Item deleted successfully')
 
     def update_inventory_item(*args):
       """
@@ -327,10 +303,10 @@ class FrontendApplication:
 
         # Update the table view
         update_table()
-        self.display_success('Item updated successfully', 'modify_item')
+        self.display_item_success('Item updated successfully')
       else:
         error('Adding Inventory item failed. Invalid user inputs')
-        self.display_warning('Item update failed!', 'modify_item')
+        self.display_item_warning('Item update failed!')
 
     def add_inventory_item(*args):
       """
@@ -378,16 +354,13 @@ class FrontendApplication:
 
         # Print QR code label
         if not self.print_label_from_id():
-          self.display_warning(
-              'Item added to inventory. Failed to connect to printer', 'add_item')
+          self.display_item_warning('Item added to inventory. Failed to connect to printer')
         else:
-          self.display_success(
-              'Item added successfully!', 'add_item')
+          self.display_item_success('Item added successfully!')
 
         update_table()
       else:
-        self.display_warning(
-            'Adding item failed! Invalid user inputs', 'add_item')
+        self.display_item_warning('Adding item failed! Invalid user inputs')
         error('Adding Inventory item failed. Invalid user inputs')
 
       self.state.flush()
@@ -411,10 +384,9 @@ class FrontendApplication:
         self.state.check_out_date = self.inventory_item.check_out_date
         self._update_checkout_status(self.state.is_checked_out)
 
-        self.display_success('Item checked-out successful!', 'checkout')
+        self.display_item_success('Item checked-out successful!')
       else:
-        self.display_warning(
-            'Item checked-out failed. No User set!', 'checkout')
+        self.display_item_warning('Item checked-out failed. No User set!')
         warning('Updating checkout status failed. No user set.')
 
       self.state.flush()
@@ -433,7 +405,7 @@ class FrontendApplication:
       update_table()
       self.state.is_checked_out = 0
       self._update_checkout_status(self.state.is_checked_out)
-      self.display_success('Item returned successfully!', 'return')
+      self.display_item_success('Item returned successfully!')
 
     # -----------------------------------------------------------------------
     # -- GUI
@@ -627,14 +599,10 @@ class FrontendApplication:
               # --- item image ---
               with VCol(style="width: 300px; min-width: 120px; max-width: 400px;"):
 
-                vuetify.VAlert("{{ modify_item_alert_text_success }}",
-                               type="success", v_if="show_modify_item_alert_success")
-                vuetify.VAlert("{{ modify_item_alert_text_warning }}",
-                               type="warning", v_if="show_modify_item_alert_warning")
-                vuetify.VAlert("{{ checkout_alert_text_success }}",
-                               type="success", v_if="show_checkout_alert_success")
-                vuetify.VAlert("{{ checkout_alert_text_warning }}",
-                               type="warning", v_if="show_checkout_alert_warning")
+                vuetify.VAlert("{{ item_alert_text_success }}",
+                               type="success", v_if="show_item_alert_success")
+                vuetify.VAlert("{{ item_alert_text_warning }}",
+                               type="warning", v_if="show_item_alert_warning")
 
                 VImg(
                     src=("image_src",),
@@ -764,10 +732,10 @@ class FrontendApplication:
 
           # --- [SECTION -- FIND_ITEM] COLUMN -> Item Image & Checkout Alerts
           with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-            vuetify.VAlert("{{ find_item_alert_text_success }}",
-                           type="success", v_if="show_find_item_alert_success")
-            vuetify.VAlert("{{ find_item_alert_text_warning }}",
-                           type="warning", v_if="show_find_item_alert_warning")
+            vuetify.VAlert("{{ item_alert_text_success }}",
+                           type="success", v_if="show_item_alert_success")
+            vuetify.VAlert("{{ item_alert_text_warning }}",
+                           type="warning", v_if="show_item_alert_warning")
 
             # Display the name of the selected item
             vuetify.VAlert("{{ checkout_status_summary }}",
@@ -881,10 +849,10 @@ class FrontendApplication:
 
           # --- [SECTION -- ADD_ITEM] COLUMN -> Item Image & Checkout Alerts
           with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-            vuetify.VAlert("{{ add_item_alert_text_success }}",
-                           type="success", v_if="show_add_item_alert_success")
-            vuetify.VAlert("{{ add_item_alert_text_warning }}",
-                           type="warning", v_if="show_add_item_alert_warning")
+            vuetify.VAlert("{{ item_alert_text_success }}",
+                           type="success", v_if="show_item_alert_success")
+            vuetify.VAlert("{{ item_alert_text_warning }}",
+                           type="warning", v_if="show_item_alert_warning")
             VImg(
                 src=("image_src",), max_width="400px", classes="mb-5",
                 v_if="show_add_item_static_image")
@@ -969,10 +937,10 @@ class FrontendApplication:
 
           # --- [SECTION -- CHECKOUT] COLUMN -> Item Image & Checkout Alerts
           with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-            vuetify.VAlert("{{ checkout_alert_text_success }}",
-                           type="success", v_if="show_checkout_alert_success")
-            vuetify.VAlert("{{ checkout_alert_text_warning }}",
-                           type="warning", v_if="show_checkout_alert_warning")
+            vuetify.VAlert("{{ item_alert_text_success }}",
+                           type="success", v_if="show_item_alert_success")
+            vuetify.VAlert("{{ item_alert_text_warning }}",
+                           type="warning", v_if="show_item_alert_warning")
             # Display the name of the selected item
             vuetify.VAlert("{{ checkout_status_summary }}",
                            type="success",
@@ -1072,10 +1040,10 @@ class FrontendApplication:
 
           # --- [SECTION -- RETURN_ITEM] COLUMN -> Item Image & Checkout Alerts
           with VCol(style="width: 300px; min-width: 60px; max-width: 600px;"):
-            vuetify.VAlert("{{ return_alert_text_success }}",
-                           type="success", v_if="show_return_alert_success")
-            vuetify.VAlert("{{ return_alert_text_warning }}",
-                           type="warning", v_if="show_return_alert_warning")
+            vuetify.VAlert("{{ item_alert_text_success }}",
+                           type="success", v_if="show_item_alert_success")
+            vuetify.VAlert("{{ item_alert_text_warning }}",
+                           type="warning", v_if="show_item_alert_warning")
             # Display the name of the selected item
             vuetify.VAlert("{{ checkout_status_summary }}",
                            type="success",
@@ -1307,45 +1275,15 @@ class FrontendApplication:
     def on_query_change(query, **kwargs):
       update_table()
 
-    @ self.state.change("modify_item_alert_text_success")
+    @ self.state.change("item_alert_text_success")
     def on_query_change(query, **kwargs):
-      if self.state.modify_item_alert_text_success:
-        self.state.show_modify_item_alert_success = True
+      if self.state.item_alert_text_success:
+        self.state.show_item_alert_success = True
 
-    @ self.state.change("modify_item_alert_text_warning")
+    @ self.state.change("item_alert_text_warning")
     def on_query_change(query, **kwargs):
-      if self.state.modify_item_alert_text_warning:
-        self.state.show_modify_item_alert_warning = True
-
-    @ self.state.change("add_item_alert_text_success")
-    def on_query_change(query, **kwargs):
-      if self.state.add_item_alert_text_success:
-        self.state.show_add_item_alert_success = True
-
-    @ self.state.change("add_item_alert_text_warning")
-    def on_query_change(query, **kwargs):
-      if self.state.add_item_alert_text_warning:
-        self.state.show_add_item_alert_warning = True
-
-    @ self.state.change("checkout_alert_text_success")
-    def on_query_change(query, **kwargs):
-      if self.state.checkout_alert_text_success:
-        self.state.show_checkout_alert_success = True
-
-    @ self.state.change("checkout_alert_text_warning")
-    def on_query_change(query, **kwargs):
-      if self.state.checkout_alert_text_warning:
-        self.state.show_checkout_alert_warning = True
-
-    @ self.state.change("return_alert_text_success")
-    def on_query_change(query, **kwargs):
-      if self.state.return_alert_text_success:
-        self.state.show_return_alert_success = True
-
-    @ self.state.change("return_alert_text_warning")
-    def on_query_change(query, **kwargs):
-      if self.state.return_alert_text_warning:
-        self.state.show_return_alert_warning = True
+      if self.state.item_alert_text_warning:
+        self.state.show_item_alert_warning = True
 
     @ self.state.change('item_name')
     def update_item_textfields(**kwargs):
@@ -1404,72 +1342,42 @@ class FrontendApplication:
     """
     Function: Hide all VAlert fields
     """
-    self.state.show_modify_item_alert_success = False
-    self.state.show_modify_item_alert_warning = False
-    self.state.show_add_item_alert_success = False
-    self.state.show_add_item_alert_warning = False
-    self.state.show_checkout_alert_success = False
-    self.state.show_checkout_alert_warning = False
-    self.state.show_return_alert_success = False
-    self.state.show_return_alert_warning = False
+    self.state.show_item_alert_success = False
+    self.state.show_item_alert_warning = False
     self._reset_all_alert_messages()
     self.state.flush()
 
   def _reset_all_alert_messages(self):
-    self.state.modify_item_alert_text_success = ''
-    self.state.add_item_alert_text_success = ''
-    self.state.checkout_alert_text_success = ''
-    self.state.return_alert_text_success = ''
-    self.state.modify_item_alert_text_warning = ''
-    self.state.add_item_alert_text_warning = ''
-    self.state.checkout_alert_text_warning = ''
-    self.state.return_alert_text_warning = ''
+    self.state.item_alert_text_success = ''
+    self.state.item_alert_text_warning = ''
 
-  def display_success(self, message: str, section: str):
+  def display_item_success(self, message: str):
     """
     Function to display a success message within a section displayed as a VAlert
     """
-    info(f'[Alert] display success < {message} > in section [{section}]')
+    info(f'[Alert] display success < {message} > ')
 
     async def countdown_to_hide():
       await asyncio.sleep(self.delay_success_messages_s)
       self.hide_all_alerts()
 
-    if section == 'modify_item':
-      self.state.modify_item_alert_text_success = message
-    elif section == 'add_item':
-      self.state.add_item_alert_text_success = message
-    elif section == 'checkout':
-      self.state.checkout_alert_text_success = message
-    elif section == 'return':
-      self.state.return_alert_text_success = message
-    else:
-      error('[Display SUCCESS Alerts] Invalid section selected!')
+    self.state.item_alert_text_success = message
     self.state.flush()
 
     # Start counter until alert is hidden again
     asyncio.create_task(countdown_to_hide())
 
-  def display_warning(self, message: str, section: str):
+  def display_item_warning(self, message: str):
     """
     Function to warning a success message within a section displayed as a VAlert
     """
-    info(f'[Alert] display warning < {message} > in section [{section}]')
+    info(f'[Alert] display warning < {message} > ')
 
     async def countdown_to_hide():
       await asyncio.sleep(self.delay_warning_messages_s)
       self.hide_all_alerts()
 
-    if section == 'modify_item':
-      self.state.modify_item_alert_text_warning = message
-    elif section == 'add_item':
-      self.state.add_item_alert_text_warning = message
-    elif section == 'checkout':
-      self.state.checkout_alert_text_warning = message
-    elif section == 'return':
-      self.state.return_alert_text_warning = message
-    else:
-      error('[Display WARNING Alerts] Invalid section selected!')
+    self.state.item_alert_text_warning = message
     self.state.flush()
 
     # Start counter until alert is hidden again
@@ -1526,9 +1434,9 @@ class FrontendApplication:
     self.state.show_find_item_camera_feed = not self.state.show_find_item_camera_feed
     self.state.show_find_item_static_image = not self.state.show_find_item_static_image
     if self.state.show_find_item_static_image:
-      self.state.find_item_item_qr_tooltip_text = "Open Camera to Scan QR"
+      self.state.find_item_qr_tooltip_text = "Open Camera to Scan QR"
     else:
-      self.state.find_item_item_qr_tooltip_text = "Close Camera"
+      self.state.find_item_qr_tooltip_text = "Close Camera"
     self.state.flush()
 
   def update_inventory_df(self):
@@ -1555,8 +1463,7 @@ class FrontendApplication:
     """
     if is_update_from_qr_scan:
       # If update from QR scan show alert in both sections
-      self.display_success(f'QR scanned -> ID {id}', section='checkout')
-      self.display_success(f'QR scanned -> ID {id}', section='return')
+      self.display_item_success(f'QR scanned -> ID {id}')
 
       # If we are here that means we successfully scanned a QR code
       # -> Switch off all open QR code scan camera feeds.
