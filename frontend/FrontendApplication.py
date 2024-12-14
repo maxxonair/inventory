@@ -3,7 +3,8 @@ from trame.widgets import vuetify as vuetify, vega, router, html
 from trame.widgets.vuetify import (VBtn, VSpacer, VTextField, VCardText, VIcon,
                                    VCol, VRow, VContainer, VImg, VCardTitle,
                                    VCard, VList, VListItem,
-                                   VListItemTitle, VTooltip
+                                   VListItemTitle, VTooltip, VChipGroup, VChip,
+                                   VThemeProvider
                                    )
 from trame.widgets.vuetify import (VListItemContent, VListItemIcon)
 from trame.widgets import vuetify2
@@ -89,6 +90,7 @@ class FrontendApplication:
     self.state.check_out_date = ""
     self.state.check_out_poc = ""
     self.state.date_added = ""
+    self.state.item_tag_chips = []
     self.state.checkout_status_summary = ""
     self.state.item_image_path = (Path("./frontend/data") /
                                   'no_image_available.jpg').absolute().as_posix()
@@ -193,7 +195,7 @@ class FrontendApplication:
 
     def filter_inventory_df(query, inventory_df):
       """
-      Filters a DataFrame to return rows that contain the given string in any 
+      Filters a DataFrame to return rows that contain the given string in any
       column.
 
       Parameters:
@@ -202,7 +204,7 @@ class FrontendApplication:
 
       Returns:
       filtered_df (pd.DataFrame): A DataFrame with rows and columns removed.
-      filtered_full_df (pd.DataFrame): A DataFrame with rows removed, but 
+      filtered_full_df (pd.DataFrame): A DataFrame with rows removed, but
                                        containing all columns of the DB.
       """
       if not isinstance(inventory_df, pd.DataFrame):
@@ -354,7 +356,8 @@ class FrontendApplication:
 
         # Print QR code label
         if not self.print_label_from_id():
-          self.display_item_warning('Item added to inventory. Failed to connect to printer')
+          self.display_item_warning(
+              'Item added to inventory. Failed to connect to printer')
         else:
           self.display_item_success('Item added successfully!')
 
@@ -629,42 +632,48 @@ class FrontendApplication:
                       label="Item Name",
                       placeholder="Enter item name",
                       prepend_icon="mdi-rename-box-outline",
-                      disabled=("disable_privilege_mod_item",)
+                      disabled=("disable_privilege_mod_item",),
+                      change=update_inventory_item,
                   )
                   VTextField(
                       v_model=("item_description", ""),
                       label="Item Description",
                       placeholder="Enter item description",
                       prepend_icon="mdi-image-text",
-                      disabled=("disable_privilege_mod_item",)
+                      disabled=("disable_privilege_mod_item",),
+                      change=update_inventory_item,
                   )
                   VTextField(
                       v_model=("item_tags", ""),
                       label="Tags",
                       placeholder="Enter item tags",
                       prepend_icon="mdi-tag",
-                      disabled=("disable_privilege_mod_item",)
+                      disabled=("disable_privilege_mod_item",),
+                      change=update_inventory_item,
                   )
                   VTextField(
                       v_model=("item_manufacturer", ""),
                       label="Manufacturer",
                       placeholder="Enter item manufacturer",
                       prepend_icon="mdi-anvil",
-                      disabled=("disable_privilege_mod_item",)
+                      disabled=("disable_privilege_mod_item",),
+                      change=update_inventory_item,
                   )
                   VTextField(
                       v_model=("item_manufacturer_details", ""),
                       label="Manufacturer Details",
                       placeholder="Enter item manufacturer details",
                       prepend_icon="mdi-anvil",
-                      disabled=("disable_privilege_mod_item",)
+                      disabled=("disable_privilege_mod_item",),
+                      change=update_inventory_item,
                   )
                   VTextField(
                       v_model=("item_location", ""),
                       label="Storage Location",
                       placeholder="Enter the items storage location",
                       prepend_icon="mdi-map-marker-radius",
-                      disabled=("disable_privilege_mod_item",)
+                      disabled=("disable_privilege_mod_item",),
+                      change=update_inventory_item,
                   )
 
         # --- inventory table
@@ -680,11 +689,11 @@ class FrontendApplication:
                              show_select=True)
 
     # --- FIND INVENTORY ITEM ---
-    with RouterViewLayout(self.server, "/find inventory item"):
+    with RouterViewLayout(self.server, "/find inventory item", v_if="logged_in"):
       with vuetify.VContainer(fluid=True):
         with VRow():
 
-          # --- [SECTION -- FIND_ITEM] COLUMN -> Item Controls
+            # --- [SECTION -- FIND_ITEM] COLUMN -> Item Controls
           with VCol(style="width: 30px; min-width: 30px; max-width: 30px;"):
             with VRow(v_if="enable_privilege_mod_item", style="margin-bottom: 16px;"):
               with vuetify2.VTooltip('Confirm Modification', bottom=True):
@@ -905,6 +914,12 @@ class FrontendApplication:
                   placeholder="Enter the items storage location",
                   prepend_icon="mdi-map-marker-radius",
               )
+            # TODO This is not workig, make it work as it is a better
+            # alternative to display tags
+            # with VChipGroup(v_model="item_tag_chips", multiple=True):
+            #   VChip(v_for="(item, index) in item_tag_chips",
+            #         key="index",
+            #         children="{{ item }}")
 
     # --- CHECK-OUT INVENTORY ITEM ---
     with RouterViewLayout(self.server, "/checkout inventory item"):
@@ -1134,8 +1149,10 @@ class FrontendApplication:
               VCardTitle("Login")
             with VCardText():
               VTextField(label="Username", v_model="username")
-              VTextField(
-                  label="Password", v_model="password", type="password")
+              VTextField(label="Password",
+                         v_model="password",
+                         type="password",
+                         )
             VSpacer()
             VBtn("Login", click=lambda: self.login(
                 self.state.username, self.state.password), block=True)
@@ -1524,6 +1541,11 @@ class FrontendApplication:
           item_data_df.iloc[0]['item_description']}'
       self.state.item_tags = f'{item_data_df.iloc[0]['item_tags']}'
 
+      # Split tag list to create VChips
+      # TODO fix
+      self.state.item_tag_chips = [item.strip()
+                                   for item in self.state.item_tags.split(";") if item.strip()]
+
       # Handle cases where for whichever reason the checkout status is set
       # to None
       if is_checkout_temp == 'None' or is_checkout_temp is None:
@@ -1774,6 +1796,7 @@ class FrontendApplication:
     self.state.password = ''
     self.state.logged_in = False
     self.state.error_message = ''
+    self._disable_all_privileges()
 
   def login(self, username, password):
     """
@@ -1800,11 +1823,7 @@ class FrontendApplication:
       self.state.privileges = inventoryUser.user_privileges
 
       # Manage user exposure corresponding to privileges
-      self.state.enable_privilege_add_item = False
-      self.state.enable_privilege_delete_item = False
-      self.state.enable_privilege_mod_item = False
-      self.state.enable_privilege_settings = False
-      self.state.enable_privilege_export = False
+      self._disable_all_privileges()
 
       if inventoryUser.user_privileges == UserPrivileges.REPORTER.value:
         self.state.enable_privilege_export = True
@@ -1836,6 +1855,20 @@ class FrontendApplication:
       self.state.flush()
     else:
       self.state.error_message = "Invalid credentials, please try again"
+
+  def _disable_all_privileges(self):
+    self.state.enable_privilege_add_item = False
+    self.state.enable_privilege_delete_item = False
+    self.state.enable_privilege_mod_item = False
+    self.state.enable_privilege_settings = False
+    self.state.enable_privilege_export = False
+    # Opposite flags needed for automatic state links
+    self.state.disable_privilege_add_item = not self.state.enable_privilege_add_item
+    self.state.disable_privilege_delete_item = not self.state.enable_privilege_delete_item
+    self.state.disable_privilege_mod_item = not self.state.enable_privilege_mod_item
+    self.state.disable_privilege_settings = not self.state.enable_privilege_settings
+    self.state.enable_privilege_export = not self.state.enable_privilege_export
+    self.state.flush()
 
   async def run(self):
     """
