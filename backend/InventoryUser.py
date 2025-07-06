@@ -4,8 +4,17 @@ from pandas import DataFrame
 from logging import warning
 from enum import Enum
 
-from backend.database_config import (INVENTORY_USER_TABLE_NAME,
-                                     INVENTORY_DB_NAME)
+
+# [CONSTANT] Name of the main database to store the Inventory
+INVENTORY_DB_NAME = 'inventory'
+
+# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
+#            Inventory
+INVENTORY_TABLE_NAME = 'inventory'
+
+# [CONSTANT] Name of the table in INVENTORY_DB_NAME database to store the
+#            Inventory users
+INVENTORY_USER_TABLE_NAME = 'inventory_user'
 
 
 class UserPrivileges(Enum):
