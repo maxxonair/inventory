@@ -28,7 +28,7 @@ class CameraServer():
 
   """
 
-  def __init__(self, fnct_update_id):
+  def __init__(self, fnct_update_id: int = 1):
     # Enable/Disable displaying the QR message in the streamed image
     self.enableQrText = False
 
@@ -146,5 +146,7 @@ class CameraServer():
 
 if __name__ == "__main__":
   server = CameraServer()
-
-  server.run()
+  loop = asyncio.new_event_loop()
+  asyncio.set_event_loop(loop)
+  loop.run_until_complete(asyncio.gather(
+      server.run()))

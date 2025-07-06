@@ -15,7 +15,7 @@ from backend.InventoryUser import InventoryUser
 
 class DataBaseClient():
 
-  def __init__(self, host: str, port: int = 3306):
+  def __init__(self, host: str, port: int = 46123):
     self.connection_config = {
         'user': 'inventory_user',
         'password': 'inventory24',
@@ -36,7 +36,7 @@ class DataBaseClient():
       info("[x] Connected to the inventory database")
     except mariadb.Error as e:
       error('')
-      error(f"Error connecting to MariaDB: {e}")
+      raise RuntimeError(f"Error connecting to MariaDB: {e}")
 
     # -- Ensure that database exists --
     if not self.is_database(INVENTORY_DB_NAME):
