@@ -1,12 +1,30 @@
-from flask import Flask, request, jsonify, send_from_directory
+"""                 [Inventory] Inventory Server 
+
+
+For debugging run as a module with 
+
+$ uv run -m backend.InventoryServer
+
+"""
+from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
 from flask_session import Session
-from logging import info, error, warning, debug
+from logging import info, error, debug
 import mariadb
 import pandas as pd
+import asyncio
+import sys
+import os
 
 from backend.InventoryUser import InventoryUser
 
+from backend import (inventory_server_ip,
+                     inventory_server_port)
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(parent_dir)
+
+# TODO move constants
 MEDIA_DEFAULT_PATH = "/home/mrx/Documents/inventory/database/media/"
 
 MEDIA_DEFAULT_URL = "http://127.0.0.1:5000/media/"
@@ -28,14 +46,13 @@ INVENTORY_USER_TABLE_NAME = 'inventory_user'
 class InventoryServer:
   def __init__(self, host: str = DEFAULT_DB_HOST, port: int = 46123, media_path: str = MEDIA_DEFAULT_PATH):
     self.app = Flask(__name__)
-    CORS(self.app)  # Enable CORS
+    self.app.secret_key = 'super-secret'
+    self.app.config['SESSION_TYPE'] = 'filesystem'
+    CORS(self.app, supports_credentials=True)  # Enable CORS
+    Session(self.app)
 
     # Set path to load media files from
     self.media_path = media_path
-
-    # In-memory storage
-    # self.users = [{"id": 1, "name": "romi"}, {"id": 2, "name": "peter"}]
-    # self.next_id = 3
 
     self.connection_config = {
         'user': 'inventory_user',
@@ -63,8 +80,11 @@ class InventoryServer:
     self.configure_routes()
 
   def configure_routes(self):
+
     @self.app.route('/media/<filename>')
     def serve_image(filename):
+      """Serve requested image from the media directory
+      """
       return send_from_directory(self.media_path, filename)
 
     @self.app.route('/users', methods=['GET'])
@@ -82,6 +102,8 @@ class InventoryServer:
 
     @self.app.route('/items')
     def get_items():
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
       data_dict = self.get_all_inventory_items_as_dict_list()
       return jsonify(data_dict)
 
@@ -90,23 +112,53 @@ class InventoryServer:
       data = request.json
       is_user_exists, inventoryUser = self.get_inventory_user_as_object(
           data['username'])
+      print(f'Log in attempt: {data['username']} -> {is_user_exists}')
       if not is_user_exists:
         return jsonify({'error': 'User not found'}), 401
       if not inventoryUser.is_password(data['password']):
         return jsonify({'error': 'Invalid credentials'}), 401
 
-      self.session['user'] = data['username']
+      session['user'] = data['username']
       return jsonify({'message': 'Login successful'})
+
+    @self.app.route('/logout', methods=['POST'])
+    def logout(self):
+      session.clear()
+      return jsonify({'message': 'Logged out'})
 
     @self.app.route('/me')
     def me():
-      if 'user' in self.session:
-        return jsonify({'user': self.session['user']})
+      if 'user' in session:
+        return jsonify({'user': session['user']})
       return jsonify({'error': 'Not logged in'}), 401
+    
+    @self.app.route('/qr', methods=['POST'])
+    def qr():
+      data = request.get_json()
+      id = data.get('id')
+      print(f'QR with ID {id} scanned')
+      
+      return jsonify({'status': 'success'}), 200
 
-  def run(self, **kwargs):
-    self.app.run(**kwargs)
+  async def run(self, host: str = inventory_server_ip,
+                port: int = inventory_server_port):
+    """Run the server
 
+    This function is to run the inventory server in a separate thread
+    """
+    def start_flask():
+      self.app.run(host=host,
+                   port=port,
+                   debug=False,
+                   use_reloader=False,
+                   threaded=True)
+    # Run the Flask app in a separate thread and return it as an asyncio
+    # task
+    return await asyncio.to_thread(start_flask)
+  
+  async def stop(self):
+      info("Stopping Inventory Server...")
+      
   def exec_sql_cmd(self, sql, values: list):
     """
     Generic execute SQL command defined by sql qery and its accompanying 
@@ -183,5 +235,10 @@ class InventoryServer:
 
 
 if __name__ == '__main__':
+  """Allows to run the server directly as module
+  """
   server = InventoryServer()
-  server.run(debug=True)
+  loop = asyncio.new_event_loop()
+  asyncio.set_event_loop(loop)
+  loop.run_until_complete(asyncio.gather(
+      server.run()))

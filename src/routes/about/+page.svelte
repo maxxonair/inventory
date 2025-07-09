@@ -16,11 +16,5 @@
   <meta name="description" content="Video stream test page" />
 </svelte:head>
 
-{#if isMobile}
-  <p>You are using a mobile device 📱</p>
-{:else}
-  <p>You are on a desktop or laptop 🖥️</p>
-{/if}
-
 <!-- Works with MJPEG streaming -->
 <img src={streamUrl} alt="Camera Stream" class="border rounded" />

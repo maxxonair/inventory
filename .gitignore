@@ -22,7 +22,9 @@ database/media/*
 # Ignore all image files
 **/*.png
 **/*.jpeg
-temp/qr
+
+# --- [SVELTE]
+node_modules/*
 
 
 **/*.example.py

@@ -1,29 +1,11 @@
 <script>
   import { onMount } from "svelte";
+  // import { Card, Button, Toggle } from "flowbite-svelte";
+  // import { ArrowRightOutline } from "flowbite-svelte-icons";
   let users = [];
   let newUser = "";
   let items = [];
   let searchQuery = "";
-
-  // Fetch users on load
-  async function loadUsers() {
-    const res = await fetch("http://127.0.0.1:5000/users");
-    users = await res.json();
-  }
-
-  // Add a new user
-  async function addUser() {
-    if (!newUser.trim()) return;
-    await fetch("http://127.0.0.1:5000/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newUser }),
-    });
-    newUser = "";
-    await loadUsers();
-  }
-
-  // onMount(loadUsers);
 
   async function loadItems() {
     const res = await fetch("http://127.0.0.1:5000/items");
@@ -101,8 +83,10 @@
   }
 </style>
 
-<h1 class="text-2xl font-semibold mb-6">Search Results</h1>
+<!-- Headline  -->
+<h1 class="text-2xl font-semibold mb-6">Inventory</h1>
 
+<!-- Search bar  -->
 <input
   class="search-box"
   placeholder="Search items..."
@@ -111,13 +95,20 @@
 
 <div class="product-grid">
   {#each filteredItems as item}
-    <div class="product-card">
-      <img src={item.item_image} alt={item.item_name} class="product-image" />
+  <div class="product-card">
+     <img src={item.item_image} alt={item.item_name} class="product-image" />
       <div class="product-name">{item.item_name}</div>
       <div class="manufacturer">by {item.manufacturer}</div>
-      <div class:status class:out={item.is_checked_out !== '1'}>
-        {item.is_checked_out}
-      </div>
-    </div>
+      <div class="manufacturer-details">{item.manufacturer_contact}</div>
+      <!-- {#if item.is_checked_out == '1'}
+        <div class:status class:out>
+          Borrowed by {item.check_out_poc} since {item.check_out_date}
+        </div>
+      {:else}
+        <div class:status class:available>
+          Available
+        </div>
+      {/if} -->
+  </div>
   {/each}
 </div>

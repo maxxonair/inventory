@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import logo from "$lib/images/svelte-logo.svg";
-  import github from "$lib/images/github.svg";
+  // import logo from "$lib/images/svelte-logo.svg";
+  import { user, logout } from '$lib/stores/auth.js';
 </script>
 
 <header>
@@ -32,6 +32,14 @@
     <!-- <a href="https://github.com/sveltejs/kit">
       <img src={github} alt="GitHub" />
     </a> -->
+    {#if $user}
+      <div class="flex items-center gap-4">
+        <span>Hello, {$user}</span>
+        <button on:click={logout}>Logout</button>
+      </div>
+    {:else}
+      <a href="/login">Login</a>
+    {/if}
   </div>
 </header>
 

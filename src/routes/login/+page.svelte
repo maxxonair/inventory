@@ -31,3 +31,20 @@
   <button type="submit">Login</button>
   {#if error}<p class="text-red-500">{error}</p>{/if}
 </form>
+
+<style>
+
+  button {
+    margin-top: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+  }
+
+  .error {
+    color: red;
+    margin-top: 10px;
+  }
+</style>

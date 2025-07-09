@@ -11,4 +11,5 @@ dependencies = [
   "mariadb",
   "pandas",
   "flask_session",
+  "requests"
 ]

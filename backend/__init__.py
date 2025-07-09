@@ -19,3 +19,5 @@ from backend.qr_config import decode_id_from_qr_message
 from backend.qr_config import encode_id_to_qr_message
 from backend.camera_config import camera_server_ip
 from backend.camera_config import camera_server_port
+from backend.inventory_server_config import inventory_server_ip
+from backend.inventory_server_config import inventory_server_port
