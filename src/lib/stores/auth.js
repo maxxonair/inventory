@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { goto } from '$app/navigation';
 
 export const user = writable(null);
 export const message = writable(null);
@@ -26,4 +27,5 @@ export async function logout() {
   });
   user.set(null);
   message.set('Logged out');
+  goto('/login');
 }

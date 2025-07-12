@@ -44,7 +44,10 @@ INVENTORY_USER_TABLE_NAME = 'inventory_user'
 
 
 class InventoryServer:
-  def __init__(self, host: str = DEFAULT_DB_HOST, port: int = 46123, media_path: str = MEDIA_DEFAULT_PATH):
+  def __init__(self, 
+               host: str = DEFAULT_DB_HOST, 
+               port: int = 46123, 
+               media_path: str = MEDIA_DEFAULT_PATH):
     self.app = Flask(__name__)
     self.app.secret_key = 'super-secret'
     self.app.config['SESSION_TYPE'] = 'filesystem'
@@ -89,16 +92,9 @@ class InventoryServer:
 
     @self.app.route('/users', methods=['GET'])
     def get_users():
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
       return jsonify(self.users)
-
-    @self.app.route('/users', methods=['POST'])
-    def add_user():
-      data = request.get_json()
-      name = data.get('name')
-      new_user = {"id": self.next_id, "name": name}
-      self.users.append(new_user)
-      self.next_id += 1
-      return jsonify(new_user), 201
 
     @self.app.route('/items')
     def get_items():
@@ -112,22 +108,27 @@ class InventoryServer:
       data = request.json
       is_user_exists, inventoryUser = self.get_inventory_user_as_object(
           data['username'])
+      # TODO demote to debug message
       print(f'Log in attempt: {data['username']} -> {is_user_exists}')
       if not is_user_exists:
         return jsonify({'error': 'User not found'}), 401
       if not inventoryUser.is_password(data['password']):
         return jsonify({'error': 'Invalid credentials'}), 401
 
+      # Login valid -> Create a session cookie for this user 
       session['user'] = data['username']
       return jsonify({'message': 'Login successful'})
 
     @self.app.route('/logout', methods=['POST'])
     def logout(self):
+      print('Log out user')
       session.clear()
       return jsonify({'message': 'Logged out'})
 
     @self.app.route('/me')
     def me():
+      # !TODO! somehow this returns 200 even if the user is logged out. 
+      # Safeguarded by the frontend for now, but needs to be checked.
       if 'user' in session:
         return jsonify({'user': session['user']})
       return jsonify({'error': 'Not logged in'}), 401

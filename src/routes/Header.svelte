@@ -1,7 +1,23 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { LogIn, LogOut } from 'lucide-svelte';
   // import logo from "$lib/images/svelte-logo.svg";
   import { user, logout } from '$lib/stores/auth.js';
+
+  // Redirect if user is null (in case of hot navigation after logout)
+  import { goto } from '$app/navigation';
+  if (!user) {
+    goto('/login');
+  }
+
+
+  function login() {
+    goto('/login');
+  }
+
+  // This protection is currently needed until /me stops returning 200 for logged 
+  // out users
+  $: isLoggedIn = $user !== null;
 </script>
 
 <header>
@@ -16,12 +32,14 @@
       <path d="M0,0 L1,2 C1.5,3 1.5,3 2,3 L2,0 Z" />
     </svg>
     <ul>
-      <li aria-current={page.url.pathname === "/" ? "home" : undefined}>
-        <a href="/">Home</a>
-      </li>
-      <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>
-        <a href="/about">Studio</a>
-      </li>
+      {#if isLoggedIn}
+        <li aria-current={page.url.pathname === "/" ? "home" : undefined}>
+          <a href="/">Home</a>
+        </li>
+        <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>
+          <a href="/studio">Studio</a>
+        </li>
+      {/if}
     </ul>
     <svg viewBox="0 0 2 3" aria-hidden="true">
       <path d="M0,0 L0,3 C0.5,3 0.5,3 1,2 L2,0 Z" />
@@ -32,14 +50,13 @@
     <!-- <a href="https://github.com/sveltejs/kit">
       <img src={github} alt="GitHub" />
     </a> -->
-    {#if $user}
-      <div class="flex items-center gap-4">
-        <span>Hello, {$user}</span>
-        <button on:click={logout}>Logout</button>
-      </div>
-    {:else}
-      <a href="/login">Login</a>
-    {/if}
+  <button class="icon-button" on:click={isLoggedIn ? logout : login} aria-label={isLoggedIn ? 'Logout' : 'Login'}>
+  {#if isLoggedIn}
+    <LogOut class="icon" />
+  {:else}
+    <LogIn class="icon" />
+  {/if}
+</button>
   </div>
 </header>
 
@@ -71,7 +88,7 @@
   nav {
     display: flex;
     justify-content: center;
-    --background: rgba(255, 255, 255, 0.7);
+    --background: rgba(205, 205, 205, 0.7);
   }
 
   svg {
@@ -130,5 +147,25 @@
 
   a:hover {
     color: var(--color-theme-1);
+  }
+
+  .icon-button {
+    background-color: #f0f0f0;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  .icon-button:hover {
+    background-color: #e0e0e0;
+  }
+
+  .icon {
+    width: 24px;
+    height: 24px;
+    stroke: #333;
   }
 </style>

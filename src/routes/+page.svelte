@@ -1,18 +1,16 @@
 <script>
-  import { onMount } from "svelte";
-  // import { Card, Button, Toggle } from "flowbite-svelte";
-  // import { ArrowRightOutline } from "flowbite-svelte-icons";
-  let users = [];
-  let newUser = "";
-  let items = [];
+  import { page } from "$app/state";
+  // import { onMount } from "svelte";
+  // Load item data loaded in +page.ts
+  export let data;
+  let { user, items } = data;
   let searchQuery = "";
-
-  async function loadItems() {
-    const res = await fetch("http://127.0.0.1:5000/items");
-    items = await res.json();
+  
+  // Redirect if user is null (in case of hot navigation after logout)
+  import { goto } from '$app/navigation';
+  if (!user) {
+    goto('/login');
   }
-
-  onMount(loadItems);
 
   // Filter items based on search query
   $: filteredItems = items.filter(item =>
@@ -24,7 +22,8 @@
 
 <style>
   .search-box {
-    margin-bottom: 1rem;
+    display: block;         /* Ensure it's treated as a block */
+    margin: 0 auto 1rem;    /* Center horizontally, keep bottom margin */
     padding: 0.5rem;
     width: 100%;
     max-width: 400px;
@@ -100,15 +99,6 @@
       <div class="product-name">{item.item_name}</div>
       <div class="manufacturer">by {item.manufacturer}</div>
       <div class="manufacturer-details">{item.manufacturer_contact}</div>
-      <!-- {#if item.is_checked_out == '1'}
-        <div class:status class:out>
-          Borrowed by {item.check_out_poc} since {item.check_out_date}
-        </div>
-      {:else}
-        <div class:status class:available>
-          Available
-        </div>
-      {/if} -->
   </div>
   {/each}
 </div>
