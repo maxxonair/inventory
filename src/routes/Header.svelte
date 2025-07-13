@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { LogIn, LogOut } from 'lucide-svelte';
+  import { LogIn, LogOut, PlusCircle, ScanQrCode, FolderDown } from 'lucide-svelte';
   // import logo from "$lib/images/svelte-logo.svg";
   import { user, logout } from '$lib/stores/auth.js';
+
+  let isMobile = false;
 
   // Redirect if user is null (in case of hot navigation after logout)
   import { goto } from '$app/navigation';
@@ -10,10 +13,53 @@
     goto('/login');
   }
 
-
   function login() {
     goto('/login');
   }
+
+  async function downloadCSV() {
+    const itemRes = await fetch('http://localhost:5000/items', {
+      credentials: 'include'
+    });
+
+    const items = await itemRes.json();
+
+    // Exit if list is empty
+    if (!items.length) return;
+
+    // Extract CSV headers
+    const headers = Object.keys(items[0]);
+
+    // Format rows
+    const csvRows = [
+      headers.join(','), // header row
+      ...items.map(item =>
+        headers.map(header => `"${item[header] ?? ''}"`).join(',')
+      )
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    // Generate timestamped filename
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
+    const filename = `inventory-${timestamp}.csv`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  onMount(() => {
+    const ua = navigator.userAgent;
+    isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+  });
 
   // This protection is currently needed until /me stops returning 200 for logged 
   // out users
@@ -33,11 +79,18 @@
     </svg>
     <ul>
       {#if isLoggedIn}
+        {#if isMobile}
+          <li aria-current={page.url.pathname === "/scanner" ? "page" : undefined}>
+            <ScanQrCode size={20} />
+          </li>
+        {/if}
         <li aria-current={page.url.pathname === "/" ? "home" : undefined}>
-          <a href="/">Home</a>
+          <a href="/">Inventory</a>
         </li>
         <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>
-          <a href="/studio">Studio</a>
+          <a href="/studio" aria-label="Studio">
+            <PlusCircle size={20} />
+          </a>
         </li>
       {/if}
     </ul>
@@ -46,10 +99,13 @@
     </svg>
   </nav>
 
+
   <div class="corner">
-    <!-- <a href="https://github.com/sveltejs/kit">
-      <img src={github} alt="GitHub" />
-    </a> -->
+  {#if isLoggedIn}
+  <button on:click={downloadCSV} class="download-button">
+  <FolderDown size={20} />
+  </button>
+  {/if}
   <button class="icon-button" on:click={isLoggedIn ? logout : login} aria-label={isLoggedIn ? 'Logout' : 'Login'}>
   {#if isLoggedIn}
     <LogOut class="icon" />
@@ -67,8 +123,17 @@
   }
 
   .corner {
-    width: 3em;
-    height: 3em;
+    display: flex;
+    gap: 0.5rem; /* space between buttons */
+    align-items: center; /* optional: vertically align icons */
+    justify-content: flex-end; /* if you want them to align right in the header */
+  }
+
+  .corner button {
+    display: flex;
+    gap: 0.5rem; /* space between buttons */
+    align-items: center; /* optional: vertically align icons */
+    justify-content: flex-end; /* if you want them to align right in the header */
   }
 
   .corner a {
@@ -88,7 +153,7 @@
   nav {
     display: flex;
     justify-content: center;
-    --background: rgba(205, 205, 205, 0.7);
+    --background: rgba(225, 225, 225, 0.7);
   }
 
   svg {
@@ -150,7 +215,7 @@
   }
 
   .icon-button {
-    background-color: #f0f0f0;
+    background-color: #f19812;
     border: none;
     border-radius: 9999px;
     padding: 0.5rem;

@@ -1,6 +1,6 @@
 <script>
   import { goto } from "$app/navigation";
-  import { fetchUser } from "$lib/stores/auth.js"; // your shared auth state
+  import { fetchUser } from "$lib/stores/auth.js"; 
 
   let username = "";
   let password = "";
@@ -17,22 +17,13 @@
     });
 
     if (res.ok) {
-      await fetchUser(); // update global auth state
-      goto("/"); // 🔁 redirect to home page
+      await fetchUser();
+      goto("/"); 
     } else {
       error = "Invalid credentials";
     }
   }
 </script>
-
-<!-- <form on:submit|preventDefault={login}>
-  <input type="text" bind:value={username} placeholder="Username" />
-  <input type="password" bind:value={password} placeholder="Password" />
-  <button class="px-8 py-2 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 text-white focus:ring-2 focus:ring-blue-400 hover:shadow-xl transition duration-200">
-    Login
-  </button>
-  {#if error}<p class="text-red-500">{error}</p>{/if}
-</form> -->
 
 <div class="page-container">
   <form class="login-box" on:submit|preventDefault={login}>

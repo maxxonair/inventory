@@ -12,6 +12,7 @@ from flask_session import Session
 from logging import info, error, debug
 import mariadb
 import pandas as pd
+from datetime import timedelta
 import asyncio
 import sys
 import os
@@ -47,12 +48,16 @@ class InventoryServer:
   def __init__(self, 
                host: str = DEFAULT_DB_HOST, 
                port: int = 46123, 
-               media_path: str = MEDIA_DEFAULT_PATH):
+               media_path: str = MEDIA_DEFAULT_PATH,
+               session_timeout_min: float = 5.0):
+    """Await docstring generation..."""
     self.app = Flask(__name__)
     self.app.secret_key = 'super-secret'
     self.app.config['SESSION_TYPE'] = 'filesystem'
     CORS(self.app, supports_credentials=True)  # Enable CORS
     Session(self.app)
+    
+    self.app.permanent_session_lifetime = timedelta(minutes=session_timeout_min)
 
     # Set path to load media files from
     self.media_path = media_path

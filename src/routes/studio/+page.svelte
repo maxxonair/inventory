@@ -1,22 +1,17 @@
 <script>
   import { onMount } from "svelte";
+  import { goto } from '$app/navigation';
+
   let streamUrl = "http://localhost:5050";
 
-  // Detect if run from mobile or desktop
-  let isMobile = false;
+  let showCameraStream = $state(0);
 
-  export let data;
-  let user = data.user;
+  const { user } = $props();
 
-  import { goto } from '$app/navigation';
-  if (!user) {
-    goto('/login');
-  }
+  function toggleCameraVisibility() {
+		if (showCameraStream == 1){showCameraStream = 0;} else {showCameraStream = 1;}
+	}
 
-  onMount(() => {
-    const ua = navigator.userAgent;
-    isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
-  });
 </script>
 
 <svelte:head>
@@ -24,5 +19,15 @@
   <meta name="description" content="Video stream test page" />
 </svelte:head>
 
+<button onclick={toggleCameraVisibility}>
+  {#if showCameraStream}
+  Hide Camera Stream
+  {:else}
+  Show Camera Stream
+  {/if}
+</button>
+
 <!-- Works with MJPEG streaming -->
-<img src={streamUrl} alt="Camera Stream" class="border rounded" />
+{#if showCameraStream}
+ <img src={streamUrl} alt="Camera Stream" class="border rounded" />
+{/if}
