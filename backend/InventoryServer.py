@@ -18,6 +18,7 @@ import sys
 import os
 
 from backend.InventoryUser import InventoryUser
+from backend.DataBaseClient import DataBaseClient
 
 from backend import (inventory_server_ip,
                      inventory_server_port)
@@ -27,8 +28,6 @@ sys.path.append(parent_dir)
 
 # TODO move constants
 MEDIA_DEFAULT_PATH = "/home/mrx/Documents/inventory/database/media/"
-
-MEDIA_DEFAULT_URL = "http://127.0.0.1:5000/media/"
 
 DEFAULT_DB_HOST = '127.0.0.1'
 
@@ -49,7 +48,7 @@ class InventoryServer:
                host: str = DEFAULT_DB_HOST, 
                port: int = 46123, 
                media_path: str = MEDIA_DEFAULT_PATH,
-               session_timeout_min: float = 5.0):
+               session_timeout_min: float = 60.0):
     """Await docstring generation..."""
     self.app = Flask(__name__)
     self.app.secret_key = 'super-secret'
@@ -61,28 +60,10 @@ class InventoryServer:
 
     # Set path to load media files from
     self.media_path = media_path
-
-    self.connection_config = {
-        'user': 'inventory_user',
-        'password': 'inventory24',
-        'host': host,
-        'port': port,
-        'database': 'inventory',
-        'connect_timeout': 0
-    }
-
-    try:
-      # Establishing the connection with the database server
-      self.connection = mariadb.connect(**self.connection_config)
-
-      # Perform database operations
-      self.cursor = self.connection.cursor()
-      self.cursor.execute("SELECT DATABASE()")
-
-      info("[x] Connected to the inventory database")
-    except mariadb.Error as e:
-      error('')
-      raise RuntimeError(f"Error connecting to MariaDB: {e}")
+    
+    # Create a database client instance. The client will handle all interaction 
+    # with the database server.
+    self.db = DataBaseClient(host=host, port=port)
 
     # Routes
     self.configure_routes()
@@ -101,17 +82,33 @@ class InventoryServer:
         return jsonify({'error': 'Unauthorized'}), 401
       return jsonify(self.users)
 
+    @self.app.route('/checkout_item', methods=['POST'])
+    def checkout_item():
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+      data = request.json
+      self.db.update_inventory_item_checkout_status(int(data['itemId']), session['user'], 1)
+      return jsonify({'message': f'Item {data['itemId']} checked out'})
+
+    @self.app.route('/return_item', methods=['POST'])
+    def return_item():
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+      data = request.json
+      self.db.update_inventory_item_checkout_status(int(data['itemId']), session['user'], 0)
+      return jsonify({'message': f'Item {data['itemId']} checked out'})
+
     @self.app.route('/items')
     def get_items():
       if 'user' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
-      data_dict = self.get_all_inventory_items_as_dict_list()
+      data_dict = self.db.get_all_inventory_items_as_dict_list()
       return jsonify(data_dict)
 
     @self.app.route('/login', methods=['POST'])
     def login():
       data = request.json
-      is_user_exists, inventoryUser = self.get_inventory_user_as_object(
+      is_user_exists, inventoryUser = self.db.get_inventory_user_as_object(
           data['username'])
       # TODO demote to debug message
       print(f'Log in attempt: {data['username']} -> {is_user_exists}')
@@ -165,80 +162,6 @@ class InventoryServer:
   async def stop(self):
       info("Stopping Inventory Server...")
       
-  def exec_sql_cmd(self, sql, values: list):
-    """
-    Generic execute SQL command defined by sql qery and its accompanying 
-    values
-
-    """
-    # Execute the UPDATE statement
-    self.cursor.execute(sql, values)
-
-    # Commit the transaction
-    self.connection.commit()
-
-  def get_all_inventory_items_as_dict_list(self) -> list:
-    """
-    Return all content from a database in a pandas dataframe
-    """
-    # Query to fetch all data from the specified table
-    query = f"SELECT * FROM {INVENTORY_TABLE_NAME}"
-
-    # Execute the query
-    self.cursor.execute(query)
-
-    self.connection.commit()
-
-    # Fetch all rows from the executed query
-    rows = self.cursor.fetchall()
-
-    # Get column names from the cursor
-    columns = [col[0] for col in self.cursor.description]
-
-    # Create a DataFrame from the fetched data
-    df = pd.DataFrame(rows, columns=columns)
-
-    data_list_out = df.to_dict('records')
-
-    # TODO remove this after file names are saved correctly
-    for dict_idx in range(len(data_list_out)):
-      data_list_out[dict_idx]['item_image'] = str(data_list_out[dict_idx]['item_image']).replace(
-          MEDIA_DEFAULT_PATH, MEDIA_DEFAULT_URL)
-      debug(data_list_out[dict_idx]['item_image'])
-
-    debug(f'Inventory data {df}')
-
-    return data_list_out
-
-  def get_inventory_user_as_object(self, user_name: str):
-    """
-    Return a specific inventory user identified by its user_name 
-    as a InventoryUser object
-    """
-    valid = False
-    # Query to fetch all data from the specified table
-    query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = %s"
-
-    # Execute the query
-    self.exec_sql_cmd(query, (user_name,))
-
-    # Fetch all rows from the executed query
-    rows = self.cursor.fetchall()
-
-    if len(rows) == 1:
-      valid = True
-
-    # Get column names from the cursor
-    columns = [col[0] for col in self.cursor.description]
-
-    # Create InventoryItem instance
-    inventoryUser = InventoryUser('', '')
-
-    # Populate all fields from the database export
-    inventoryUser.populate_from_df(
-        user_data_df=pd.DataFrame(rows, columns=columns))
-    return valid, inventoryUser
-
 
 if __name__ == '__main__':
   """Allows to run the server directly as module

@@ -2,6 +2,7 @@ import mariadb
 from logging import info, warning, debug, error
 import pandas as pd
 import os
+from datetime import datetime
 from pathlib import Path
 import cv2 as cv
 
@@ -12,6 +13,11 @@ from backend.database_config import (INVENTORY_TABLE_NAME,
 from backend.InventoryItem import InventoryItem
 from backend.InventoryUser import InventoryUser
 
+
+# TODO move constants
+MEDIA_DEFAULT_PATH = "/home/mrx/Documents/inventory/database/media/"
+
+MEDIA_DEFAULT_URL = "http://127.0.0.1:5000/media/"
 
 class DataBaseClient():
 
@@ -295,19 +301,95 @@ class DataBaseClient():
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 
-  def update_inventory_item_checkout_status(self, id: int,
-                                            inventory_item: InventoryItem):
-    """
-    Modify the  item checkout status of an inventory item identified by ID 
+  def update_inventory_item_checkout_status(self, 
+                                            item_id: int,
+                                            poc: str,
+                                            checkout_status: int = 1):
+    """Modify the  item checkout status of an inventory item identified by ID 
     with the parameters of a provided InventoryItem
+
+    Args:
+        id (int): Item ID
+        poc (str): Check-out point of contact user name
+        checkout_status (int): Check-out status flag. If 1 item is checked out, 
+            0 otherwise.
     """
-    sql = f"UPDATE {
-        INVENTORY_TABLE_NAME} SET is_checked_out = ?, check_out_date = ?, check_out_poc = ? WHERE id = ?"
-    values = [inventory_item.is_checked_out] + \
-        [inventory_item.check_out_date] + [inventory_item.check_out_poc] + [id]
+    date_time_now = datetime.now()
+    check_out_date = date_time_now.strftime("%m/%d/%Y, %H:%M:%S")
+    if checkout_status == 1:
+      sql = f"UPDATE {
+          INVENTORY_TABLE_NAME} SET is_checked_out = ?, check_out_date = ?, check_out_poc = ? WHERE id = ?"
+      values = [int(checkout_status)] + [check_out_date] + [poc] + [item_id]
+    else:
+      sql = f"UPDATE {
+          INVENTORY_TABLE_NAME} SET is_checked_out = ? WHERE id = ?"
+      values = [int(checkout_status)] + [item_id]
 
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
+
+  def get_all_inventory_items_as_dict_list(self) -> list:
+    """
+    Return all content from a database in a pandas dataframe
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    df = pd.DataFrame(rows, columns=columns)
+
+    data_list_out = df.to_dict('records')
+
+    # TODO remove this after file names are saved correctly
+    for dict_idx in range(len(data_list_out)):
+      data_list_out[dict_idx]['item_image'] = str(data_list_out[dict_idx]['item_image']).replace(
+          MEDIA_DEFAULT_PATH, MEDIA_DEFAULT_URL)
+      debug(data_list_out[dict_idx]['item_image'])
+
+    debug(f'Inventory data {df}')
+
+    return data_list_out
+
+
+  def get_inventory_user_as_object(self, user_name: str):
+    """
+    Return a specific inventory user identified by its user_name 
+    as a InventoryUser object
+    """
+    valid = False
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = %s"
+
+    # Execute the query
+    self.exec_sql_cmd(query, (user_name,))
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    if len(rows) == 1:
+      valid = True
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create InventoryItem instance
+    inventoryUser = InventoryUser('', '')
+
+    # Populate all fields from the database export
+    inventoryUser.populate_from_df(
+        user_data_df=pd.DataFrame(rows, columns=columns))
+    return valid, inventoryUser
 
   def delete_inventory_item(self, id: int):
     """

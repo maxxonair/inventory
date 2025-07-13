@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { goto } from '$app/navigation';
+  import { Camera, CameraOff, SquareArrowDown} from 'lucide-svelte';
 
   let streamUrl = "http://localhost:5050";
 
@@ -21,9 +22,9 @@
 
 <button onclick={toggleCameraVisibility}>
   {#if showCameraStream}
-  Hide Camera Stream
+  <CameraOff size={20} /> Hide Camera Stream <SquareArrowDown size={20} />
   {:else}
-  Show Camera Stream
+  <Camera size={20} /> Show Camera Stream <SquareArrowDown size={20} />
   {/if}
 </button>
 
