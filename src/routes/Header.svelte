@@ -68,9 +68,11 @@
 
 <header>
   <div class="corner">
-    <!-- <a href="https://svelte.dev/docs/kit">
-      <img src={logo} alt="SvelteKit" />
-    </a> -->
+  {#if isLoggedIn}
+    <button class="download-button" on:click={downloadCSV}>
+     <FolderDown size={20} />
+    </button>
+  {/if}
   </div>
 
   <nav>
@@ -101,11 +103,7 @@
 
 
   <div class="corner">
-  {#if isLoggedIn}
-  <button on:click={downloadCSV} class="download-button">
-  <FolderDown size={20} />
-  </button>
-  {/if}
+
   <button class="icon-button" on:click={isLoggedIn ? logout : login} aria-label={isLoggedIn ? 'Logout' : 'Login'}>
   {#if isLoggedIn}
     <LogOut class="icon" />
@@ -134,6 +132,18 @@
     gap: 0.5rem; /* space between buttons */
     align-items: center; /* optional: vertically align icons */
     justify-content: flex-end; /* if you want them to align right in the header */
+  }
+
+  .download-button{
+    background-color: #252525;
+    color:  #fa8d1f;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.5rem;
+    margin: 0 auto 1rem; 
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   }
 
   .corner a {

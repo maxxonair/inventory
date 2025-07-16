@@ -19,6 +19,7 @@ import os
 
 from backend.InventoryUser import InventoryUser
 from backend.DataBaseClient import DataBaseClient
+from backend.InventoryItem import InventoryItem
 
 from backend import (inventory_server_ip,
                      inventory_server_port)
@@ -121,11 +122,31 @@ class InventoryServer:
       session['user'] = data['username']
       return jsonify({'message': 'Login successful'})
 
+    @self.app.route('/add_item', methods=['POST'])
+    def add_item():
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+      data = request.json
+      new_id = self.db.add_inventory_item(inventory_item=InventoryItem(
+          name=data['item_name'], 
+          manufacturer=data['item_manufacturer'], 
+          details=data['item_details'],
+          item_type=data['item_type'],
+          number_items=int(data['item_num']),
+          image=data['image_name']))
+      return jsonify({'message': f'{new_id}'}), 200
+
     @self.app.route('/logout', methods=['POST'])
     def logout(self):
       print('Log out user')
       session.clear()
       return jsonify({'message': 'Logged out'})
+    
+    @self.app.route('/capture_image', methods=['POST'])
+    def capture_image():
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+      
 
     @self.app.route('/me')
     def me():

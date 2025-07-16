@@ -1,25 +1,34 @@
 #!/bin/bash
 
-# Function to clean up background processes on Ctrl+C
-cleanup() {
-  echo "Terminating servers ..."
-  kill -TERM -$PGID1
-  kill -TERM -$PGID2
-  exit 0
-}
+SESSION="servers"
 
-# Trap Ctrl+C (SIGINT) and call cleanup
-trap cleanup SIGINT
+# Define server working directory 
+WORKDIR="$HOME/Documents/inventory"
 
-# Launch Inventory Server in a new process group
-uv run -m backend.InventoryServer &
-PID1=$!
-PGID1=$(ps -o pgid= $PID1 | grep -o '[0-9]*')
+# Remove all active session cookies when the server is restarted
+rm $WORKDIR/flask_session/*
 
-# Launch Camera Server in a new process group
-uv run -m backend.CameraServer &
-PID2=$!
-PGID2=$(ps -o pgid= $PID2 | grep -o '[0-9]*')
+# Kill existing session if exists
+tmux has-session -t $SESSION 2>/dev/null
+if [ $? -eq 0 ]; then
+    echo "Killing existing tmux session '$SESSION'..."
+    tmux kill-session -t $SESSION
+fi
 
-# Wait for both processes
-wait $PID1 $PID2
+# Start a new tmux session in detached mode
+tmux new-session -d -s $SESSION
+
+# In pane 0: cd to inventory directory and start InventoryServer
+tmux send-keys -t $SESSION "cd $WORKDIR && uv run -m backend.InventoryServer" C-m
+
+# Split window horizontally for second pane
+tmux split-window -v -t $SESSION
+
+# In pane 1: cd to inventory directory and start CameraServer
+tmux send-keys -t $SESSION "cd $WORKDIR && uv run -m backend.CameraServer" C-m
+
+# Arrange panes
+tmux select-layout -t $SESSION even-horizontal
+
+# Attach to session
+tmux attach-session -t $SESSION

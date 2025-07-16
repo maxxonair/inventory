@@ -3,22 +3,21 @@ from pathlib import Path
 from pandas import DataFrame
 from logging import warning
 
-from backend.database_config import INVENTORY_TABLE_NAME, INVENTORY_DB_NAME
+from backend.database_config import INVENTORY_TABLE_NAME
 
 
 class InventoryItem():
 
   def __init__(self,
-               item_name: str,
-               item_image_path: Path = None,
-               item_description: str = None,
-               manufacturer: str = None,
-               manufacturer_contact: str = None,
-               is_checked_out: bool = False,
-               check_out_poc: str = None,
-               check_out_date: datetime = None,
-               item_tags: str = None,
-               item_location: str = None):
+               name: str,
+               image: str = '',
+               description: str = '',
+               manufacturer: str = '',
+               details: str = '',
+               tags: str = '',
+               location: str = 'Unknown',
+               item_type: str = '',
+               number_items: int = 1):
     """
     This function initializes the inventory item instance and makes sure that
     the dictorionary contains ALL properties of that item. When updating item
@@ -26,31 +25,24 @@ class InventoryItem():
     as well
 
     """
-    if check_out_date is None:
-      check_out_date_str = ''
-    else:
-      check_out_date_str = check_out_date.strftime("%m/%d/%Y, %H:%M:%S")
-
-    if item_image_path is None:
-      item_image_path_str = ''
-    else:
-      item_image_path_str = item_image_path.absolute().as_posix()
 
     date_time_now = datetime.now()
 
     # Initialize class members
-    self.item_name = item_name
-    # item_image is a Path. Ensure it's always a Path and never to be set
+    self.name = name
+    # image is a Path. Ensure it's always a Path and never to be set
     # as a string
-    self.item_image = Path(item_image_path_str)
-    self.item_description = item_description
+    self.image = str(image)
+    self.description = description
     self.manufacturer = manufacturer
-    self.manufacturer_contact = manufacturer_contact
-    self.is_checked_out = is_checked_out
-    self.check_out_poc = check_out_poc
-    self.check_out_date = check_out_date_str
-    self.item_tags = item_tags
-    self.item_location = item_location
+    self.details = details
+    self.is_checked_out = 0
+    self.check_out_poc = ''
+    self.check_out_date = ''
+    self.tags = tags
+    self.location = location
+    self.item_type = item_type
+    self.number_items = number_items
 
     self.date_added = date_time_now.strftime("%m/%d/%Y, %H:%M")
 
@@ -63,22 +55,20 @@ class InventoryItem():
   def _update_dict(self):
     #  Create dictonary from item data
     self.inventoryItemDict = {
-        "item_name": str(self.item_name),
-        "item_image": Path(self.item_image).absolute().as_posix(),
-        "item_description": str(self.item_description),
+        "name": str(self.name),
+        "image": str(self.image),
+        "description": str(self.description),
         "manufacturer": str(self.manufacturer),
-        "manufacturer_contact": str(self.manufacturer_contact),
+        "details": str(self.details),
         "is_checked_out": bool(self.is_checked_out),
         "check_out_date": str(self.check_out_date),
         "check_out_poc": str(self.check_out_poc),
         "date_added": str(self.date_added),
-        "item_tags": str(self.item_tags),
-        "item_location": str(self.item_location),
+        "tags": str(self.tags),
+        "location": str(self.location),
+        "item_type": str(self.item_type),
+        "number_items": int(self.number_items)
     }
-
-  def set_img_path(self, img_path: Path):
-    self.item_image = Path(img_path).absolute().as_posix()
-    self._update_dict
 
   def get_item_property_classes(self) -> list:
     """
@@ -97,19 +87,17 @@ class InventoryItem():
     poc - Point of contact. Person who checked out this item
 
     Returns
-    valid - Flag if True checkout status update is valid 
+    (bool): Flag if True checkout status update is valid, False otherwise
     """
-    valid = False
     if poc is None or poc == '':
       warning('No point of contact provided. Check out is invalid!')
+      return False
     else:
       date_time_now = datetime.now()
       self.check_out_date = date_time_now.strftime("%m/%d/%Y, %H:%M:%S")
       self.check_out_poc = poc
       self.is_checked_out = True
-      valid = True
-
-    return valid
+      return True
 
   def set_checked_in(self, poc: str):
     """
@@ -129,20 +117,19 @@ class InventoryItem():
     Function to populate item data from a dataframe object
     """
     if item_data_df.empty == False:
-      self.item_name = item_data_df.iloc[0]['item_name']
+      self.name = item_data_df.iloc[0]['name']
       self.date_added = item_data_df.iloc[0]['date_added']
       self.manufacturer = item_data_df.iloc[0]['manufacturer']
-      self.manufacturer_contact = item_data_df.iloc[0]['manufacturer_contact']
+      self.details = item_data_df.iloc[0]['details']
       self.is_checked_out = item_data_df.iloc[0]['is_checked_out']
       self.check_out_date = item_data_df.iloc[0]['check_out_date']
       self.check_out_poc = item_data_df.iloc[0]['check_out_poc']
-      try:
-        self.item_image = Path(item_data_df.iloc[0]['item_image'])
-      except:
-        self.item_image = Path('')
-      self.item_description = item_data_df.iloc[0]['item_description']
-      self.item_tags = item_data_df.iloc[0]['item_tags']
-      self.item_location = item_data_df.iloc[0]['item_location']
+      self.image = item_data_df.iloc[0]['image']
+      self.description = item_data_df.iloc[0]['description']
+      self.tags = item_data_df.iloc[0]['tags']
+      self.location = item_data_df.iloc[0]['location']
+      self.item_type = item_data_df.iloc[0]['item_type']
+      self.number_items = item_data_df.iloc[0]['number_items']
     else:
       warning('Attempted to populate InventoryItem from empty DataFrame')
 
@@ -155,17 +142,19 @@ class InventoryItem():
     # Compile query
     create_table_query = f'CREATE TABLE IF NOT EXISTS {
         INVENTORY_TABLE_NAME} ( id INT PRIMARY KEY AUTO_INCREMENT,'
-    create_table_query += f'item_name VARCHAR(255) NOT NULL,'
-    create_table_query += f'item_image VARCHAR(1055),'
-    create_table_query += f'item_description VARCHAR(1055) ,'
+    create_table_query += f'name VARCHAR(255) NOT NULL,'
+    create_table_query += f'image VARCHAR(1055),'
+    create_table_query += f'description VARCHAR(1055) ,'
     create_table_query += f'manufacturer VARCHAR(255),'
-    create_table_query += f'manufacturer_contact VARCHAR(1055),'
+    create_table_query += f'details VARCHAR(1055),'
     create_table_query += f'is_checked_out BOOLEAN,'
     create_table_query += f'check_out_date VARCHAR(255) ,'
     create_table_query += f'check_out_poc VARCHAR(1055) ,'
-    create_table_query += f'date_added VARCHAR(255) )'
-    create_table_query += f'item_tags VARCHAR(1055) )'
-    create_table_query += f'item_location VARCHAR(1055) )'
+    create_table_query += f'date_added VARCHAR(255) ,'
+    create_table_query += f'tags VARCHAR(1055) ,'
+    create_table_query += f'location VARCHAR(1055) ,'
+    create_table_query += f'item_type VARCHAR(1055) ,'
+    create_table_query += f'number_items INT(32) )'
 
     return create_table_query
 

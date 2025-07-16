@@ -353,9 +353,9 @@ class DataBaseClient():
 
     # TODO remove this after file names are saved correctly
     for dict_idx in range(len(data_list_out)):
-      data_list_out[dict_idx]['item_image'] = str(data_list_out[dict_idx]['item_image']).replace(
+      data_list_out[dict_idx]['image'] = str(data_list_out[dict_idx]['image']).replace(
           MEDIA_DEFAULT_PATH, MEDIA_DEFAULT_URL)
-      debug(data_list_out[dict_idx]['item_image'])
+      debug(data_list_out[dict_idx]['image'])
 
     debug(f'Inventory data {df}')
 

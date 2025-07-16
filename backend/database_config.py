@@ -8,7 +8,7 @@ INVENTORY_DB_NAME = 'inventory'
 
 # [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
 #            Inventory
-INVENTORY_TABLE_NAME = 'inventory'
+INVENTORY_TABLE_NAME = 'inventory_2'
 
 # [CONSTANT] Name of the table in INVENTORY_DB_NAME database to store the
 #            Inventory users

@@ -17,6 +17,7 @@ import asyncio
 import requests
 from typing import Tuple
 from time import time
+import hashlib
 
 from backend import (decode_id_from_qr_message,
                      camera_server_ip,
@@ -24,6 +25,7 @@ from backend import (decode_id_from_qr_message,
 
 from backend.util import detect_and_decode_qr_marker
 from backend.inventory_server_config import inventory_server_ip, inventory_server_port
+from backend.camera_config import media_file_path
 
 
 class CameraServer():
@@ -64,10 +66,30 @@ class CameraServer():
     # Threshold for the maximum time QR scanning is disabled after a successful 
     # scan
     self.suspend_scan_dur_thr_s = suspend_scan_dur_thr_s
+    
+    self.frame = []
 
     # Define routes inside the constructor
     self.app.add_url_rule('/', 'video_feed', self.video_feed)
+    self.configure_routes()
+    
+  def configure_routes(self):
 
+    @self.app.route('/capture_image', methods=['GET'])
+    def capture_image():
+      """Serve requested image from the media directory
+      """
+      # Create a hex hash based on the frame data
+      cam_img_bytes = self.frame.tobytes()
+      hash_object = hashlib.sha256(cam_img_bytes)
+      hash_hex = hash_object.hexdigest()
+
+      img_path = Path(media_file_path) / f'{hash_hex}.png'
+
+      # Save image to file
+      cv.imwrite(img_path, self.display_img)
+      return jsonify(hash_hex)
+    
   def start_video_stream(self):
     """Launch video streaming
     """
@@ -87,6 +109,9 @@ class CameraServer():
         # Compile frame for output stream
         _, buffer = cv.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
+        
+        # Save recent frame for image capture function
+        self.frame = frame
         
         if self.enable_qr_scanner:
           if self.is_suspend_qr_scan:

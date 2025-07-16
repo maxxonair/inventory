@@ -248,8 +248,8 @@
           class="product-card expanded centered"
           on:click|stopPropagation
         >
-          <img src={item.item_image} alt={item.item_name} class="product-image" />
-          <div class="product-name">{item.item_name}</div>
+          <img src={item.image} alt={item.name} class="product-image" />
+          <div class="product-name">{item.name}</div>
           <div class="manufacturer">by {item.manufacturer}</div>
           <!-- This will show the number of items of this category -->
           <div class="manufacturer">Count: N/A</div>
@@ -275,7 +275,7 @@
             {#if error}
               <p class="error-message">{error}</p>
             {/if}
-            <div class="manufacturer">Manufacturer details: {item.manufacturer_contact}</div>
+            <div class="manufacturer">Manufacturer details: {item.details}</div>
             <button class="close-button" on:click={() => (selectedItemId = null)}><CircleX size={20} /> close</button>
           </div>
         </div>
@@ -283,8 +283,8 @@
     {:else if !selectedItemId}
       <!-- Normal card display -->
       <div class="product-card" on:click={() => toggleItem(item.id)}>
-        <img src={item.item_image} alt={item.item_name} class="product-image" />
-        <div class="product-name">{item.item_name}</div>
+        <img src={item.image} alt={item.name} class="product-image" />
+        <div class="product-name">{item.name}</div>
         <div class="manufacturer">by {item.manufacturer}</div>
         <!-- This will show the number of items of this category -->
         <div class="manufacturer">Count: N/A</div>
