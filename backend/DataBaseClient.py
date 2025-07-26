@@ -1,3 +1,26 @@
+"""Client interface to the inventory Database tables
+
+Inventory main table:
+  name VARCHAR(255) NOT NULL,'
+  image VARCHAR(1055),'
+  description VARCHAR(1055) ,'
+  manufacturer VARCHAR(255),'
+  details VARCHAR(1055),'
+  is_checked_out BOOLEAN,'
+  check_out_date VARCHAR(255) ,'
+  check_out_poc VARCHAR(1055) ,'
+  date_added VARCHAR(255) ,'
+  tags VARCHAR(1055) ,'
+  location VARCHAR(1055) ,'
+  item_type VARCHAR(1055) ,'
+  number_items INT(32) )'
+
+Raises:
+    RuntimeError: _description_
+
+Returns:
+    _type_: _description_
+"""
 import mariadb
 from logging import info, warning, debug, error
 import pandas as pd
@@ -10,7 +33,6 @@ from backend.database_config import (INVENTORY_TABLE_NAME,
                                      INVENTORY_DB_NAME,
                                      INVENTORY_USER_TABLE_NAME,
                                      media_directory)
-from backend.InventoryItem import InventoryItem
 from backend.InventoryUser import InventoryUser
 
 
@@ -18,6 +40,7 @@ from backend.InventoryUser import InventoryUser
 MEDIA_DEFAULT_PATH = "/home/mrx/Documents/inventory/database/media/"
 
 MEDIA_DEFAULT_URL = "http://127.0.0.1:5000/media/"
+
 
 class DataBaseClient():
 
@@ -46,10 +69,9 @@ class DataBaseClient():
 
     # -- Ensure that database exists --
     if not self.is_database(INVENTORY_DB_NAME):
-      warning(
+      error(
           f' {INVENTORY_DB_NAME} database not found.')
-      self.create_database(INVENTORY_DB_NAME)
-      info(f'[x] Created database: {INVENTORY_DB_NAME}')
+      exit(1)
     else:
       info(f'[x] {INVENTORY_DB_NAME} database found.')
 
@@ -58,19 +80,17 @@ class DataBaseClient():
 
     # -- Ensure that inventory table exists --
     if not self.is_table(INVENTORY_TABLE_NAME):
-      warning(
+      error(
           f' {INVENTORY_TABLE_NAME} table not found.')
-      self.create_inventory_table()
-      info(f'|-> Created table: {INVENTORY_TABLE_NAME}')
+      exit(1)
     else:
       info(f'[x] {INVENTORY_TABLE_NAME} table found.')
 
     # -- Ensure that inventory user table exists --
     if not self.is_table(INVENTORY_USER_TABLE_NAME):
-      warning(
+      error(
           f' {INVENTORY_USER_TABLE_NAME} table not found.')
-      self.create_inventory_user_table()
-      info(f'|-> Created table: {INVENTORY_USER_TABLE_NAME}')
+      exit(1)
     else:
       info(f'[x] {INVENTORY_USER_TABLE_NAME} table found.')
 
@@ -185,10 +205,10 @@ class DataBaseClient():
 
     return df
 
-  def get_inventory_item_as_object(self, item_id):
+  def get_inventory_item_as_dict(self, item_id):
     """
     Return a specific inventory item identified by its ID from a database 
-    as a InventoryItem instance
+    as a dictionary
     """
     # Query to fetch all data from the specified table
     query = f"SELECT * FROM {INVENTORY_TABLE_NAME} WHERE ID = %s"
@@ -196,20 +216,18 @@ class DataBaseClient():
     # Execute the query
     self.exec_sql_cmd(query, (item_id,))
 
-    # Fetch all rows from the executed query
-    rows = self.cursor.fetchall()
+    # Fetch all values from the executed query
+    values = self.cursor.fetchall()
 
     # Get column names from the cursor
-    columns = [col[0] for col in self.cursor.description]
+    keys = [col[0] for col in self.cursor.description]
 
-    # Create InventoryItem instance
-    inventoryItem = InventoryItem('')
+    if not keys or not values:
+      return None
 
-    # Populate all fields from the database export
-    inventoryItem.populate_from_df(
-        item_data_df=pd.DataFrame(rows, columns=columns))
+    item_dict = dict(zip(keys, values))
 
-    return inventoryItem
+    return item_dict
 
   # ------------------------------------------------------------------------
   #                        [MODIFY]
@@ -226,9 +244,22 @@ class DataBaseClient():
     """
     Create inventory table 
     """
-    # Create dummy InventoryItem and get query
-    item = InventoryItem('')
-    query = item.get_sql_query_table_for_item()
+    # Compile query to create inventory table
+    create_table_query = f'CREATE TABLE IF NOT EXISTS {
+        INVENTORY_TABLE_NAME} ( id INT PRIMARY KEY AUTO_INCREMENT,'
+    create_table_query += f'name VARCHAR(255) NOT NULL,'
+    create_table_query += f'image VARCHAR(1055),'
+    create_table_query += f'description VARCHAR(1055) ,'
+    create_table_query += f'manufacturer VARCHAR(255),'
+    create_table_query += f'details VARCHAR(1055),'
+    create_table_query += f'is_checked_out BOOLEAN,'
+    create_table_query += f'check_out_date VARCHAR(255) ,'
+    create_table_query += f'check_out_poc VARCHAR(1055) ,'
+    create_table_query += f'date_added VARCHAR(255) ,'
+    create_table_query += f'tags VARCHAR(1055) ,'
+    create_table_query += f'location VARCHAR(1055) ,'
+    create_table_query += f'item_type VARCHAR(1055) ,'
+    create_table_query += f'number_items INT(32) )'
 
     # Execute query
     self.cursor.execute(query)
@@ -240,7 +271,7 @@ class DataBaseClient():
     """
     Create inventory user table 
     """
-    # Create dummy InventoryItem and get query
+    # Create InventoryUser instance and compile query to create the user table
     user = InventoryUser('', '')
     query = user.get_sql_query_table_for_user()
 
@@ -268,25 +299,49 @@ class DataBaseClient():
 
     return id_out
 
-  def add_inventory_item(self, inventory_item: InventoryItem) -> id:
+  def add_inventory_item(self, inventory_item_dict: dict) -> id:
     """
     Create row in INVENTORY_TABLE_NAME 
 
 
     returns ID of the created inventory item
     """
-    # SQL query to insert a new row into the table
-    sql, values = inventory_item.get_sql_query_add_item()
+    # --- Construct the SQL INSERT statement
+
+    # Pre-construct set each value statement
+    set_clause = ", ".join(
+        [f"{column}" for column in list(inventory_item_dict.keys())])
+
+    # Create series of ? that matches the number of values in
+    # list(inventory_item_dict.values())
+    value_clause = ", ".join(
+        [f"?" for column in list(inventory_item_dict.values())])
+
+    sql = f"INSERT INTO {INVENTORY_TABLE_NAME} ( {set_clause} ) VALUES ( {
+        value_clause} )"
+
+    # Prepare the data to update
+    values = list(inventory_item_dict.values())
 
     self.exec_sql_cmd(sql, values)
 
     return self._get_last_inserted_id()
 
-  def update_inventory_item(self, inventory_item: InventoryItem, id: int):
+  def update_inventory_item(self, inventory_item_dict: dict, id: int):
     """
     Modify and inventory item identified by ID with given values
     """
-    sql, values = inventory_item.get_sql_query_update_item(id)
+    # --- Construct the SQL UPDATE statement
+
+    # Pre-construct set each value statement
+    set_clause = ", ".join(
+        [f"{column} = ?" for column in list(inventory_item_dict.keys())])
+
+    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET {set_clause} WHERE id = ?"
+
+    # Prepare the data to update
+    values = list(inventory_item_dict.values()) + [id]
+
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 
@@ -295,18 +350,18 @@ class DataBaseClient():
     Modify the image path of an inventory item identified by ID with the 
     given path
     """
-    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET item_image = ? WHERE id = ?"
+    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET image = ? WHERE id = ?"
     values = [path] + [id]
 
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 
-  def update_inventory_item_checkout_status(self, 
+  def update_inventory_item_checkout_status(self,
                                             item_id: int,
                                             poc: str,
                                             checkout_status: int = 1):
     """Modify the  item checkout status of an inventory item identified by ID 
-    with the parameters of a provided InventoryItem
+    with the parameters provided 
 
     Args:
         id (int): Item ID
@@ -351,45 +406,9 @@ class DataBaseClient():
 
     data_list_out = df.to_dict('records')
 
-    # TODO remove this after file names are saved correctly
-    for dict_idx in range(len(data_list_out)):
-      data_list_out[dict_idx]['image'] = str(data_list_out[dict_idx]['image']).replace(
-          MEDIA_DEFAULT_PATH, MEDIA_DEFAULT_URL)
-      debug(data_list_out[dict_idx]['image'])
-
     debug(f'Inventory data {df}')
 
     return data_list_out
-
-
-  def get_inventory_user_as_object(self, user_name: str):
-    """
-    Return a specific inventory user identified by its user_name 
-    as a InventoryUser object
-    """
-    valid = False
-    # Query to fetch all data from the specified table
-    query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = %s"
-
-    # Execute the query
-    self.exec_sql_cmd(query, (user_name,))
-
-    # Fetch all rows from the executed query
-    rows = self.cursor.fetchall()
-
-    if len(rows) == 1:
-      valid = True
-
-    # Get column names from the cursor
-    columns = [col[0] for col in self.cursor.description]
-
-    # Create InventoryItem instance
-    inventoryUser = InventoryUser('', '')
-
-    # Populate all fields from the database export
-    inventoryUser.populate_from_df(
-        user_data_df=pd.DataFrame(rows, columns=columns))
-    return valid, inventoryUser
 
   def delete_inventory_item(self, id: int):
     """
@@ -438,6 +457,35 @@ class DataBaseClient():
   # -----------------------------------------------------------------------
   #                 [INVENTORY USER FUNCTIONS]
   # -----------------------------------------------------------------------
+  def get_inventory_user_as_object(self, user_name: str):
+    """
+    Return a specific inventory user identified by its user_name 
+    as a InventoryUser object
+    """
+    valid = False
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = %s"
+
+    # Execute the query
+    self.exec_sql_cmd(query, (user_name,))
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    if len(rows) == 1:
+      valid = True
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create InventoryUser instance
+    inventoryUser = InventoryUser('', '')
+
+    # Populate all fields from the database export
+    inventoryUser.populate_from_df(
+        user_data_df=pd.DataFrame(rows, columns=columns))
+    return valid, inventoryUser
+
   def delete_inventory_user(self, user_name: str):
     """
     Delete Inventory user
@@ -526,7 +574,7 @@ class DataBaseClient():
     # Get column names from the cursor
     columns = [col[0] for col in self.cursor.description]
 
-    # Create InventoryItem instance
+    # Create InventoryUser instance
     inventoryUser = InventoryUser('', '')
 
     # Populate all fields from the database export

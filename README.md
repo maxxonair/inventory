@@ -36,3 +36,13 @@ npm run build
 You can preview the production build with `npm run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+
+
+## Audio 
+
+Required package on Ubuntu. Ensure the following package is installed. This is 
+required to be able to install the simpleaudio python package.
+
+```bash
+sudo apt install libasound2-dev
+```

@@ -9,7 +9,7 @@ export async function logout() {
   });
 
   // Clear auth state
-  user.set(null); // or your store logic
+  user.set(null); 
 
   // Redirect to login
   goto('/login');

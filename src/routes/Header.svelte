@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { LogIn, LogOut, PlusCircle, ScanQrCode, FolderDown } from 'lucide-svelte';
+  import * as XLSX from 'xlsx';
+  import { LogIn, LogOut, PlusCircle, ScanQrCode, FolderDown, Home } from 'lucide-svelte';
   // import logo from "$lib/images/svelte-logo.svg";
   import { user, logout } from '$lib/stores/auth.js';
 
@@ -15,6 +16,40 @@
 
   function login() {
     goto('/login');
+  }
+
+  async function downloadExcel() {
+    const itemRes = await fetch('http://localhost:5000/items', {
+      credentials: 'include'
+    });
+
+    const items = await itemRes.json();
+    if (!items.length) return;
+
+    // Convert JSON to worksheet
+    const worksheet = XLSX.utils.json_to_sheet(items);
+
+    // Create a new workbook and append the worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory');
+
+    // Generate timestamped filename
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
+    const filename = `inventory-${timestamp}.xlsx`;
+
+    // Write the workbook to a blob and trigger download
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   async function downloadCSV() {
@@ -69,7 +104,7 @@
 <header>
   <div class="corner">
   {#if isLoggedIn}
-    <button class="download-button" on:click={downloadCSV}>
+    <button class="download-button" on:click={downloadExcel}>
      <FolderDown size={20} />
     </button>
   {/if}
@@ -81,16 +116,19 @@
     </svg>
     <ul>
       {#if isLoggedIn}
-        {#if isMobile}
-          <li aria-current={page.url.pathname === "/scanner" ? "page" : undefined}>
+        <li aria-current={page.url.pathname === "/scanner" ? "page" : undefined}>
+          <a href="/scanner" aria-label="Scanner" title="Open QR Scanner">
             <ScanQrCode size={20} />
-          </li>
-        {/if}
+          </a>
+        </li>
         <li aria-current={page.url.pathname === "/" ? "home" : undefined}>
-          <a href="/">Inventory</a>
+          <a href="/" title="Inventory Home">
+            <Home size={20} />
+            <p class="button-label">Inventory</p>
+          </a>
         </li>
         <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>
-          <a href="/studio" aria-label="Studio">
+          <a href="/studio" aria-label="Studio" title="Add Item Section">
             <PlusCircle size={20} />
           </a>
         </li>
@@ -104,7 +142,10 @@
 
   <div class="corner">
 
-  <button class="icon-button" on:click={isLoggedIn ? logout : login} aria-label={isLoggedIn ? 'Logout' : 'Login'}>
+  <button class="icon-button" 
+          on:click={isLoggedIn ? logout : login} 
+          aria-label={isLoggedIn ? 'Logout' : 'Login'}
+          title={isLoggedIn ? 'Log out' : 'Log in'}>
   {#if isLoggedIn}
     <LogOut class="icon" />
   {:else}
@@ -118,6 +159,33 @@
   header {
     display: flex;
     justify-content: space-between;
+  }
+
+  .tooltip-container {
+    position: relative;
+    display: inline-block;
+  }
+
+  .tooltip-text {
+    visibility: hidden;
+    background-color: black;
+    color: white;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px 8px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%; /* Position above */
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .tooltip-container:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
   }
 
   .corner {
@@ -144,6 +212,10 @@
     cursor: pointer;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  .button-label{
+    color:  #fa8d1f;
   }
 
   .corner a {

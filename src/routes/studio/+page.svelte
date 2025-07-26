@@ -1,18 +1,31 @@
 <script>
   import { onMount } from "svelte";
   import { goto } from '$app/navigation';
-  import { Camera, CameraOff, SquareArrowDown, SquareArrowUp} from 'lucide-svelte';
-
-  let streamUrl = "http://localhost:5050";
+  import { Camera, CameraOff, SquareArrowDown, SquareArrowUp, TableProperties} from 'lucide-svelte';
 
   let showCameraStream = $state(0);
+  // URL where media files are hosted 
+  let streamUrl = "http://localhost:5050";
+  const media_url = "http://127.0.0.1:5000/media/";
 
-  let item_name = $state("");
-  let item_manufacturer = $state("");
-  let item_details = $state("");
+  let imageUrl = $state("");
+
+  imageUrl = '${streamUrl}'
+
+  // Library item Properties 
+  let name = $state("");
+  let manufacturer = $state("");
+  let details = $state("");
+  let number_items =$state(1);
+  let image= $state("");
+
+  let description = $state("");
   let item_type = $state("");
-  let item_num =$state(1);
-  let image_name= $state("");
+  let location = $state("");
+  let check_out_poc = $state("");
+  let check_out_date = $state("");
+  let is_checked_out = 0;
+
 
   let error_msg = $state("");
   let camera_error = $state("");
@@ -20,13 +33,15 @@
   const { user } = $props();
 
   async function add_inventory_item() {
+    let date_now = new Date();
+    let date_added = date_now.toISOString();
     const res = await fetch("http://localhost:5000/add_item", {
     method: "POST",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ item_name, item_manufacturer, item_details, item_type, item_num, image_name}),
+    body: JSON.stringify({ name, manufacturer, details, item_type, number_items, image, description, location, date_added, check_out_poc, check_out_date, is_checked_out}),
   });
   if (!res.ok) {
     error_msg = "Adding Item Failed";
@@ -48,11 +63,14 @@
   });
 
   if (!res.ok) {
-    camera_error = "Invalid credentials";
+    camera_error = "Image capture failed!";
   }
   else
   {
-    image_name = await res.json();
+    image = await res.json();
+    imageUrl = '${media_url}/${image}.png'
+    console.log("Image captured successfully, hash -> ",image)
+
   }
 }
 
@@ -131,11 +149,6 @@
 
 </style>
 
-<svelte:head>
-  <title>About</title>
-  <meta name="description" content="Page to add new item" />
-</svelte:head>
-
 <h1 class="headline">Add New Item</h1>
 
 <div class="page-container">
@@ -143,19 +156,19 @@
     <input
       type="text"
       placeholder="Name"
-      bind:value={item_name}
+      bind:value={name}
       required
     />
     <input
       type="text"
       placeholder="Manufacturer"
-      bind:value={item_manufacturer}
+      bind:value={manufacturer}
       required
     />
     <input
       type="text"
       placeholder="Details"
-      bind:value={item_details}
+      bind:value={details}
       required
     />
     <input
@@ -168,7 +181,7 @@
     <input
       type="number"
       placeholder="Details"
-      bind:value={item_num}
+      bind:value={number_items}
       required
     />
     <label class="label" for="avatar">Take an item picture in the studio:</label>
@@ -185,12 +198,13 @@
     <button class="camera-button" onclick={capture_image}>
       <Camera size={20} /> Capture Image
     </button>
+    <label class="label" >{image}</label>
     <label class="label" >{camera_error}</label>
     {/if}
     <label class="label" for="avatar">Or load a picture from file:</label>
     <input class="upload-button" type="file" id="avatar" name="avatar" accept="image/png, image/jpeg" />
-    <button type="submit" class="add-button" onclick={add_inventory_item}>
-      Add New Item
+    <button type="submit" class="add-button" title="Add item to the inventory" onclick={add_inventory_item}>
+      Add to Library
     </button>
     <label class="label" >{error_msg}</label>
   </form>

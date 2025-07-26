@@ -8,6 +8,7 @@ from logging import info, error
 from pathlib import Path
 from datetime import datetime
 import qrcode
+from logging import warning
 
 # Niimbot printer interface
 from .niimbot_printer import BluetoothTransport, NiimbotClient, SerialTransport
@@ -39,6 +40,13 @@ class PrinterClient():
     # Link printer density from config
     self.density = print_density
     self.image = None
+    
+    # Try to connect with the printer. If no connection can be established, wait 
+    # for the first print job to try again.
+    # try:
+    #   self._establish_printer_connection()
+    # except:
+    #   print('Printer connection failed. Trying again when a print job is issued.')
 
   # ------------------------------------------------------------------------
   #                     PUBLIC METHODS
@@ -75,7 +83,7 @@ class PrinterClient():
 
       info(f'Print label: {image_name}')
       self.printer.print_image(self.image, density=self.density)
-
+  
   def print_qr_label_from_id(self, item_id: int):
     """
     Call print a image from file 
@@ -86,20 +94,9 @@ class PrinterClient():
     """
     print_success = False
     if self._establish_printer_connection():
-      qr_message = encode_id_to_qr_message(item_id)
-
+      # Create QR marker image
+      self.image, qr_message = self._create_qr_image(item_id=item_id)
       info(f'Print label for item ID {item_id} - QR message: {qr_message}')
-      self.image = qrcode.make(qr_message)
-
-      # Add white bar to the top of the bar code to ensure having it centered
-      # on the actual label
-      self._add_white_bar_to_qr_image()
-
-      # Reseize the generated QR code to fit the label
-      # self.image = self.image.resize(
-      #     (printer_max_image_height_px, printer_max_image_height_px))
-      self.image.thumbnail((printer_max_image_width_px,
-                           printer_max_image_height_px), Image.Resampling.LANCZOS)
 
       # Save label to png
       if enable_save_label_print_cmds_to_file:
@@ -144,14 +141,48 @@ class PrinterClient():
     error('Connecting to the printer failed!')
     return False
 
-  def _add_white_bar_to_qr_image(self):
+  def _create_qr_image(self, item_id: id):
+    qr_message = encode_id_to_qr_message(item_id)
+
+    self.image = qrcode.make(qr_message)
+    
+    self.image = self.image.convert('1')
+
+    # Add white bar to the top of the bar code to ensure having it centered
+    # on the actual label
+    self.image = self._add_white_bar_to_qr_image(self.image, 0.33)
+
+    # Reseize the generated QR code to fit the label
+    # self.image = self.image.resize(
+    #     (printer_max_image_height_px, printer_max_image_height_px))
+    self.image.thumbnail((printer_max_image_width_px,
+                          printer_max_image_height_px), Image.Resampling.LANCZOS)
+    
+    return self.image, qr_message
+
+  def _add_white_bar_to_qr_image(self, img, bar_height: float):
+    """Add a white bar to the QR code image to have it centered on the label   
+
+    Args:
+        img (PIL image): Input image
+        bar_height (float): size of the white bar added as fraction of the 
+            input images height
+
+    Returns:
+        (PIL image)ype_: Image with added white bar
     """
-    Add a white bar to the QR code image to have it centered on the label    
-    """
-    if self.image is not None:
-      img = self.image
-      (w, h) = img.size
-      layer = ImageOps.expand(img, border=w, fill='white')
-      # Crop the extended image left top right bottom
-      self.image = layer.crop(
-          (w, round(0.7 * h), 2 * w, 2 * h))
+    if img is not None:
+      w, h = img.size
+
+      # Calculate new bar height 
+      bar_height = int(bar_height * h)
+
+      # Create a new white image with increased height
+      new_img = Image.new("RGB", (w, h + bar_height), color="white")
+
+      # Paste the original image at the top
+      new_img.paste(img, (0, bar_height))
+
+      self.image = new_img
+      
+    return self.image

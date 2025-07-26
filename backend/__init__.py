@@ -4,7 +4,6 @@ from backend.DataBaseClient import DataBaseClient
 from backend.PrinterClient import PrinterClient
 
 # --- [Data Classes]
-from backend.InventoryItem import InventoryItem
 from backend.InventoryUser import InventoryUser
 
 # --- [Enums]
@@ -21,3 +20,6 @@ from backend.camera_config import camera_server_ip
 from backend.camera_config import camera_server_port
 from backend.inventory_server_config import inventory_server_ip
 from backend.inventory_server_config import inventory_server_port
+from backend.inventory_server_config import MEDIA_DEFAULT_PATH
+from backend.inventory_server_config import DEFAULT_DB_HOST
+from backend.inventory_server_config import INVENTORY_DB_NAME

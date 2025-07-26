@@ -11,5 +11,11 @@ dependencies = [
   "mariadb",
   "pandas",
   "flask_session",
-  "requests"
+  "requests",
+  "pygame",
+  "opencv-python",
+  "pillow",
+  "qrcode",
+  "pyserial",
+  "pyzbar",
 ]
