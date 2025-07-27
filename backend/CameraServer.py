@@ -65,10 +65,8 @@ class CameraServer():
     # Flag if True the QR scanning function of this server is enabled
     self.enable_qr_scanner = enable_qr_scanner
     
-    # If QR scanning is enabled load the scan sound from the wave file
-    if self.enable_qr_scanner:
-      self.mixer = pygame.mixer.init()
-      pygame.mixer.music.load("backend/assets/beep.wav")
+    # Init pygame mixer to play audio files
+    self.mixer = pygame.mixer.init()
       
     # Flag if True QR scanning is disabled temporarily
     self.is_suspend_qr_scan = False
@@ -87,6 +85,16 @@ class CameraServer():
   def play_beep(self):
     """Play a beep sound (when a QR code is scanned successfully)
     """
+    pygame.mixer.music.load("backend/assets/beep.wav")
+    def _play():
+      pygame.mixer.music.play()
+
+    threading.Thread(target=_play, daemon=True).start()
+    
+  def play_shutter_sound(self):
+    """Play a beep sound (when a QR code is scanned successfully)
+    """
+    pygame.mixer.music.load("backend/assets/camera_shutter.wav")
     def _play():
       pygame.mixer.music.play()
 
@@ -98,7 +106,7 @@ class CameraServer():
     def capture_image():
       """Serve requested image from the media directory
       """
-      self.play_beep()
+      self.play_shutter_sound()
       # Create a hex hash based on the frame data
       cam_img_bytes = self.frame.tobytes()
       hash_object = hashlib.sha256(cam_img_bytes)

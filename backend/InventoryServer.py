@@ -14,6 +14,10 @@ from datetime import timedelta
 import asyncio
 import sys
 import os
+import cv2 as cv
+import numpy as np
+import hashlib
+from pathlib import Path
 
 from backend.InventoryUser import InventoryUser
 from backend.DataBaseClient import DataBaseClient
@@ -23,6 +27,7 @@ from backend import (inventory_server_ip,
                      inventory_server_port,
                      MEDIA_DEFAULT_PATH,
                      DEFAULT_DB_HOST)
+from backend.camera_config import media_file_path
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
@@ -52,7 +57,7 @@ class InventoryServer:
     # Create a database client instance. The client will handle all interaction
     # with the database server.
     self.db = DataBaseClient(host=db_host, port=db_port)
-    
+
     self.printer_client = PrinterClient()
 
     # Routes
@@ -97,28 +102,57 @@ class InventoryServer:
       data_dict = self.db.get_all_inventory_items_as_dict_list()
       return jsonify(data_dict)
 
-    @self.app.route('/get_item')
+    @self.app.route('/get_item', methods=['POST'])
     def get_item():
       if 'user' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
       data = request.json
       data_dict = self.db.get_inventory_item_as_dict(int(data['itemId']))
-      
+
       # TODO add callback funtion to check if item with ID exists in DB
-      
-      print(f'Item data: ')
-      print(data_dict)
-      
+
       if data_dict is None:
         return jsonify({'error': 'Item not found!'}), 401
       return jsonify(data_dict)
+
+    @self.app.route('/image_upload', methods=['POST'])
+    def upload_file():
+      if 'avatar' not in request.files:
+        return {'error': 'No file part'}, 400
+
+      file = request.files['avatar']
+
+      if file.filename == '':
+        return {'error': 'No selected file'}, 400
+
+      # Read file content into bytes
+      file_bytes = file.read()
+
+      # Hash the file bytes
+      hash_object = hashlib.sha256(file_bytes)
+      hash_hex = hash_object.hexdigest()
+
+      # Convert bytes to NumPy array for OpenCV
+      nparr = np.frombuffer(file_bytes, np.uint8)
+      img_np = cv.imdecode(nparr, cv.IMREAD_COLOR)
+
+      if img_np is None:
+        return {'error': 'Could not decode image'}, 400
+
+      # Save image using OpenCV
+      img_path = Path(media_file_path) / f'{hash_hex}.png'
+      success = cv.imwrite(str(img_path), img_np)
+
+      if not success:
+        return {'error': 'Failed to save image'}, 500
+
+      return {'message': 'Image saved', 'image': f'{hash_hex}'}
 
     @self.app.route('/login', methods=['POST'])
     def login():
       data = request.json
       is_user_exists, inventoryUser = self.db.get_inventory_user_as_object(
           data['username'])
-      # TODO demote to debug message
       print(f'Log in attempt: {data['username']} -> {is_user_exists}')
       if not is_user_exists:
         return jsonify({'error': 'User not found'}), 401
@@ -147,7 +181,7 @@ class InventoryServer:
     def capture_image():
       if 'user' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
-      
+
     @self.app.route('/print_label', methods=['POST'])
     def print_label():
       """Print item label 
@@ -158,7 +192,7 @@ class InventoryServer:
       data = request.get_json()
       item_id = int(data.get('itemId'))
       print(f'Print label for item with ID {item_id}')
-      
+
       # Issue label print job
       self.printer_client.print_qr_label_from_id(item_id)
 
@@ -174,7 +208,7 @@ class InventoryServer:
       data = request.get_json()
       item_id = int(data.get('itemId'))
       print(f'Delete item with ID {item_id}')
-      
+
       # Issue label print job
       self.db.delete_inventory_item(item_id)
 
@@ -191,7 +225,7 @@ class InventoryServer:
     @self.app.route('/qr', methods=['POST'])
     def qr():
       """Update the QR in the state
-      
+
       Interface function to allow the CameraServer to update the item ID after 
       a successful QR scan
 
@@ -206,7 +240,7 @@ class InventoryServer:
     @self.app.route('/is_qr', methods=['POST'])
     def is_qr():
       """Function to query if a QR code has been scanned by the camera server
-      
+
       A successful query resets the scanned_qr_id in the state
 
       """

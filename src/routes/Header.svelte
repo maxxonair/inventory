@@ -124,7 +124,7 @@
         <li aria-current={page.url.pathname === "/" ? "home" : undefined}>
           <a href="/" title="Inventory Home">
             <Home size={20} />
-            <p class="button-label">Inventory</p>
+            <p class="button-label"></p>
           </a>
         </li>
         <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>

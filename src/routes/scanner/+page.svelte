@@ -3,19 +3,46 @@
 
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { CircleX, HandHelping, Undo2 } from "lucide-svelte";
+  import { CircleX, HandHelping , Undo2, CircleChevronLeft, CircleChevronRight, Printer , Trash2, SquarePen} from 'lucide-svelte';
 
   const { user } = $props();
-  let streamUrl = "http://localhost:5050";
+  const media_url = "http://127.0.0.1:5000/media/";
+  const streamUrl = "http://localhost:5050";
 
-  // let showCameraStream = $state(1);
+  let showConfirm = $state(false);
   let showCameraStream = $state(true);
   let itemId = $state(0);
   let error_msg = $state("");
   let error = $state("");
   let item = $state("");
 
-  const media_url = "http://127.0.0.1:5000/media/";
+  function requestDelete() {
+    showConfirm = true;
+  }
+
+  function confirmDelete() {
+    deleteItem(itemId);
+    showConfirm = false;
+    itemId = null;
+    showCameraStream = true;
+  }
+
+  function cancelDelete() {
+    showConfirm = false;
+  }
+
+  async function printLabel(itemId) {
+    const res = await fetch("http://localhost:5000/print_label", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId }),
+    });
+
+    if (!res.ok) {
+      error = "Printing Label failed";
+    }
+  }
 
   async function checkIsQrScanned() {
     const res = await fetch("http://localhost:5000/is_qr", {
@@ -24,34 +51,44 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
     });
-    console.log(res);
+
     if (res.ok) {
       const response = await res.json();
       itemId = response.id;
 
       // Get the inventory item data from the database
-      get_inventory_item();
+      const ret = await fetch("http://localhost:5000/get_item", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId }),
+      });
+
+      if (!ret.ok) {
+        error_msg = "Retrieving inventory item failed";
+      } else {
+        error_msg = "";
+        item = await ret.json();
+      }
       // Toggle the camera visibilty and show the item card instead
       showCameraStream = false;
-
-      console.log(itemId);
     }
   }
 
-  async function get_inventory_item() {
-    const res = await fetch("http://localhost:5000/get_item", {
+  async function updateItem(itemId, item) {
+    // Function TODO
+  }
+
+  async function deleteItem(itemId) {
+    const res = await fetch("http://localhost:5000/delete_item", {
       method: "POST",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ itemId }),
     });
+
     if (!res.ok) {
-      error_msg = "Adding Item Failed";
-    } else {
-      error_msg = "";
-      item = await res.json();
+      error = "Deleting Item failed";
     }
   }
 
@@ -71,8 +108,8 @@
     item = {
       ...item,
       is_checked_out: true,
-      check_out_poc: "You", // Or extract from response
-      check_out_date: new Date().toLocaleDateString(), // Update as needed
+      check_out_poc: "You",
+      check_out_date: new Date().toLocaleDateString(),
     };
   }
 
@@ -105,26 +142,25 @@
   });
 </script>
 
-<p>showCameraStream: {showCameraStream}</p>
-<p>itemId: {itemId}</p>
-
 {#if showCameraStream}
   <label for="id" class="label"
     >Place QR code in front of the scanner camera!
   </label>
+  <label for="id" class="label">{error_msg}</label>
   <img src={streamUrl} alt="Camera Stream" class="border rounded" />
 {:else}
   <!-- Overlay for expanded card -->
-  <div class="product-card expanded centered" on:click|stopPropagation>
+  <div class="product-card expanded centered">
     <img
       src={`${media_url}${item.image}.png`}
       alt={item.image}
-      className="product-image"
+      class="product-image"
     />
     <div class="product-name">{item.name}</div>
     <div class="manufacturer">by {item.manufacturer}</div>
     <!-- This will show the number of items of this category -->
-    <div class="manufacturer">Count: N/A</div>
+    <div class="manufacturer">Count: {item.item_type}</div>
+    <div class="manufacturer">Type: {item.number_items}</div>
 
     {#if item.is_checked_out}
       <div class="status-out">
@@ -135,27 +171,57 @@
     {/if}
 
     <div class="extra-details">
-      {#if item.is_checked_out}
-        <button
-          class="return-button"
-          on:click={() => returnItem(itemId)}
-        >
-          <Undo2 size={20} /> return
-        </button>
-      {:else}
-        <button
-          class="borrow-button"
-          on:click={() => checkoutItem(itemId)}
-        >
-          <HandHelping size={20} /> borrow
-        </button>
-      {/if}
-      {#if error}
-        <p class="error-message">{error}</p>
-      {/if}
       <div class="manufacturer">Manufacturer details: {item.details}</div>
-      <button class="close-button" on:click={() => (showCameraStream = 1)}
-        ><CircleX size={20} /> close</button
+    </div>
+
+    <div class="extra-details">
+      {#if showConfirm}
+        <div class="confirm-card">
+          <p>Are you sure you want to delete this item?</p>
+          <div class="confirm-actions">
+            <button class="confirm-button" onclick={confirmDelete}
+              >Yes, Delete</button
+            >
+            <button class="cancel-button" onclick={cancelDelete}>Cancel</button
+            >
+          </div>
+        </div>
+      {:else}
+        {#if item.is_checked_out}
+          <button class="return-button" onclick={() => returnItem(itemId)}>
+            <Undo2 size={20} /> return
+          </button>
+        {:else}
+          <button class="borrow-button" onclick={() => checkoutItem(itemId)}>
+            <HandHelping size={20} /> borrow
+          </button>
+        {/if}
+        {#if error}
+          <p class="error-message">{error}</p>
+        {/if}
+        <button class="generic-button" onclick={() => printLabel(itemId)}>
+          <Printer size={20} />
+          <span>print label</span>
+        </button>
+        <button class="generic-button" onclick={() => requestDelete()}>
+          <Trash2 size={20} />
+          <span>delete</span>
+        </button>
+        <button
+          class="generic-button"
+          onclick={() => updateItem(itemId, item)}
+        >
+          <SquarePen size={20} />
+          <span>update data</span>
+        </button>
+      {/if}
+    </div>
+    <div class="extra-details">
+      <button
+        class="close-button"
+        onclick={() => (
+          (itemId = null), (showCameraStream = true), (showConfirm = false)
+        )}><CircleX size={20} /> close</button
       >
     </div>
   </div>
@@ -173,14 +239,6 @@
     transform: scale(1.02);
     z-index: 10;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .product-image {
-    max-height: 200px;
-    object-fit: contain;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid #d37e1d;
-    padding-bottom: 1rem;
   }
 
   .product-name {
@@ -217,12 +275,92 @@
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   }
 
+  .return-button {
+    background-color: #008c13;
+    color: #252525;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.5rem;
+    margin: 0 auto 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
   .close-button {
     display: flex;
     justify-content: center;
     margin-top: 1rem;
     background-color: #c1c1c1;
     color: #252525;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.5rem;
+    margin: 0 auto 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  .lock-scroll {
+    overflow: hidden;
+  }
+
+  .product-image {
+    max-height: 200px;
+    object-fit: contain;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #d37e1d;
+    padding-bottom: 1rem;
+  }
+
+  .confirm-card {
+    background: rgb(241, 167, 167);
+    border: 1px solid #af0000;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 0.5rem;
+  }
+
+  .generic-button {
+    background-color: #252525;
+    color: #fa8d1f;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    margin-top: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    /* display: flex; */
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .confirm-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .confirm-button {
+    background-color: #f21313;
+    color: #181818;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.5rem;
+    margin: 0 auto 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+
+  .cancel-button {
+    background-color: rgb(63, 63, 63) c13;
+    color: #404040;
     border: none;
     border-radius: 9999px;
     padding: 0.5rem;

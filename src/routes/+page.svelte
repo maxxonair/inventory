@@ -5,10 +5,10 @@
   // Load item data loaded in +page.ts
   export let data;
   let { user, items } = data;
+  
   let searchQuery = "";
   let error = "";
   let showConfirm = false;
-  const media_url = "http://127.0.0.1:5000/media/";
   let selectedItemId = null;
   let currentPage = 1;
   // Number of items to display per page. Store as string to support option "All"
@@ -178,13 +178,13 @@
           <div class="manufacturer">Count: {item.item_type}</div>
           <div class="manufacturer">Type: {item.number_items}</div>
 
-          {#if item.is_checked_out}
-            <div class="status-out">
-              Checked out by {item.check_out_poc} since {item.check_out_date}
-            </div>
-          {:else}
-            <div class="status-available">Available</div>
-          {/if}
+            {#if item.is_checked_out}
+              <div class="status-out">
+                Checked out by {item.check_out_poc} since {item.check_out_date}
+              </div>
+            {:else}
+              <div class="status-available">Available</div>
+            {/if}
 
           <div class="extra-details">
             <div class="manufacturer">Manufacturer details: {item.details}</div>

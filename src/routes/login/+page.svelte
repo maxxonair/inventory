@@ -1,6 +1,6 @@
 <script>
   import { goto } from "$app/navigation";
-  import { fetchUser } from "$lib/stores/auth.js"; 
+  import { fetchUser } from "$lib/stores/auth.js";
 
   let username = "";
   let password = "";
@@ -18,28 +18,31 @@
 
     if (res.ok) {
       await fetchUser();
-      goto("/"); 
+      goto("/");
     } else {
       error = "Invalid credentials";
     }
   }
 </script>
 
+<svelte:head>
+  <title>Inventory Login</title>
+  <meta name="description" content="Inventory Login page" />
+</svelte:head>
+
 <div class="page-container">
   <form class="login-box" on:submit|preventDefault={login}>
-    <input
-      type="text"
-      placeholder="User Name"
-      bind:value={username}
-      required
-    />
+    <input type="text" placeholder="User Name" bind:value={username} required />
     <input
       type="password"
       placeholder="Password"
       bind:value={password}
       required
     />
-    <button type="submit" class="px-8 py-2 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 text-white focus:ring-2 focus:ring-blue-400 hover:shadow-xl transition duration-200">
+    <button
+      type="submit"
+      class="px-8 py-2 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 text-white focus:ring-2 focus:ring-blue-400 hover:shadow-xl transition duration-200"
+    >
       Log In
     </button>
     {#if error}<p class="text-red-500">{error}</p>{/if}
@@ -100,4 +103,3 @@
     margin-top: 10px;
   }
 </style>
-    

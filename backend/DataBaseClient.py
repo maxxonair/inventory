@@ -1,19 +1,19 @@
 """Client interface to the inventory Database tables
 
 Inventory main table:
-  name VARCHAR(255) NOT NULL,'
-  image VARCHAR(1055),'
-  description VARCHAR(1055) ,'
-  manufacturer VARCHAR(255),'
-  details VARCHAR(1055),'
-  is_checked_out BOOLEAN,'
-  check_out_date VARCHAR(255) ,'
-  check_out_poc VARCHAR(1055) ,'
-  date_added VARCHAR(255) ,'
-  tags VARCHAR(1055) ,'
-  location VARCHAR(1055) ,'
-  item_type VARCHAR(1055) ,'
-  number_items INT(32) )'
+  name VARCHAR(255) NOT NULL
+  image VARCHAR(1055)
+  description VARCHAR(1055) 
+  manufacturer VARCHAR(255)
+  details VARCHAR(1055)
+  is_checked_out BOOLEAN
+  check_out_date VARCHAR(255) 
+  check_out_poc VARCHAR(1055) 
+  date_added VARCHAR(255) 
+  tags VARCHAR(1055) 
+  location VARCHAR(1055) 
+  item_type VARCHAR(1055) 
+  number_items INT(32) )
 
 Raises:
     RuntimeError: _description_
@@ -36,19 +36,13 @@ from backend.database_config import (INVENTORY_TABLE_NAME,
 from backend.InventoryUser import InventoryUser
 
 
-# TODO move constants
-MEDIA_DEFAULT_PATH = "/home/mrx/Documents/inventory/database/media/"
-
-MEDIA_DEFAULT_URL = "http://127.0.0.1:5000/media/"
-
-
 class DataBaseClient():
 
   def __init__(self, host: str, port: int = 46123):
     self.connection_config = {
         'user': 'inventory_user',
         'password': 'inventory24',
-        'host': host,  # or use the container name 'mariadb'
+        'host': host,
         'port': port,
         'database': 'inventory',
         'connect_timeout': 0
@@ -205,7 +199,7 @@ class DataBaseClient():
 
     return df
 
-  def get_inventory_item_as_dict(self, item_id):
+  def get_inventory_item_as_dict(self, item_id) -> dict:
     """
     Return a specific inventory item identified by its ID from a database 
     as a dictionary
@@ -216,18 +210,18 @@ class DataBaseClient():
     # Execute the query
     self.exec_sql_cmd(query, (item_id,))
 
-    # Fetch all values from the executed query
-    values = self.cursor.fetchall()
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
 
     # Get column names from the cursor
-    keys = [col[0] for col in self.cursor.description]
+    columns = [col[0] for col in self.cursor.description]
 
-    if not keys or not values:
-      return None
+    # Create a DataFrame from the fetched data
+    df = pd.DataFrame(rows, columns=columns)
 
-    item_dict = dict(zip(keys, values))
+    item_dict = df.to_dict('records')
 
-    return item_dict
+    return item_dict[0]
 
   # ------------------------------------------------------------------------
   #                        [MODIFY]

@@ -40,13 +40,6 @@ class PrinterClient():
     # Link printer density from config
     self.density = print_density
     self.image = None
-    
-    # Try to connect with the printer. If no connection can be established, wait 
-    # for the first print job to try again.
-    # try:
-    #   self._establish_printer_connection()
-    # except:
-    #   print('Printer connection failed. Trying again when a print job is issued.')
 
   # ------------------------------------------------------------------------
   #                     PUBLIC METHODS
@@ -83,7 +76,7 @@ class PrinterClient():
 
       info(f'Print label: {image_name}')
       self.printer.print_image(self.image, density=self.density)
-  
+
   def print_qr_label_from_id(self, item_id: int):
     """
     Call print a image from file 
@@ -145,7 +138,7 @@ class PrinterClient():
     qr_message = encode_id_to_qr_message(item_id)
 
     self.image = qrcode.make(qr_message)
-    
+
     self.image = self.image.convert('1')
 
     # Add white bar to the top of the bar code to ensure having it centered
@@ -157,7 +150,7 @@ class PrinterClient():
     #     (printer_max_image_height_px, printer_max_image_height_px))
     self.image.thumbnail((printer_max_image_width_px,
                           printer_max_image_height_px), Image.Resampling.LANCZOS)
-    
+
     return self.image, qr_message
 
   def _add_white_bar_to_qr_image(self, img, bar_height: float):
@@ -174,7 +167,7 @@ class PrinterClient():
     if img is not None:
       w, h = img.size
 
-      # Calculate new bar height 
+      # Calculate new bar height
       bar_height = int(bar_height * h)
 
       # Create a new white image with increased height
@@ -184,5 +177,5 @@ class PrinterClient():
       new_img.paste(img, (0, bar_height))
 
       self.image = new_img
-      
+
     return self.image
