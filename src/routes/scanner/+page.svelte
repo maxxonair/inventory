@@ -3,7 +3,16 @@
 
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { CircleX, HandHelping , Undo2, CircleChevronLeft, CircleChevronRight, Printer , Trash2, SquarePen} from 'lucide-svelte';
+  import {
+    CircleX,
+    HandHelping,
+    Undo2,
+    CircleChevronLeft,
+    CircleChevronRight,
+    Printer,
+    Trash2,
+    SquarePen,
+  } from "lucide-svelte";
 
   const { user } = $props();
   const media_url = "http://127.0.0.1:5000/media/";
@@ -143,11 +152,13 @@
 </script>
 
 {#if showCameraStream}
-  <label for="id" class="label"
-    >Place QR code in front of the scanner camera!
-  </label>
-  <label for="id" class="label">{error_msg}</label>
-  <img src={streamUrl} alt="Camera Stream" class="border rounded" />
+  <div class="page-container">
+    <label for="id" class="label"
+      >Place QR code in front of the scanner camera!
+    </label>
+    <label for="id" class="label">{error_msg}</label>
+    <img src={streamUrl} alt="Camera Stream" class="camera-stream" />
+  </div>
 {:else}
   <!-- Overlay for expanded card -->
   <div class="product-card expanded centered">
@@ -182,8 +193,7 @@
             <button class="confirm-button" onclick={confirmDelete}
               >Yes, Delete</button
             >
-            <button class="cancel-button" onclick={cancelDelete}>Cancel</button
-            >
+            <button class="cancel-button" onclick={cancelDelete}>Cancel</button>
           </div>
         </div>
       {:else}
@@ -207,10 +217,7 @@
           <Trash2 size={20} />
           <span>delete</span>
         </button>
-        <button
-          class="generic-button"
-          onclick={() => updateItem(itemId, item)}
-        >
+        <button class="generic-button" onclick={() => updateItem(itemId, item)}>
           <SquarePen size={20} />
           <span>update data</span>
         </button>
@@ -234,10 +241,29 @@
     color: white;
   }
 
+  .page-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 85%;
+  }
+
+  .camera-stream {
+    max-width: 500px;
+    max-height: 500px;
+    border-color: #fa8d1f;
+    justify-content: center;
+    align-items: top;
+  }
+
   .product-card.expanded {
     grid-column: 1 / -1;
     transform: scale(1.02);
     z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
 
@@ -266,7 +292,7 @@
   .borrow-button {
     background-color: #fa8d1f;
     color: #252525;
-    border: none;
+    border-color: #c46200;
     border-radius: 9999px;
     padding: 0.5rem;
     margin: 0 auto 1rem;
@@ -278,7 +304,7 @@
   .return-button {
     background-color: #008c13;
     color: #252525;
-    border: none;
+    border-color: #494949;
     border-radius: 9999px;
     padding: 0.5rem;
     margin: 0 auto 1rem;
@@ -293,17 +319,13 @@
     margin-top: 1rem;
     background-color: #c1c1c1;
     color: #252525;
-    border: none;
+    border-color: #494949;
     border-radius: 9999px;
     padding: 0.5rem;
     margin: 0 auto 1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .lock-scroll {
-    overflow: hidden;
   }
 
   .product-image {
@@ -326,8 +348,8 @@
   .generic-button {
     background-color: #252525;
     color: #fa8d1f;
-    border: none;
-    border-radius: 9999px;
+    border-color: #494949;
+    border-radius: 15px;
     padding: 0.5rem;
     margin-bottom: 1rem;
     margin-top: 1rem;

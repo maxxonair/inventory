@@ -171,6 +171,14 @@ class InventoryServer:
       new_id = self.db.add_inventory_item(data_dict)
       return jsonify({'message': f'{new_id}'}), 200
 
+    @self.app.route('/update_item', methods=['POST'])
+    def update_item():
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+      data_dict = request.json
+      self.db.update_inventory_item(data_dict)
+      return jsonify({'status': 'item updated'}), 200
+
     @self.app.route('/logout', methods=['POST'])
     def logout():
       print('Log out user')

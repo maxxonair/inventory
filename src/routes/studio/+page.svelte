@@ -9,7 +9,7 @@
     SquareArrowUp,
     TableProperties,
     Check,
-    ShieldAlert
+    ShieldAlert,
   } from "lucide-svelte";
 
   // URL where media files are hosted
@@ -92,19 +92,17 @@
   };
   function showErrorAlertFnct() {
     showErrorAlert = true;
-   //  Auto-dismiss Alerts after 10 seconds
+    //  Auto-dismiss Alerts after 10 seconds
     setTimeout(() => {
       showErrorAlert = false;
     }, 120000);
   }
 
   async function add_inventory_item() {
-    if (!name){
+    if (!name) {
       error_msg = "No item name set. Define item name before adding.";
       showErrorAlertFnct();
-    }
-    else
-    {
+    } else {
       let date_now = new Date();
       let date_added = date_now.toISOString();
       const res = await fetch("http://localhost:5000/add_item", {
@@ -135,7 +133,7 @@
         showErrorAlertFnct();
       } else {
         error_msg = "";
-        closeErrorAlertAlert();
+        showErrorAlert = false;
         showSuccessAlertFnct();
       }
     }
@@ -290,11 +288,11 @@
     display: flex;
     justify-content: center;
     align-items: top;
-    height: 135vh; /* full viewport height */
+    height: 85%;
   }
 
   .headline {
-    font-size: 3rem;
+    font-size: 2rem;
     font-weight: bold;
     color: #c85203;
   }
@@ -302,6 +300,7 @@
   .label {
     justify-content: center;
     text-align: center;
+    color: #7f4104;
   }
 
   .success-alert {
@@ -325,15 +324,15 @@
   }
 
   .item-box {
-    background-color: white;
-    padding: 2rem;
+    background-color: rgb(175, 175, 175);
+    padding: 0.5rem;
     border-radius: 1rem;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.2rem;
   }
 
   .product-image {
@@ -351,16 +350,20 @@
     margin: 0 auto 1rem;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    border-radius: 6px;
+    border-radius: 2px;
+  }
+
+  ::placeholder {
+    color: #fb9d403a;
   }
 
   .input-field {
     background-color: #494949;
     color: #fa8d1f;
-    border-radius: 9999px;
+    border-radius: 5px;
     border-color: #fa8d1f;
     padding: 0.5rem;
-    margin: 0 auto 0.5rem;
+    margin: 0 auto 0.1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -370,9 +373,10 @@
   .add-button {
     background-color: #fa8d1f;
     color: #252525;
-    border: none;
+    border-color: #c46200;
+    /* border: none; */
     border-radius: 9999px;
-    padding: 0.5rem;
+    padding: 1rem;
     margin: 0 auto 1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
@@ -380,21 +384,21 @@
   }
 
   .upload-button {
-    background-color: #252525;
+    background-color: #6e6e6e;
     color: #fa8d1f;
     border: none;
-    border-radius: 9999px;
+    border-radius: 5px;
     padding: 0.5rem;
     margin: 0 auto 1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 1px rgba(0, 0, 0, 0.1);
   }
 
   .toggle-camera-button {
     background-color: #252525;
     color: #fa8d1f;
-    border: none;
+    border-color: #494949;
     border-radius: 9999px;
     padding: 0.8rem;
     margin: 0 auto 1rem;
@@ -406,7 +410,7 @@
   .camera-button {
     background-color: #252525;
     color: #fa8d1f;
-    border: none;
+    border-color: #494949;
     border-radius: 9999px;
     padding: 0.3rem;
     cursor: pointer;
@@ -419,7 +423,7 @@
     margin-top: 0.05rem;
     background-color: #c1c1c1;
     color: #252525;
-    border: none;
+    border-color: #494949;
     border-radius: 9999px;
     padding: 0.1rem;
     cursor: pointer;
