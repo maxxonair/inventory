@@ -24,6 +24,6 @@ export async function load({ fetch }) {
   }
 
   const items = await itemRes.json();
-
-  return { user, items };
+  
+  return { user };
 }

@@ -19,6 +19,8 @@
   let showSuccessAlert = $state(false);
   let showErrorAlert = $state(false);
 
+  console.log(user);
+
   let imageUrl = $state("");
   imageUrl = "${streamUrl}";
 
@@ -209,6 +211,7 @@
         placeholder="Details"
         rows={4}
         name="message"
+        textareaClass="input-text-field"
       />
     </div>
     <input
@@ -300,7 +303,7 @@
   .label {
     justify-content: center;
     text-align: center;
-    color: #7f4104;
+    color: #1b0b01f7;
   }
 
   .success-alert {
@@ -324,7 +327,7 @@
   }
 
   .item-box {
-    background-color: rgb(175, 175, 175);
+    background-color: rgb(114, 113, 113);
     padding: 0.5rem;
     border-radius: 1rem;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
@@ -347,7 +350,8 @@
     background-color: #494949;
     color: #fa8d1f;
     padding: 0.5rem;
-    margin: 0 auto 1rem;
+    justify-content: center;
+    display: flex;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     border-radius: 2px;
@@ -363,7 +367,7 @@
     border-radius: 5px;
     border-color: #fa8d1f;
     padding: 0.5rem;
-    margin: 0 auto 0.1rem;
+    /* margin: 0 auto 0.1rem; */
     cursor: pointer;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -374,7 +378,6 @@
     background-color: #fa8d1f;
     color: #252525;
     border-color: #c46200;
-    /* border: none; */
     border-radius: 9999px;
     padding: 1rem;
     margin: 0 auto 1rem;
@@ -389,7 +392,6 @@
     border: none;
     border-radius: 5px;
     padding: 0.5rem;
-    margin: 0 auto 1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 1px rgba(0, 0, 0, 0.1);
@@ -399,9 +401,8 @@
     background-color: #252525;
     color: #fa8d1f;
     border-color: #494949;
-    border-radius: 9999px;
-    padding: 0.8rem;
-    margin: 0 auto 1rem;
+    border-radius: 15px;
+    padding: 0.3rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);

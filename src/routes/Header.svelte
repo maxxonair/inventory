@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import * as XLSX from 'xlsx';
   import { LogIn, LogOut, PlusCircle, ScanQrCode, FolderDown, Home } from 'lucide-svelte';
   // import logo from "$lib/images/svelte-logo.svg";
   import { user, logout } from '$lib/stores/auth.js';
+  import { DarkMode } from "flowbite-svelte";
 
   let isMobile = false;
 
@@ -18,39 +18,7 @@
     goto('/login');
   }
 
-  async function downloadExcel() {
-    const itemRes = await fetch('http://localhost:5000/items', {
-      credentials: 'include'
-    });
 
-    const items = await itemRes.json();
-    if (!items.length) return;
-
-    // Convert JSON to worksheet
-    const worksheet = XLSX.utils.json_to_sheet(items);
-
-    // Create a new workbook and append the worksheet
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory');
-
-    // Generate timestamped filename
-    const now = new Date();
-    const timestamp = now.toISOString().replace(/[:.]/g, '-');
-    const filename = `inventory-${timestamp}.xlsx`;
-
-    // Write the workbook to a blob and trigger download
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
 
   async function downloadCSV() {
     const itemRes = await fetch('http://localhost:5000/items', {
@@ -103,11 +71,7 @@
 
 <header>
   <div class="corner">
-  {#if isLoggedIn}
-    <button class="download-button" on:click={downloadExcel}>
-     <FolderDown size={20} />
-    </button>
-  {/if}
+  <DarkMode />
   </div>
 
   <nav>

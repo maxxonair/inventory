@@ -1,549 +1,361 @@
 <script>
   import { page } from "$app/state";
-  import IconButton from '@smui/icon-button';
-  import { CircleX, HandHelping , Undo2, CircleChevronLeft, CircleChevronRight, Printer , Trash2, SquarePen} from 'lucide-svelte';
-  // Load item data loaded in +page.ts
-  export let data;
-  let { user, items } = data;
+	import * as XLSX from 'xlsx';
+  import { TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, TableSearch, Dropdown, DropdownItem, Checkbox, ButtonGroup, List, Li, FloatingLabelInput} from 'flowbite-svelte';
+	import { Drawer, Button, CloseButton, Label, Input, Textarea, Select } from 'flowbite-svelte';
+	import { Section } from 'flowbite-svelte-blocks';
+	import { PlusOutline, ChevronDownOutline, FilterSolid, ChevronRightOutline, ChevronLeftOutline, QrCodeOutline} from 'flowbite-svelte-icons';
+
+  const { user } = $props();
+
+  /* ------------------  Main Table function ----------------------- */
+
+	let divClass = 'bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden';
+	let innerDivClass = 'flex flex-col md:flex-row items-center justify-between space-y-3 md:space-y-0 md:space-x-4 p-4';
+	let searchClass = 'w-full md:w-1/2 relative';
+
+	let searchTerm = $state('');
+	let currentPosition = $state(0);
+	const itemsPerPage = 10;
+	const showPage = 5;
+	let totalPages = $state(0);
+	let pagesToShow = $state([]);
+	let totalItems = $state(0);
+	let startPage;
+	let endPage = $state(10);
+
+	let items = $state([]);
+	let loading = $state(true);
+
+	// Fetch data from backend
+	const fetchData = async () => {
+		loading = true;
+		try {
+			const res = await fetch('http://localhost:5000/items', {credentials: 'include'});
+			const data = await res.json();
+			items = data;
+			totalItems = items.length;
+			renderPagination(items.length);
+		} catch (err) {
+			console.error('Failed to fetch items:', err);
+		} finally {
+			loading = false;
+		}
+	};
+
+	const updateDataAndPagination = () => {
+		let currentPageItems = items.slice(currentPosition, currentPosition + itemsPerPage);
+		renderPagination(currentPageItems.length);
+	};
+
+	const loadNextPage = () => {
+		if (currentPosition + itemsPerPage < items.length) {
+			currentPosition += itemsPerPage;
+			updateDataAndPagination();
+		}
+	};
+
+	const loadPreviousPage = () => {
+		if (currentPosition - itemsPerPage >= 0) {
+			currentPosition -= itemsPerPage;
+			updateDataAndPagination();
+		}
+	};
+
+	const renderPagination = (totalItems) => {
+		totalPages = Math.ceil(items.length / itemsPerPage);
+		const currentPage = Math.ceil((currentPosition + 1) / itemsPerPage);
+
+		startPage = currentPage - Math.floor(showPage / 2);
+		startPage = Math.max(1, startPage);
+		endPage = Math.min(startPage + showPage - 1, totalPages);
+
+		pagesToShow = Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+	};
+
+	const goToPage = (pageNumber) => {
+		currentPosition = (pageNumber - 1) * itemsPerPage;
+		updateDataAndPagination();
+	};
+
+	let startRange = $derived(currentPosition + 1);
+	let endRange = $derived(Math.min(currentPosition + itemsPerPage, totalItems));
+
+	let currentPageItems = $derived(items.slice(currentPosition, currentPosition + itemsPerPage));
+	let filteredItems = $derived(items.filter((item) => item.product_name.toLowerCase().includes(searchTerm.toLowerCase())));
+
+	$effect(() => {
+		// Fetch inventory data on mount
+		fetchData();
+	});
   
-  let searchQuery = "";
-  let error = "";
-  let showConfirm = false;
-  let selectedItemId = null;
-  let currentPage = 1;
-  // Number of items to display per page. Store as string to support option "All"
-  let selectedItemsPerPage = "50"; 
+	/* ------------------  Add Item Side panel function ----------------------- */
 
-  function requestDelete() {
-    showConfirm = true;
-  }
+	let hidden = $state(true);
+	let selected = $state();
+	let categories = [
+		{ value: '', name: 'Select Type' },
+		{ value: 'Fabric', name: 'Fabric' },
+		{ value: 'Flooring', name: 'Flooring' },
+		{ value: 'Furniture', name: 'Furniture' },
+		{ value: 'Curtains', name: 'Curtains' },
+		{ value: 'Tiles', name: 'Tiles' }
+	];
+	const handleCancel = () => {
+		hidden = true;
+	};
 
-  function confirmDelete() {
-    deleteItem(selectedItemId);
-    showConfirm = false;
-    selectedItemId = null;
-  }
+  let name = $state("");
+  let manufacturer = $state("");
+  let details = $state("");
+  let number_items = $state(1);
+  let image = $state("");
+  let tags = $state("");
 
-  function cancelDelete() {
-    showConfirm = false;
-  }
+  let streamUrl = "http://localhost:5050";
+  const media_url = "http://127.0.0.1:5000/media/";
 
-  function toggleItem(itemId) {
-    selectedItemId = selectedItemId === itemId ? null : itemId;
-  }
+	let imageUrl = $state("");
+  imageUrl = "${streamUrl}";
 
-  $: itemsPerPage = selectedItemsPerPage === "All" ? filteredItems.length : parseInt(selectedItemsPerPage);
+  let description = $state("");
+  let item_type = $state("");
+  let location = $state("");
+  let check_out_poc = $state("");
+  let check_out_date = $state("");
+  let is_checked_out = 0;
 
-  $: totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-  $: paginatedItems = filteredItems.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+	let selectedFile = $state(null);
 
-  function goToPage(page) {
-    if (page >= 1 && page <= totalPages) {
-      currentPage = page;
-    }
-  }
+	async function handleFileUpload(Event) {
+		const input = event.target;
+		if (input.files && input.files.length > 0) {
+			selectedFile = input.files[0];
 
-  function handleItemsPerPageChange(event) {
-    selectedItemsPerPage = event.target.value;
-    currentPage = 1; // reset to first page
-  }
+			const formData = new FormData();
+			formData.append("avatar", selectedFile);
 
-  async function updateItem(itemId, item){
-    // Function TODO 
-  }
+			try {
+				const response = await fetch("http://127.0.0.1:5000/image_upload", {
+					method: "POST",
+					body: formData,
+				});
 
-  async function printLabel(itemId){
-    const res = await fetch("http://localhost:5000/print_label", {
-      method: "POST",
-      credentials: "include",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ itemId }),
+				if (response.ok) {
+					const result = await response.json();
+					image = result.image;
+					imageUrl = `${media_url}/${image}.png`;
+					showStaticImg = true;
+					console.log("Upload successful:", result);
+				} else {
+					console.error("Upload failed:", await response.text());
+				}
+			} catch (error) {
+				console.error("Error uploading file:", error);
+			}
+		}
+	}
+
+	/* ------------------  Additional functions ----------------------- */
+
+	 async function downloadExcel() {
+    const itemRes = await fetch('http://localhost:5000/items', {
+      credentials: 'include'
     });
 
-    if (!res.ok) {
-      error = "Printing Label failed";
-    }
+    const items = await itemRes.json();
+    if (!items.length) return;
+
+    // Convert JSON to worksheet
+    const worksheet = XLSX.utils.json_to_sheet(items);
+
+    // Create a new workbook and append the worksheet
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory');
+
+    // Generate timestamped filename
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
+    const filename = `inventory-${timestamp}.xlsx`;
+
+    // Write the workbook to a blob and trigger download
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
-
-  async function deleteItem(itemId){
-    const res = await fetch("http://localhost:5000/delete_item", {
-      method: "POST",
-      credentials: "include",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ itemId }),
-    });
-
-    if (!res.ok) {
-      error = "Deleting Item failed";
-    }
-    else
-    { 
-      // Remove this item from the item list 
-      const index = items.findIndex((i) => i.id === itemId);
-      if (index !== -1) {
-        items.splice(index, 1);
-      }
-    }
-  }
-
-  async function checkoutItem(itemId){
-    const res = await fetch("http://localhost:5000/checkout_item", {
-      method: "POST",
-      credentials: "include",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ itemId }),
-    });
-
-    if (!res.ok) {
-      error = "Item checkout failed";
-    }
-
-    // Update item in the list
-    const index = items.findIndex((i) => i.id === itemId);
-    if (index !== -1) {
-      items[index] = {
-        ...items[index],
-        is_checked_out: true,
-        check_out_poc: 'You', // Or extract from response
-        check_out_date: new Date().toLocaleDateString(), // Update as needed
-      };
-    }
-  }
-
-  async function returnItem(itemId){
-    const res = await fetch("http://localhost:5000/return_item", {
-      method: "POST",
-      credentials: "include",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ itemId }),
-    });
-
-    if (!res.ok) {
-      error = "Item return failed";
-    }
-
-    // Update item in the list
-    const index = items.findIndex((i) => i.id === itemId);
-    if (index !== -1) {
-      items[index] = {
-        ...items[index],
-        is_checked_out: false,
-        check_out_poc: null,
-        check_out_date: null,
-      };
-    }
-  }
-
-  // Filter items based on search query
-  $: filteredItems = items.filter(item =>
-    Object.values(item).some(value =>
-      String(value).toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
 </script>
+
+ <!-- ___________------------------ CONTENT --------------------____________ -->
 
 <svelte:head>
   <title>Inventory</title>
   <meta name="description" content="Page to add new item" />
 </svelte:head>
 
-<!-- Headline  -->
-<h1 class="headline">Inventory</h1>
-
-<!-- Search bar  -->
-<input
-  class="search-box"
-  placeholder="Search items..."
-  bind:value={searchQuery}
-/>
-
-<svelte:body class:lock-scroll={selectedItemId !== null} />
-
-<div class="product-grid">
-  {#each paginatedItems as item}
-    {#if selectedItemId === item.id}
-      <!-- Overlay for expanded card -->
-      <div class="overlay" on:click={() => (selectedItemId = null)}>
-        <div
-          class="product-card expanded centered"
-          on:click|stopPropagation
-        >
-          <img src={`${media_url}${item.image}.png`} alt={item.image} className="product-image" />
-          <div class="product-name">{item.name}</div>
-          <div class="manufacturer">by {item.manufacturer}</div>
-          <!-- This will show the number of items of this category -->
-          <div class="manufacturer">Count: {item.item_type}</div>
-          <div class="manufacturer">Type: {item.number_items}</div>
-
-            {#if item.is_checked_out}
-              <div class="status-out">
-                Checked out by {item.check_out_poc} since {item.check_out_date}
-              </div>
-            {:else}
-              <div class="status-available">Available</div>
-            {/if}
-
-          <div class="extra-details">
-            <div class="manufacturer">Manufacturer details: {item.details}</div>
-          </div>
-
-          <div class="extra-details">
-            {#if showConfirm}
-              <div class="confirm-card">
-                <p>Are you sure you want to delete this item?</p>
-                <div class="confirm-actions">
-                  <button class="confirm-button" on:click={confirmDelete}>Yes, Delete</button>
-                  <button class="cancel-button" on:click={cancelDelete}>Cancel</button>
-                </div>
-              </div>
-            {:else}
-              {#if item.is_checked_out}
-              <button class="return-button" on:click={() => returnItem(selectedItemId)}>
-                <Undo2 size={20} /> return
-              </button>
-              {:else}
-                <button class="borrow-button" on:click={() => checkoutItem(selectedItemId)}>
-                  <HandHelping size={20} /> borrow
-                </button>
-              {/if}
-              {#if error}
-                <p class="error-message">{error}</p>
-              {/if}
-              <button class="generic-button" on:click={() => printLabel(selectedItemId)}> 
-                <Printer size={20} /> 
-                <span>print label</span>
-              </button>
-              <button class="generic-button" on:click={() => requestDelete()}> 
-                <Trash2 size={20} /> 
-                <span>delete</span>
-              </button>
-              <button class="generic-button" on:click={() => updateItem(selectedItemId, item)}> 
-                <SquarePen size={20} /> 
-                <span>update data</span>
-              </button>
-            {/if}
-          </div>
-          <div class="extra-details">
-            <button class="close-button" on:click={() => (selectedItemId = null)}><CircleX size={20} /> close</button>
-          </div>
-        </div>
-      </div>
-    {:else if !selectedItemId}
-      <!-- Normal card display -->
-      <div class="product-card" on:click={() => toggleItem(item.id)}>
-        <img src={`${media_url}${item.image}.png`} alt={item.name} class="product-image" />
-        <div class="product-name">{item.name}</div>
-        <div class="manufacturer">by {item.manufacturer}</div>
-        <div class="manufacturer">Type: {item.number_items}</div>
-        {#if item.is_checked_out}
-          <div class="status-out">
-            Checked out by {item.check_out_poc} since {item.check_out_date}
-          </div>
-        {:else}
-          <div class="status-available">Available</div>
-        {/if}
-      </div>
-    {/if}
-  {/each}
-</div>
-
-<footer class="footer">
-
-  <div class="pagination">
-    <button class="generic-button" on:click={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
-      <CircleChevronLeft size={20} />
-    </button>
-
-    {#each Array(totalPages) as _, index}
-      <button
-      class="generic-button"
-        class:active-page={currentPage === index + 1}
-        on:click={() => goToPage(index + 1)}
-      >
-        {index + 1}
-      </button>
-    {/each}
-
-    <button class="generic-button" on:click={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
-      <CircleChevronRight size={20} />
-    </button>
-
-    <div class="pagination-controls">
-    <label class="label" for="itemsPerPage">Items per page:</label>
-    <select class="generic-dropdown" 
-            id="itemsPerPage" 
-            on:change={handleItemsPerPageChange} 
-            bind:value={selectedItemsPerPage}>
-      <option value="5">5</option>
-      <option value="10">10</option>
-      <option value="50">50</option>
-      <option value="All">All</option>
-    </select>
-  </div>
-  </div>
-</footer>
-
-<style>
-
-  .pagination {
-    margin-top: 1rem;
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .pagination button {
-    padding: 0.4rem 0.7rem;
-  }
-
-  .active-page {
-    font-weight: bold;
-    background-color: #ddd;
-  }
-
-  .headline {
-    font-size: 3rem;
-    font-weight: bold;
-    color: #c85203
-  }
-
-  .search-box {
-    display: block;         /* Ensure it's treated as a block */
-    margin: 0 auto 1rem;    /* Center horizontally, keep bottom margin */
-    padding: 0.5rem;
-    width: 100%;
-    max-width: 400px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-  }
-
-  .product-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-  }
-
-  .product-card {
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    background-color: rgb(35, 35, 35);
-    transition: box-shadow 0.2s;
-  }
-
-  .product-card.faded {
-    opacity: 0.3;
-    pointer-events: none;
-    transform: scale(0.98);
-  }
-
-  .product-card.expanded {
-    grid-column: 1 / -1;
-    transform: scale(1.02);
-    z-index: 10;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
-  .product-card:hover {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    background-color: rgb(82, 81, 81);
-  }
-
-  .extra-details {
-  margin-top: 1rem;
-  border-top: 1px solid #eee;
-  padding-top: 1rem;
-  }
-
-  .label{
-    justify-content: center;
-    text-align: center;
-    color: #fa8d1f;
-  }
-  
-  /* Overlay that dims background */
-  .overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 100;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 1rem;
-  }
-
-  /* Centered product card */
-  .product-card.centered {
-    max-width: 600px;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
-    background: rgb(114, 113, 113)2, 81, 81);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-    transition: transform 0.3s ease;
-  }
-
-  .button-row {
-    display: flex;
-    gap: 1rem; 
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .generic-button{
-    background-color: #252525;
-    color: #fa8d1f;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin-bottom: 1rem; 
-    margin-top: 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    /* display: flex; */
-    flex-direction: column;
-    align-items: center; 
-    gap: 4px; 
-  }
-
-  .generic-button span {
-    margin-top: 4px;
-    font-size: 0.85rem;
-  }
-
-  .generic-dropdown{
-    background-color: #252525;
-    color: #fa8d1f;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin: 0 auto 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .product-image {
-    max-height: 200px;
-    object-fit: contain;
-    margin-bottom: 1rem;
-    border-bottom: 1px solid #d37e1d;
-    padding-bottom: 1rem;
-  }
-
-  .product-name {
-    font-weight: bold;
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-    color: #fa8d1f
-  }
-
-  .manufacturer {
-    color: #d5d5d5;
-    margin-bottom: 0.5rem;
-  }
-
-  .status-available {
-    margin-top: auto;
-    font-weight: 500;
-    color: green;
-  }
-
-  .status-out {
-    color: red;
-  }
-
-  .borrow-button{
-    background-color: #fa8d1f;
-    color: #252525;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin: 0 auto 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .return-button{
-    background-color: #008c13;
-    color: #252525;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin: 0 auto 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .close-button{
-    display: flex;
-    justify-content: center;
-    margin-top: 1rem;
-    background-color: #c1c1c1;
-    color: #252525;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin: 0 auto 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .lock-scroll {
-    overflow: hidden;
-  }
-
-  .confirm-card {
-    background: rgb(241, 167, 167);
-    border: 1px solid #af0000;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-top: 0.5rem;
-  }
-
-  .confirm-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
-  }
-
-  .confirm-button {
-    background-color: #f21313;
-    color: #181818;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin: 0 auto 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .cancel-button {
-    background-color: rgb(63, 63, 63)c13;
-    color: #404040;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin: 0 auto 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-</style>
+<Section name="advancedTable" sectionClass="w-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
+	<TableSearch placeholder="Search" hoverable={true} bind:inputValue={searchTerm} {divClass} {innerDivClass} {searchClass}>
+		{#snippet header()}
+			<div class="flex w-full flex-shrink-0 flex-col items-stretch justify-end space-y-2 md:w-auto md:flex-row md:items-center md:space-y-0 md:space-x-3">
+				<Button onclick={() => (hidden = false)}>
+					<PlusOutline class="mr-2 h-3.5 w-3.5" />Add item
+				</Button>
+		    <Button >
+					<QrCodeOutline class="mr-2 h-3.5 w-3.5" /> Scan QR
+				</Button>
+				<Button color="alternative">Actions<ChevronDownOutline class="ml-2 h-3 w-3 " /></Button>
+				<Dropdown simple class="w-44 divide-y divide-gray-100">
+					<DropdownItem onclick={downloadExcel} >Download Excel</DropdownItem>
+					<DropdownItem>Delete all</DropdownItem>
+				</Dropdown>
+				<Button color="alternative">Filter<FilterSolid class="ml-2 h-3 w-3 " /></Button>
+				<Dropdown class="w-48 space-y-2 p-3 text-sm">
+					<h6 class="mb-3 text-sm font-medium text-gray-900 dark:text-white">Choose manufacturer</h6>
+					<List tag="dl">
+						<Li>
+							<Checkbox>Apple (56)</Checkbox>
+						</Li>
+						<Li>
+							<Checkbox>Microsoft (16)</Checkbox>
+						</Li>
+						<Li>
+							<Checkbox>Razor (49)</Checkbox>
+						</Li>
+						<Li>
+							<Checkbox>Nikon (12)</Checkbox>
+						</Li>
+						<Li>
+							<Checkbox>BenQ (74)</Checkbox>
+						</Li>
+					</List>
+				</Dropdown>
+			</div>
+		{/snippet}
+		<TableHead>
+			<TableHeadCell class="px-4 py-3" scope="col">Product name</TableHeadCell>
+			<TableHeadCell class="px-4 py-3" scope="col">Manufacturer</TableHeadCell>
+			<TableHeadCell class="px-4 py-3" scope="col">Type</TableHeadCell>
+			<TableHeadCell class="px-4 py-3" scope="col">Number of Items</TableHeadCell>
+		</TableHead>
+		<TableBody class="divide-y">
+			{#if searchTerm !== ''}
+				{#each filteredItems as item (item.id)}
+					<TableBodyRow>
+						<TableBodyCell class="px-4 py-3">{item.name}</TableBodyCell>
+						<TableBodyCell class="px-4 py-3">{item.manufacturer}</TableBodyCell>
+						<TableBodyCell class="px-4 py-3">{item.item_type}</TableBodyCell>
+						<TableBodyCell class="px-4 py-3">{item.number_items}</TableBodyCell>
+					</TableBodyRow>
+				{/each}
+			{:else}
+				{#each currentPageItems as item (item.id)}
+					<TableBodyRow>
+						<TableBodyCell class="px-4 py-3">{item.name}</TableBodyCell>
+						<TableBodyCell class="px-4 py-3">{item.manufacturer}</TableBodyCell>
+						<TableBodyCell class="px-4 py-3">{item.item_type}</TableBodyCell>
+						<TableBodyCell class="px-4 py-3">{item.number_items}</TableBodyCell>
+					</TableBodyRow>
+				{/each}
+			{/if}
+		</TableBody>
+		{#snippet footer()}
+			<div class="flex flex-col items-start justify-between space-y-3 p-4 md:flex-row md:items-center md:space-y-0" aria-label="Table navigation">
+				<span class="text-sm font-normal text-gray-500 dark:text-gray-400">
+					Showing
+					<span class="font-semibold text-gray-900 dark:text-white">{startRange}-{endRange}</span>
+					of
+					<span class="font-semibold text-gray-900 dark:text-white">{totalItems}</span>
+				</span>
+				<ButtonGroup>
+					<Button onclick={loadPreviousPage} disabled={currentPosition === 0}><ChevronLeftOutline size="xs" class="m-1.5" /></Button>
+					{#each pagesToShow as pageNumber}
+						<Button onclick={() => goToPage(pageNumber)}>{pageNumber}</Button>
+					{/each}
+					<Button onclick={loadNextPage} disabled={totalPages === endPage}><ChevronRightOutline size="xs" class="m-1.5" /></Button>
+				</ButtonGroup>
+			</div>
+		{/snippet}
+	</TableSearch>
+</Section>
 
 
+
+<Section name="advancedTable" sectionClass="w-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
+
+
+
+</Section>
+
+<!-- ---------------------   ADD ITEM SIDE PANEL --------------------------- -->
+
+<Section name="crudcreatedrawer">
+	<Drawer bind:hidden id="sidebar4" class="w-1/2">
+		<div class="flex items-center justify-between">
+			<h5 id="drawer-label" class="mb-6 inline-flex items-center text-base font-semibold text-gray-500 uppercase dark:text-gray-400">New Item</h5>
+			<CloseButton onclick={handleCancel} class="mb-4 dark:text-white" />
+		</div>
+		<form action="#" class="mb-6">
+			<div class="mb-6">
+				<Label for="name" class="mb-2 block">Name</Label>
+				<FloatingLabelInput clearable variant="outlined" id="clearable_outlined" name="clearable_outlined" type="text" required bind:value={name}>Name</FloatingLabelInput>
+			</div>
+			<div class="mb-6">
+				<Label for="manufacturer" class="mb-2 block">Manufacturer</Label>
+				<Input id="manufacturer" name="manufacturer" required placeholder="Item manufacturer" />
+			</div>
+			<div class="mb-6">
+				<Label for="number_items" class="mb-2 block">Number of Items</Label>
+				<Input id="number_items" name="prnumber_itemsice" required placeholder="1" />
+			</div>
+			<div class="mb-6">
+				<Label
+					>Item Type
+					<Select class="mt-2" items={categories} bind:value={selected} />
+				</Label>
+			</div>
+			<div class="mb-6">
+				<Label for="brand" class="mb-2">Description</Label>
+				<Textarea id="message" placeholder="Enter a detailed item description here" rows={4} name="message" />
+			</div>
+
+			<div class="items-center justify-center w-full">
+					<label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
+							<div class="flex flex-col items-center justify-center pt-5 pb-6">
+									<svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+											<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+									</svg>
+									<p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+									<p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG </p>
+							</div>
+							<input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
+					</label>
+			</div> 
+
+			<div class="bottom-0 left-0 flex w-full justify-center space-x-4 pb-4 md:absolute md:px-4">
+				<Button type="submit" class="w-full">Add item</Button>
+				<Button class="w-full" color="light" onclick={handleCancel}>
+					<svg aria-hidden="true" class="-ml-1 h-5 w-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+						><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+					Cancel
+				</Button>
+			</div>
+		</form>
+	</Drawer>
+</Section>
+
+
+<!-- ---------------------   SCANNER CAMER SIDE PANEL --------------------------- -->
+<!-- 
+<Section name="scanner_sidepanel">
+	<Drawer bind:hidden id="sidebar4" class="w-1/2">
+
+	</Drawer>
+</Section> -->

@@ -1,6 +1,7 @@
 <script>
   import { goto } from "$app/navigation";
   import { fetchUser } from "$lib/stores/auth.js";
+  import {  FloatingLabelInput} from 'flowbite-svelte';
 
   let username = "";
   let password = "";
@@ -30,76 +31,17 @@
   <meta name="description" content="Inventory Login page" />
 </svelte:head>
 
-<div class="page-container">
-  <form class="login-box" on:submit|preventDefault={login}>
-    <input type="text" placeholder="User Name" bind:value={username} required />
-    <input
-      type="password"
-      placeholder="Password"
-      bind:value={password}
-      required
-    />
-    <button
-      type="submit"
-      class="px-8 py-2 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 text-white focus:ring-2 focus:ring-blue-400 hover:shadow-xl transition duration-200"
-    >
-      Log In
-    </button>
-    {#if error}<p class="text-red-500">{error}</p>{/if}
+<div class="flex items-center justify-center min-h-screen bg-gray-100 w-screen h-screen dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+  <form class="max-w-sm mx-auto" on:submit|preventDefault={login}>
+    <div class="mb-5 flex items-center justify-center" >
+      <label for="login" class="block mb-2 text-sm font-large text-gray-900 dark:text-white">Inventory Log-In</label>
+    </div>
+    <div class="mb-5">
+      <FloatingLabelInput clearable variant="outlined" id="user" name="user" type="text" required bind:value={username} >Name</FloatingLabelInput>
+    </div>
+    <div class="mb-5">
+      <FloatingLabelInput clearable variant="outlined" id="password" name="password" type="password" required bind:value={password} >Password</FloatingLabelInput>
+    </div>
+    <button type="submit" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm w-full sm:w-auto px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Submit</button>
   </form>
 </div>
-
-<style>
-  .page-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh; /* full viewport height */
-  }
-
-  .login-box {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 1rem;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 400px;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  input {
-    padding: 0.75rem;
-    border: 1px solid #ccc;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    background-color: #eef2f7;
-  }
-
-  input:focus {
-    background-color: #ffffff;
-    border-color: #2c7be5;
-    outline: none;
-  }
-
-  button {
-    padding: 0.75rem;
-    background-color: #2a2b2a;
-    color: white;
-    font-weight: bold;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  button:hover {
-    background-color: #e59500;
-  }
-
-  .error {
-    color: red;
-    margin-top: 10px;
-  }
-</style>
