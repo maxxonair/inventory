@@ -18,47 +18,6 @@
     goto('/login');
   }
 
-
-
-  async function downloadCSV() {
-    const itemRes = await fetch('http://localhost:5000/items', {
-      credentials: 'include'
-    });
-
-    const items = await itemRes.json();
-
-    // Exit if list is empty
-    if (!items.length) return;
-
-    // Extract CSV headers
-    const headers = Object.keys(items[0]);
-
-    // Format rows
-    const csvRows = [
-      headers.join(','), // header row
-      ...items.map(item =>
-        headers.map(header => `"${item[header] ?? ''}"`).join(',')
-      )
-    ];
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    // Generate timestamped filename
-    const now = new Date();
-    const timestamp = now.toISOString().replace(/[:.]/g, '-');
-    const filename = `inventory-${timestamp}.csv`;
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
-
   onMount(() => {
     const ua = navigator.userAgent;
     isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
@@ -80,22 +39,22 @@
     </svg>
     <ul>
       {#if isLoggedIn}
-        <li aria-current={page.url.pathname === "/scanner" ? "page" : undefined}>
+        <!-- <li aria-current={page.url.pathname === "/scanner" ? "page" : undefined}>
           <a href="/scanner" aria-label="Scanner" title="Open QR Scanner">
             <ScanQrCode size={20} />
           </a>
-        </li>
+        </li> -->
         <li aria-current={page.url.pathname === "/" ? "home" : undefined}>
           <a href="/" title="Inventory Home">
             <Home size={20} />
             <p class="button-label"></p>
           </a>
         </li>
-        <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>
+        <!-- <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>
           <a href="/studio" aria-label="Studio" title="Add Item Section">
             <PlusCircle size={20} />
           </a>
-        </li>
+        </li> -->
       {/if}
     </ul>
     <svg viewBox="0 0 2 3" aria-hidden="true">

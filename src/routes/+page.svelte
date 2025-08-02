@@ -1,11 +1,15 @@
 <script>
+// @ts-nocheck
+
   import { page } from "$app/state";
 	import * as XLSX from 'xlsx';
+	import { CircleX, HandHelping , Undo2, CircleChevronLeft, CircleChevronRight, Printer , Trash2, SquarePen} from 'lucide-svelte';
   import { TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, TableSearch, Dropdown, DropdownItem, Checkbox, ButtonGroup, List, Li, FloatingLabelInput} from 'flowbite-svelte';
-	import { Drawer, Button, CloseButton, Label, Input, Textarea, Select } from 'flowbite-svelte';
+	import { Drawer, Button, GradientButton, CloseButton, Label, Input, Textarea, Select } from 'flowbite-svelte';
 	import { Section } from 'flowbite-svelte-blocks';
-	import { PlusOutline, ChevronDownOutline, FilterSolid, ChevronRightOutline, ChevronLeftOutline, QrCodeOutline} from 'flowbite-svelte-icons';
-
+	import { CloseOutline, ExclamationCircleOutline, CheckCircleOutline, PrinterOutline,  PenOutline, PlusOutline, ChevronDownOutline, FilterSolid, ChevronRightOutline, ChevronLeftOutline, QrCodeOutline,  FolderArrowRightOutline} from 'flowbite-svelte-icons';
+  import { CartPlusAltOutline } from "flowbite-svelte-icons";
+  
   const { user } = $props();
 
   /* ------------------  Main Table function ----------------------- */
@@ -92,6 +96,9 @@
 	/* ------------------  Add Item Side panel function ----------------------- */
 
 	let hidden = $state(true);
+	let showAddItemPanel = $state(false);
+	let showScannerPanel = $state(false);
+	const scannerStreamUrl = "http://localhost:5050";
 	let selected = $state();
 	let categories = [
 		{ value: '', name: 'Select Type' },
@@ -104,6 +111,18 @@
 	const handleCancel = () => {
 		hidden = true;
 	};
+
+	const toggleAddItemPanel = () => {
+		hidden = !hidden;
+		showAddItemPanel = true;
+		showScannerPanel = false;
+	}
+
+	const toggleScannerPanel = () => {
+		hidden = !hidden;
+		showAddItemPanel = false;
+		showScannerPanel = true;
+	}
 
   let name = $state("");
   let manufacturer = $state("");
@@ -157,6 +176,53 @@
 	}
 
 	/* ------------------  Additional functions ----------------------- */
+	let error_msg = $state("");
+	let showConfirm = $state(false);
+	let selectedItemId = $state(null);
+  let enableEdit = $state(false);
+
+  function toggleEdit() {
+    enableEdit = !enableEdit;
+  }
+
+  async function downloadCSV() {
+    const itemRes = await fetch('http://localhost:5000/items', {
+      credentials: 'include'
+    });
+
+    const items = await itemRes.json();
+
+    // Exit if list is empty
+    if (!items.length) return;
+
+    // Extract CSV headers
+    const headers = Object.keys(items[0]);
+
+    // Format rows
+    const csvRows = [
+      headers.join(','), // header row
+      ...items.map(item =>
+        headers.map(header => `"${item[header] ?? ''}"`).join(',')
+      )
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    // Generate timestamped filename
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
+    const filename = `inventory-${timestamp}.csv`;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 
 	 async function downloadExcel() {
     const itemRes = await fetch('http://localhost:5000/items', {
@@ -191,6 +257,113 @@
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+
+	async function deleteItem(itemId){
+    const res = await fetch("http://localhost:5000/delete_item", {
+      method: "POST",
+      credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ itemId }),
+    });
+
+    if (!res.ok) {
+      error_msg = "Deleting Item failed";
+    }
+    else
+    { 
+      // Remove this item from the item list 
+      const index = items.findIndex((i) => i.id === itemId);
+      if (index !== -1) {
+        items.splice(index, 1);
+      }
+    }
+  }
+
+  async function checkoutItem(itemId){
+    const res = await fetch("http://localhost:5000/checkout_item", {
+      method: "POST",
+      credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ itemId }),
+    });
+
+    if (!res.ok) {
+      error_msg = "Item checkout failed";
+    }
+
+    // Update item in the list
+    const index = items.findIndex((i) => i.id === itemId);
+    if (index !== -1) {
+      items[index] = {
+        ...items[index],
+        is_checked_out: true,
+        check_out_poc: 'you', 
+        check_out_date: new Date().toLocaleDateString(), 
+      };
+    }
+  }
+
+  async function returnItem(itemId){
+    const res = await fetch("http://localhost:5000/return_item", {
+      method: "POST",
+      credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ itemId }),
+    });
+
+    if (!res.ok) {
+      error_msg = "Item return failed";
+    }
+
+    // Update item in the list
+    const index = items.findIndex((i) => i.id === itemId);
+    if (index !== -1) {
+      items[index] = {
+        ...items[index],
+        is_checked_out: false,
+        check_out_poc: null,
+        check_out_date: null,
+      };
+    }
+  }
+
+	async function updateItem(itemId, item){
+    // Function TODO 
+  }
+
+  async function printLabel(itemId){
+    const res = await fetch("http://localhost:5000/print_label", {
+      method: "POST",
+      credentials: "include",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ itemId }),
+    });
+
+    if (!res.ok) {
+      error = "Printing Label failed";
+    }
+  }
+
+  function requestDelete() {
+    enableEdit = false;
+    showConfirm = true;
+  }
+
+  function confirmDelete() {
+    deleteItem(selectedItemId);
+    showConfirm = false;
+    selectedItemId = null;
+  }
+
+  function cancelDelete() {
+    enableEdit = false;
+    showConfirm = false;
+  }
+
+	function toggleItem(itemId) {
+    selectedItemId = selectedItemId === itemId ? null : itemId;
+  }
+
 </script>
 
  <!-- ___________------------------ CONTENT --------------------____________ -->
@@ -204,67 +377,184 @@
 	<TableSearch placeholder="Search" hoverable={true} bind:inputValue={searchTerm} {divClass} {innerDivClass} {searchClass}>
 		{#snippet header()}
 			<div class="flex w-full flex-shrink-0 flex-col items-stretch justify-end space-y-2 md:w-auto md:flex-row md:items-center md:space-y-0 md:space-x-3">
-				<Button onclick={() => (hidden = false)}>
+				<Button onclick={toggleAddItemPanel}>
 					<PlusOutline class="mr-2 h-3.5 w-3.5" />Add item
 				</Button>
-		    <Button >
+		    <Button onclick={toggleScannerPanel}>
 					<QrCodeOutline class="mr-2 h-3.5 w-3.5" /> Scan QR
 				</Button>
-				<Button color="alternative">Actions<ChevronDownOutline class="ml-2 h-3 w-3 " /></Button>
+				<Button color="alternative">More<ChevronDownOutline class="ml-2 h-3 w-3 " /></Button>
 				<Dropdown simple class="w-44 divide-y divide-gray-100">
-					<DropdownItem onclick={downloadExcel} >Download Excel</DropdownItem>
-					<DropdownItem>Delete all</DropdownItem>
+					<DropdownItem onclick={downloadExcel} >Export Inventory as Excel</DropdownItem>
+          <DropdownItem onclick={downloadCSV} >Export Inventory as CSV</DropdownItem>
 				</Dropdown>
 				<Button color="alternative">Filter<FilterSolid class="ml-2 h-3 w-3 " /></Button>
 				<Dropdown class="w-48 space-y-2 p-3 text-sm">
-					<h6 class="mb-3 text-sm font-medium text-gray-900 dark:text-white">Choose manufacturer</h6>
+					<h6 class="mb-3 text-sm font-medium text-gray-900 dark:text-white">Choose item type</h6>
 					<List tag="dl">
 						<Li>
-							<Checkbox>Apple (56)</Checkbox>
+							<Checkbox>Type A</Checkbox>
 						</Li>
 						<Li>
-							<Checkbox>Microsoft (16)</Checkbox>
+							<Checkbox>Type B</Checkbox>
 						</Li>
 						<Li>
-							<Checkbox>Razor (49)</Checkbox>
+							<Checkbox>Type C</Checkbox>
 						</Li>
 						<Li>
-							<Checkbox>Nikon (12)</Checkbox>
+							<Checkbox>Type D</Checkbox>
 						</Li>
 						<Li>
-							<Checkbox>BenQ (74)</Checkbox>
+							<Checkbox>Type E</Checkbox>
 						</Li>
 					</List>
 				</Dropdown>
 			</div>
 		{/snippet}
-		<TableHead>
-			<TableHeadCell class="px-4 py-3" scope="col">Product name</TableHeadCell>
-			<TableHeadCell class="px-4 py-3" scope="col">Manufacturer</TableHeadCell>
-			<TableHeadCell class="px-4 py-3" scope="col">Type</TableHeadCell>
-			<TableHeadCell class="px-4 py-3" scope="col">Number of Items</TableHeadCell>
-		</TableHead>
-		<TableBody class="divide-y">
-			{#if searchTerm !== ''}
-				{#each filteredItems as item (item.id)}
-					<TableBodyRow>
-						<TableBodyCell class="px-4 py-3">{item.name}</TableBodyCell>
-						<TableBodyCell class="px-4 py-3">{item.manufacturer}</TableBodyCell>
-						<TableBodyCell class="px-4 py-3">{item.item_type}</TableBodyCell>
-						<TableBodyCell class="px-4 py-3">{item.number_items}</TableBodyCell>
-					</TableBodyRow>
-				{/each}
-			{:else}
-				{#each currentPageItems as item (item.id)}
-					<TableBodyRow>
-						<TableBodyCell class="px-4 py-3">{item.name}</TableBodyCell>
-						<TableBodyCell class="px-4 py-3">{item.manufacturer}</TableBodyCell>
-						<TableBodyCell class="px-4 py-3">{item.item_type}</TableBodyCell>
-						<TableBodyCell class="px-4 py-3">{item.number_items}</TableBodyCell>
-					</TableBodyRow>
-				{/each}
-			{/if}
-		</TableBody>
+<!-- ------------------------------------------------------------------------- -->
+
+		<div class="product-grid p-2">
+			{#each currentPageItems as item}
+				{#if selectedItemId === item.id}
+		<!-- --------------------------- EXTENDED CARD END --------------------- -->
+
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div type="overlay" class="overlay"  > 
+			<!-- <div class="mb-4 text-xl font-bold text-gray-900 dark:text-white">  -->
+      <div class="rounded-lg expanded centered mb-6 p-4 dark:bg-slate-800 bg-slate-200 border dark:border-slate-400 border-slate-800 "  >
+        <div class="flex justify-end">
+          <CloseButton onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white" />
+        </div>
+        <Section name="crudcreateform" class="flex justify-centered w-full">
+          <div class="flex justify-center">
+            <h2 class="mb-4 text-xl inline-flex font-bold items-center pb-2 text-gray-800 dark:text-slate-300 border border-slate-900 dark:border-slate-400 rounded-lg">{item.name}</h2>
+			    </div>
+          <div class="flex items-center justify-center ">
+            <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full max-w-96 border rounded-lg border-slate-900"  />
+          </div>
+          <form class="p-2">
+            <div class="mb-6 grid gap-6 md:grid-cols-2">
+              <div>
+                <!-- svelte-ignore attribute_quoted -->
+                  {#if enableEdit}
+                    <Input clearable value="{item.name}"/>
+                  {:else}
+                    <Label for="name" class="mb-2 p-2">Name: {item.name}</Label>
+                  {/if}
+              </div>
+
+              <div>
+                <!-- svelte-ignore attribute_quoted -->
+                  {#if enableEdit}
+                    <Input clearable value="{item.manufacturer}" placeholder="Manufacturer"/>
+                  {:else}
+                    <Label for="name" class="mb-2 p-2 text-inherit" >Manufacturer: {item.manufacturer}</Label>
+                  {/if}
+              </div>
+
+              <div>
+                <Label class="mb-2 p-2 text-inherit">Count: {item.number_items}</Label>
+              </div>
+
+              <div>
+                <Label class="mb-2 p-2">Type: {item.item_type}</Label>
+              </div>
+
+              <div>
+                {#if item.detials}
+                  <Label class="mb-2 p-2">Details: {item.details}</Label>
+                {:else}
+                  <Label class="mb-2 p-2">Details: N/A</Label>
+                {/if}
+              </div>
+
+            </div>
+
+            <div class="flex justify-center mt-auto">
+              {#if item.is_checked_out}
+                <Label color="red" class="mb-2 p-2 text-red-500 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</Label>
+              {:else}
+                <Label color="green" class="mb-2 p-2 text-green-500 font-semibold border border-green-500 rounded-lg">Available</Label>
+              {/if}
+            </div>
+
+            <div class="row-span-3 md:row-span-4">
+              {#if enableEdit}
+                <Button onclick={() => updateItem(selectedItemId, item)}>
+                  <CheckCircleOutline type="print-button" class="me-2 h-5 w-5"  /> confirm edit
+                </Button>
+                <Button color="red" onclick={() => requestDelete()}>
+                  <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> delete item
+                </Button>
+                <Button color="light" onclick={() => toggleEdit()}>
+                  <CloseOutline type="print-button" class="me-2 h-5 w-5" /> cancel edit
+                </Button>
+              {:else if showConfirm}
+                <div class="mb-2 p-2 border border-red-900 bg-red-500 rounded-lg">
+                  <Label class="mb-2 p-2 text-slate-950">Are you sure you want to delete this item?</Label>
+                  <div class="row-span-3 md:row-span-4">
+                    <Button color="red" onclick={confirmDelete} class="mb-4 border border-slate-900">
+                      <ExclamationCircleOutline type="delete-button" class="me-2 h-5 w-5"  /> yes, delete
+                    </Button>
+                    <Button color="light" onclick={cancelDelete} class="mb-4 dark:text-white">
+                      <CloseOutline type="confirm-button" class="me-2 h-5 w-5"  /> cancel
+                    </Button>
+                  </div>
+                </div>
+              {:else}
+                {#if item.is_checked_out}
+                  <Button color="green" onclick={() => returnItem(selectedItemId)} class="mb-4">
+                    <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> return item
+                  </Button>
+                {:else}
+                  <Button onclick={() => checkoutItem(selectedItemId)} class="mb-4">
+                    <CartPlusAltOutline type="return-button" class="me-2 h-5 w-5"  /> borrow
+                  </Button>
+                {/if}
+                <Button onclick={() => printLabel(selectedItemId)} class="mb-4">
+                  <PrinterOutline type="print-button" class="me-2 h-5 w-5"  /> print label
+                </Button>
+                <Button onclick={() => toggleEdit()} class="mb-4">
+                  <PenOutline type="print-button" class="me-2 h-5 w-5"  /> modify
+                </Button>
+                <Button color="light" onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white">
+                  <CloseOutline type="print-button" class="me-2 h-5 w-5"  /> close
+                </Button>
+              {/if}
+            </div>
+          </form>
+        </Section>
+      </div>
+    </div>
+
+		<!-- --------------------------- EXTENDED CARD END --------------------- -->
+				{:else if !selectedItemId}
+					<!-- Normal card display -->
+					<div class="mb-6 flex flex-col items-center border rounded-lg border-inherit justify-center bg-slate-100 dark:bg-slate-700 p-2" onclick={() => toggleItem(item.id)}>
+						<img src={`${media_url}${item.image}.png`} alt={item.name} class="mb-6 w-full max-w-96 border rounded-lg border-slate-900"/>
+						<div class="p-2 text-orange-500 font-bold">{item.name}</div>
+            {#if item.manufacturer}
+						  <div class="p-2 text-slate-900 dark:text-slate-200 ">by {item.manufacturer}</div>
+            {:else}
+              <div class="p-2 text-slate-900 dark:text-slate-200 ">Manufactuer N/A</div>
+            {/if}
+            {#if item.item_type}
+						  <div class="p-2 text-slate-900 dark:text-slate-200 ">Type: {item.item_type}</div>
+            {/if}
+            <div class="flex justify-center mt-auto">
+              {#if item.is_checked_out}
+                <Label color="red" class="mb-2 p-2 text-red-500 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</Label>
+              {:else}
+                <Label color="green" class="mb-2 p-2 text-green-500 font-semibold border border-green-500 rounded-lg">Available</Label>
+              {/if}
+            </div>
+					</div>
+				{/if}
+			{/each}
+		</div>
+
+		<!-- ------------------------------------------------------------------------- -->
 		{#snippet footer()}
 			<div class="flex flex-col items-start justify-between space-y-3 p-4 md:flex-row md:items-center md:space-y-0" aria-label="Table navigation">
 				<span class="text-sm font-normal text-gray-500 dark:text-gray-400">
@@ -285,11 +575,7 @@
 	</TableSearch>
 </Section>
 
-
-
 <Section name="advancedTable" sectionClass="w-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
-
-
 
 </Section>
 
@@ -297,65 +583,84 @@
 
 <Section name="crudcreatedrawer">
 	<Drawer bind:hidden id="sidebar4" class="w-1/2">
-		<div class="flex items-center justify-between">
-			<h5 id="drawer-label" class="mb-6 inline-flex items-center text-base font-semibold text-gray-500 uppercase dark:text-gray-400">New Item</h5>
-			<CloseButton onclick={handleCancel} class="mb-4 dark:text-white" />
-		</div>
-		<form action="#" class="mb-6">
-			<div class="mb-6">
-				<Label for="name" class="mb-2 block">Name</Label>
-				<FloatingLabelInput clearable variant="outlined" id="clearable_outlined" name="clearable_outlined" type="text" required bind:value={name}>Name</FloatingLabelInput>
+		
+		
+		{#if showAddItemPanel}
+			<div class="flex items-center justify-between">
+				<h5 id="drawer-label" class="mb-6 inline-flex items-center text-base font-semibold text-gray-500 uppercase dark:text-gray-400">New Item</h5>
+				<CloseButton onclick={handleCancel} class="mb-4 dark:text-white" />
 			</div>
-			<div class="mb-6">
-				<Label for="manufacturer" class="mb-2 block">Manufacturer</Label>
-				<Input id="manufacturer" name="manufacturer" required placeholder="Item manufacturer" />
-			</div>
-			<div class="mb-6">
-				<Label for="number_items" class="mb-2 block">Number of Items</Label>
-				<Input id="number_items" name="prnumber_itemsice" required placeholder="1" />
-			</div>
-			<div class="mb-6">
-				<Label
-					>Item Type
-					<Select class="mt-2" items={categories} bind:value={selected} />
-				</Label>
-			</div>
-			<div class="mb-6">
-				<Label for="brand" class="mb-2">Description</Label>
-				<Textarea id="message" placeholder="Enter a detailed item description here" rows={4} name="message" />
-			</div>
+			<form action="#" class="mb-6">
+				<div class="mb-6">
+					<Label for="name" class="mb-2 block">Name</Label>
+					<FloatingLabelInput clearable variant="outlined" id="clearable_outlined" name="clearable_outlined" type="text" required bind:value={name}>Name</FloatingLabelInput>
+				</div>
+				<div class="mb-6">
+					<Label for="manufacturer" class="mb-2 block">Manufacturer</Label>
+					<Input id="manufacturer" name="manufacturer" required placeholder="Item manufacturer" />
+				</div>
+				<div class="mb-6">
+					<Label for="number_items" class="mb-2 block">Number of Items</Label>
+					<Input id="number_items" name="prnumber_itemsice" required placeholder="1" />
+				</div>
+				<div class="mb-6">
+					<Label
+						>Item Type
+						<Select class="mt-2" items={categories} bind:value={selected} />
+					</Label>
+				</div>
+				<div class="mb-6">
+					<Label for="brand" class="mb-2">Description</Label>
+					<Textarea id="message" placeholder="Enter a detailed item description here" rows={4} name="message" />
+				</div>
 
-			<div class="items-center justify-center w-full">
-					<label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
-							<div class="flex flex-col items-center justify-center pt-5 pb-6">
-									<svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-											<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-									</svg>
-									<p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-									<p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG </p>
-							</div>
-							<input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
-					</label>
-			</div> 
+				<div class="items-center justify-center w-full">
+						<label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
+								<div class="flex flex-col items-center justify-center pt-5 pb-6">
+										<svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+												<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+										</svg>
+										<p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+										<p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG </p>
+								</div>
+								<input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
+						</label>
+				</div> 
 
-			<div class="bottom-0 left-0 flex w-full justify-center space-x-4 pb-4 md:absolute md:px-4">
-				<Button type="submit" class="w-full">Add item</Button>
-				<Button class="w-full" color="light" onclick={handleCancel}>
-					<svg aria-hidden="true" class="-ml-1 h-5 w-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-						><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-					Cancel
-				</Button>
+				<div class="bottom-0 left-0 flex w-full justify-center space-x-4 pb-4 md:absolute md:px-4">
+					<Button type="submit" class="w-full">Add item</Button>
+					<Button class="w-full" color="light" onclick={handleCancel}>
+						<svg aria-hidden="true" class="-ml-1 h-5 w-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+							><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+						Cancel
+					</Button>
+				</div>
+			</form>
+		{:else if showScannerPanel}
+			<div class="flex items-center justify-between">
+				<h5 id="drawer-label" class="mb-6 inline-flex items-center text-base font-semibold text-gray-500 uppercase dark:text-gray-400">Scanner</h5>
+				<CloseButton onclick={handleCancel} class="mb-4 dark:text-white" />
 			</div>
-		</form>
+			<div class="page-container">
+				<label for="id" class="mb-6 inline-flex items-center text-base text-gray-500 dark:text-gray-400">
+					Place QR code in front of the scanner camera!
+				</label>
+				<img src={scannerStreamUrl} alt="Camera Stream" class="camera-stream" />
+			</div>
+		{/if}
 	</Drawer>
 </Section>
 
 
-<!-- ---------------------   SCANNER CAMER SIDE PANEL --------------------------- -->
-<!-- 
-<Section name="scanner_sidepanel">
-	<Drawer bind:hidden id="sidebar4" class="w-1/2">
+<!-- TODO remove style -->
+<style>
 
-	</Drawer>
-</Section> -->
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+</style>
+
