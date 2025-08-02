@@ -4,11 +4,15 @@
   import { page } from "$app/state";
 	import * as XLSX from 'xlsx';
 	import { CircleX, HandHelping , Undo2, CircleChevronLeft, CircleChevronRight, Printer , Trash2, SquarePen} from 'lucide-svelte';
-  import { TableBody, TableBodyCell, TableBodyRow, TableHead, TableHeadCell, TableSearch, Dropdown, DropdownItem, Checkbox, ButtonGroup, List, Li, FloatingLabelInput} from 'flowbite-svelte';
-	import { Drawer, Button, GradientButton, CloseButton, Label, Input, Textarea, Select } from 'flowbite-svelte';
+  import { TableBody, P, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from 'flowbite-svelte';
+  import { TableSearch, Dropdown, DropdownItem, Checkbox, ButtonGroup, List, Li, FloatingLabelInput} from 'flowbite-svelte';
+	import { Drawer, Button, GradientButton } from 'flowbite-svelte';
+  import { CloseButton, Label, Input, Textarea, Select } from 'flowbite-svelte';
+	import { CloseOutline, ExclamationCircleOutline, CheckCircleOutline, PrinterOutline}from 'flowbite-svelte-icons';
+  import { PenOutline, ChevronDownOutline, FilterSolid, ChevronRightOutline} from 'flowbite-svelte-icons';
+  import { ChevronLeftOutline, QrCodeOutline,  FolderArrowRightOutline} from 'flowbite-svelte-icons';
 	import { Section } from 'flowbite-svelte-blocks';
-	import { CloseOutline, ExclamationCircleOutline, CheckCircleOutline, PrinterOutline,  PenOutline, PlusOutline, ChevronDownOutline, FilterSolid, ChevronRightOutline, ChevronLeftOutline, QrCodeOutline,  FolderArrowRightOutline} from 'flowbite-svelte-icons';
-  import { CartPlusAltOutline } from "flowbite-svelte-icons";
+  import { CartPlusAltOutline, MinusOutline, PlusOutline } from "flowbite-svelte-icons";
   
   const { user } = $props();
 
@@ -98,6 +102,8 @@
 	let hidden = $state(true);
 	let showAddItemPanel = $state(false);
 	let showScannerPanel = $state(false);
+  let showErrorAlert = $state(false);
+
 	const scannerStreamUrl = "http://localhost:5050";
 	let selected = $state();
 	let categories = [
@@ -177,12 +183,99 @@
 
 	/* ------------------  Additional functions ----------------------- */
 	let error_msg = $state("");
+  let camera_error = $state("");
 	let showConfirm = $state(false);
 	let selectedItemId = $state(null);
   let enableEdit = $state(false);
+  let showCameraStream = $state(false);
+  let showStaticImg = $state(false);
 
   function toggleEdit() {
     enableEdit = !enableEdit;
+  }
+
+  const closeErrorAlertAlert = () => {
+    alert("Clicked closeAlert.");
+    showErrorAlert = !showErrorAlert;
+  }
+
+  function showErrorAlertFnct() {
+    showErrorAlert = true;
+    //  Auto-dismiss Alerts after 10 seconds
+    setTimeout(() => {
+      showErrorAlert = false;
+    }, 120000);
+  }
+
+  async function add_inventory_item() {
+    if (!name) {
+      error_msg = "No item name set. Define item name before adding.";
+      showErrorAlertFnct();
+    } else {
+      let date_now = new Date();
+      let date_added = date_now.toISOString();
+      const res = await fetch("http://localhost:5000/add_item", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          manufacturer,
+          details,
+          item_type,
+          number_items,
+          image,
+          description,
+          location,
+          date_added,
+          check_out_poc,
+          check_out_date,
+          is_checked_out,
+          tags,
+        }),
+      });
+
+      if (!res.ok) {
+        error_msg = "Adding Item Failed";
+        showErrorAlertFnct();
+      } else {
+        error_msg = "";
+        showErrorAlert = false;
+        toggleAddItemPanel();
+      }
+    }
+  }
+
+  async function capture_image() {
+    const res = await fetch("http://localhost:5050/capture_image", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!res.ok) {
+      camera_error = "Image capture failed!";
+    } else {
+      image = await res.json();
+      imageUrl = `${media_url}/${image}.png`;
+      showCameraStream = false;
+      showStaticImg = true;
+    }
+  }
+
+  function toggleCameraVisibility() {
+    if (showCameraStream == true) {
+      showCameraStream = false;
+      showStaticImg = false;
+    } else {
+      showCameraStream = true;
+      showStaticImg = false;
+    }
   }
 
   async function downloadCSV() {
@@ -385,8 +478,8 @@
 				</Button>
 				<Button color="alternative">More<ChevronDownOutline class="ml-2 h-3 w-3 " /></Button>
 				<Dropdown simple class="w-44 divide-y divide-gray-100">
-					<DropdownItem onclick={downloadExcel} >Export Inventory as Excel</DropdownItem>
-          <DropdownItem onclick={downloadCSV} >Export Inventory as CSV</DropdownItem>
+					<DropdownItem onclick={downloadExcel} class="text-xs">Export inventory excel</DropdownItem>
+          <DropdownItem onclick={downloadCSV} class="text-xs">Export inventory csv</DropdownItem>
 				</Dropdown>
 				<Button color="alternative">Filter<FilterSolid class="ml-2 h-3 w-3 " /></Button>
 				<Dropdown class="w-48 space-y-2 p-3 text-sm">
@@ -427,8 +520,8 @@
           <CloseButton onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white" />
         </div>
         <Section name="crudcreateform" class="flex justify-centered w-full">
-          <div class="flex justify-center">
-            <h2 class="mb-4 text-xl inline-flex font-bold items-center pb-2 text-gray-800 dark:text-slate-300 border border-slate-900 dark:border-slate-400 rounded-lg">{item.name}</h2>
+          <div class="flex justify-center p-2">
+            <h2 class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-orange-800 dark:border-orange-400 rounded-lg">{item.name}</h2>
 			    </div>
           <div class="flex items-center justify-center ">
             <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full max-w-96 border rounded-lg border-slate-900"  />
@@ -531,6 +624,8 @@
 		<!-- --------------------------- EXTENDED CARD END --------------------- -->
 				{:else if !selectedItemId}
 					<!-- Normal card display -->
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div class="mb-6 flex flex-col items-center border rounded-lg border-inherit justify-center bg-slate-100 dark:bg-slate-700 p-2" onclick={() => toggleItem(item.id)}>
 						<img src={`${media_url}${item.image}.png`} alt={item.name} class="mb-6 w-full max-w-96 border rounded-lg border-slate-900"/>
 						<div class="p-2 text-orange-500 font-bold">{item.name}</div>
@@ -586,58 +681,105 @@
 		
 		
 		{#if showAddItemPanel}
+
 			<div class="flex items-center justify-between">
 				<h5 id="drawer-label" class="mb-6 inline-flex items-center text-base font-semibold text-gray-500 uppercase dark:text-gray-400">New Item</h5>
 				<CloseButton onclick={handleCancel} class="mb-4 dark:text-white" />
 			</div>
-			<form action="#" class="mb-6">
-				<div class="mb-6">
-					<Label for="name" class="mb-2 block">Name</Label>
-					<FloatingLabelInput clearable variant="outlined" id="clearable_outlined" name="clearable_outlined" type="text" required bind:value={name}>Name</FloatingLabelInput>
-				</div>
-				<div class="mb-6">
-					<Label for="manufacturer" class="mb-2 block">Manufacturer</Label>
-					<Input id="manufacturer" name="manufacturer" required placeholder="Item manufacturer" />
-				</div>
-				<div class="mb-6">
-					<Label for="number_items" class="mb-2 block">Number of Items</Label>
-					<Input id="number_items" name="prnumber_itemsice" required placeholder="1" />
-				</div>
-				<div class="mb-6">
-					<Label
-						>Item Type
-						<Select class="mt-2" items={categories} bind:value={selected} />
-					</Label>
-				</div>
-				<div class="mb-6">
-					<Label for="brand" class="mb-2">Description</Label>
-					<Textarea id="message" placeholder="Enter a detailed item description here" rows={4} name="message" />
-				</div>
 
-				<div class="items-center justify-center w-full">
-						<label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
-								<div class="flex flex-col items-center justify-center pt-5 pb-6">
-										<svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-												<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-										</svg>
-										<p class="mb-2 text-sm text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-										<p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG </p>
-								</div>
-								<input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
-						</label>
-				</div> 
+			<form action="#" class="mb-2">
+        
+        {#if showCameraStream}
 
-				<div class="bottom-0 left-0 flex w-full justify-center space-x-4 pb-4 md:absolute md:px-4">
-					<Button type="submit" class="w-full">Add item</Button>
-					<Button class="w-full" color="light" onclick={handleCancel}>
-						<svg aria-hidden="true" class="-ml-1 h-5 w-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-							><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-						</svg>
-						Cancel
-					</Button>
-				</div>
+          <div class="mb-6 block p-2">
+            <Label for="name" class="mb-2 block p-2">Take an item picture in the studio</Label>
+            <Button color="blue" class="w-full border mb-2 " onclick={capture_image}>
+              capture image
+            </Button>
+            <img src={streamUrl} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
+            <Button color="light" class="w-full mb-2" onclick={toggleCameraVisibility}>close camera</Button>
+            <Label class="b-2 block">{camera_error}</Label>
+          </div>
+
+        {:else}
+          {#if image}
+            <div class="w-full flex justify-center">
+              <img src={`${media_url}${image}.png`} alt={image} class="max-w-[220px] max-h-[220px]"/>
+            </div>
+          {/if}
+          <div class="mb-4 p-2 gap-1"> 
+            <div class="mb-4 grid gap-2 md:grid-cols-2"> 
+
+              <div class="mb-6">
+                <Label for="name" class="mb-2 block">Name</Label>
+                <Input id="name" name="name" required placeholder="Item name" bind:value={name}/>
+              </div>
+
+              <div class="mb-6">
+                <Label for="manufacturer" class="mb-2 block">Manufacturer</Label>
+                <Input id="manufacturer" name="manufacturer" placeholder="Item manufacturer" bind:value={manufacturer}/>
+              </div>
+
+              <div class="mb-6">
+                <Label for="number_items" class="mb-2 block">Number of Items</Label>
+                <div class="relative flex max-w-[8rem] items-center mb-6">
+                  <ButtonGroup>
+                    <Button type="button" id="decrement-button" onclick={() => (number_items -= 1)}>
+                      <MinusOutline />
+                    </Button>
+                    <Input bind:value={number_items} type="number" id="quantity-input" aria-describedby="helper-text-explanation" placeholder="1" required class="w-20" />
+                    <Button type="button" id="increment-button" onclick={() => (number_items += 1)}>
+                      <PlusOutline />
+                    </Button>
+                  </ButtonGroup>
+                </div>
+              </div>
+
+              <div class="mb-6">
+                <Label
+                  >Item Type
+                  <Select class="mt-2" items={categories} bind:value={item_type} />
+                </Label>
+              </div> 
+
+            </div>
+
+            <div class="mb-2 justify-center w-full">
+              <Label for="description" class="mb-2">Description</Label>
+              <Textarea id="message" class="w-full" placeholder="Enter a detailed item description here" rows={2} name="message" bind:value={details} />
+            </div>
+
+            <div class="items-center justify-center w-full">
+                <label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <!-- <svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                        </svg> -->
+                        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG </p>
+                    </div>
+                    <input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
+                </label>
+            </div> 
+          </div>
+
+          <div class="bottom-0 left-0 flex w-full justify-center space-x-4 pb-4 md:absolute md:px-4">
+            <Button type="submit" class="w-full" onclick={add_inventory_item}>add item</Button>
+            <Button type="camera" class="w-full" onclick={toggleCameraVisibility} >open camera</Button>
+            <Button class="w-full" color="light" onclick={handleCancel}>
+              <svg aria-hidden="true" class="-ml-1 h-5 w-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              cancel
+            </Button>
+          </div>
+        {/if}
+
+
 			</form>
+
 		{:else if showScannerPanel}
+
 			<div class="flex items-center justify-between">
 				<h5 id="drawer-label" class="mb-6 inline-flex items-center text-base font-semibold text-gray-500 uppercase dark:text-gray-400">Scanner</h5>
 				<CloseButton onclick={handleCancel} class="mb-4 dark:text-white" />
@@ -646,14 +788,15 @@
 				<label for="id" class="mb-6 inline-flex items-center text-base text-gray-500 dark:text-gray-400">
 					Place QR code in front of the scanner camera!
 				</label>
-				<img src={scannerStreamUrl} alt="Camera Stream" class="camera-stream" />
+				<img src={scannerStreamUrl} alt="Starting Camera Stream ... " class="text-slate-200" />
 			</div>
+
 		{/if}
+
 	</Drawer>
 </Section>
 
 
-<!-- TODO remove style -->
 <style>
 
   .product-grid {

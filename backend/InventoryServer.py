@@ -71,12 +71,6 @@ class InventoryServer:
       """
       return send_from_directory(self.media_path, filename)
 
-    @self.app.route('/users', methods=['GET'])
-    def get_users():
-      if 'user' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-      return jsonify(self.users)
-
     @self.app.route('/checkout_item', methods=['POST'])
     def checkout_item():
       if 'user' not in session:
