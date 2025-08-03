@@ -6,7 +6,7 @@ For debugging run as a module with
 $ uv run -m backend.InventoryServer
 
 """
-from flask import Flask, request, jsonify, send_from_directory, session
+from flask import Flask, request, jsonify, send_from_directory, session, Response
 from flask_cors import CORS
 from flask_session import Session
 from logging import info, error, debug
@@ -15,7 +15,9 @@ import asyncio
 import sys
 import os
 import cv2 as cv
+import json
 import numpy as np
+import queue
 import hashlib
 from pathlib import Path
 
@@ -59,6 +61,8 @@ class InventoryServer:
     self.db = DataBaseClient(host=db_host, port=db_port)
 
     self.printer_client = PrinterClient()
+    
+    self.event_queue = queue.Queue()
 
     # Routes
     self.configure_routes()
@@ -236,25 +240,39 @@ class InventoryServer:
       # Save scanned ID in state
       self.scanned_qr_id = int(data.get('id'))
       print(f'QR with ID {self.scanned_qr_id} scanned')
+      
+      # Notify the frontend of the successful scan via the QR event message 
+      # stream
+      self.event_queue.put(self.scanned_qr_id)
 
       return jsonify({'status': 'success'}), 200
 
-    @self.app.route('/is_qr', methods=['POST'])
-    def is_qr():
-      """Function to query if a QR code has been scanned by the camera server
+    @self.app.route("/qr_events")
+    def qr_events():
+        """SSE endpoint for QR scan events"""
 
-      A successful query resets the scanned_qr_id in the state
+        def event_stream():
+            while True:
+                qr_id = self.event_queue.get()  
+                data = {"event": "update", "itemId": qr_id}
+                print(f"Send event: {data}")
+                yield f"data: {json.dumps(data)}\n\n"
 
-      """
-      if self.scanned_qr_id is not None:
-        temp_prev_id = self.scanned_qr_id
-        print(f'QR -> {temp_prev_id}')
-        # Reset ID in state to None
-        self.scanned_qr_id = None
-        return jsonify({'id': f'{temp_prev_id}'}), 200
-      else:
-        return jsonify({'status': 'No QR scanned'}), 401
+        return Response(event_stream(), content_type="text/event-stream")
 
+  def send_qr_event(self, id):
+    """Compile and send a QR scanned event message
+
+    Args:
+        id (int): ID of the scanned QR code
+
+    Yields:
+        _type_: _description_
+    """
+    data = {"event": "update", "id": f"{id}"}
+    
+    yield f"data: {json.dumps(data)}\n\n"
+  
   async def run(self, host: str = inventory_server_ip,
                 port: int = inventory_server_port):
     """Run the server

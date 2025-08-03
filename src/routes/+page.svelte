@@ -2,6 +2,7 @@
 // @ts-nocheck
 
   import { page } from "$app/state";
+  import { onMount } from "svelte";
 	import * as XLSX from 'xlsx';
 	import { CircleX, HandHelping , Undo2, CircleChevronLeft, CircleChevronRight, Printer , Trash2, SquarePen} from 'lucide-svelte';
   import { TableBody, P, TableBodyCell, TableBodyRow, TableHead, TableHeadCell } from 'flowbite-svelte';
@@ -24,7 +25,7 @@
 
 	let searchTerm = $state('');
 	let currentPosition = $state(0);
-	const itemsPerPage = 10;
+	const itemsPerPage = 50;
 	const showPage = 5;
 	let totalPages = $state(0);
 	let pagesToShow = $state([]);
@@ -90,7 +91,14 @@
 	let endRange = $derived(Math.min(currentPosition + itemsPerPage, totalItems));
 
 	let currentPageItems = $derived(items.slice(currentPosition, currentPosition + itemsPerPage));
-	let filteredItems = $derived(items.filter((item) => item.product_name.toLowerCase().includes(searchTerm.toLowerCase())));
+	// let filteredItems = $derived(items.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())));
+
+	let filteredItems = $derived(items.filter((item => 
+      Object.values(item).some(value => 
+          String(value).toLowerCase().includes(searchTerm.toLowerCase())))
+      )
+  );
+
 
 	$effect(() => {
 		// Fetch inventory data on mount
@@ -104,7 +112,7 @@
 	let showScannerPanel = $state(false);
   let showErrorAlert = $state(false);
 
-	const scannerStreamUrl = "http://localhost:5050";
+	const scannerStreamUrl = "http://127.0.0.1:5050";
 	let selected = $state();
 	let categories = [
 		{ value: '', name: 'Select Type' },
@@ -137,7 +145,7 @@
   let image = $state("");
   let tags = $state("");
 
-  let streamUrl = "http://localhost:5050";
+  let streamUrl = "http://127.0.0.1:5050";
   const media_url = "http://127.0.0.1:5000/media/";
 
 	let imageUrl = $state("");
@@ -244,6 +252,7 @@
         error_msg = "";
         showErrorAlert = false;
         toggleAddItemPanel();
+        window.location.reload();
       }
     }
   }
@@ -419,11 +428,11 @@
       };
     }
   }
-
+  
 	async function updateItem(itemId, item){
     // Function TODO 
   }
-
+  
   async function printLabel(itemId){
     const res = await fetch("http://localhost:5000/print_label", {
       method: "POST",
@@ -431,42 +440,75 @@
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ itemId }),
     });
-
+    
     if (!res.ok) {
       error = "Printing Label failed";
     }
   }
-
+  
   function requestDelete() {
     enableEdit = false;
     showConfirm = true;
   }
-
+  
   function confirmDelete() {
     deleteItem(selectedItemId);
     showConfirm = false;
     selectedItemId = null;
   }
-
+  
   function cancelDelete() {
     enableEdit = false;
     showConfirm = false;
   }
-
+  
 	function toggleItem(itemId) {
     selectedItemId = selectedItemId === itemId ? null : itemId;
   }
-
+  
+  onMount(() => {
+    // Set up event listener to update frontend whenever a QR code is scanned.
+    const eventSource = new EventSource("http://localhost:5000/qr_events");
+  
+    // Mark the callback as async to allow await
+    eventSource.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+  
+    if (data.itemId) {
+        let itemId = data.itemId;
+  
+        // Fetch the inventory item data from the database
+        const ret = await fetch("http://localhost:5000/get_item", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemId }),
+        });
+  
+        if (!ret.ok) {
+          error_msg = "Retrieving inventory item failed";
+        } else {
+          error_msg = "";
+          let item = await ret.json();
+          selectedItemId = item.id;
+          hide = true;
+        }
+      }
+    };
+  
+    eventSource.onerror = (err) => {
+      console.error("SSE error:", err);
+    };
+  });
+  
 </script>
-
- <!-- ___________------------------ CONTENT --------------------____________ -->
 
 <svelte:head>
   <title>Inventory</title>
   <meta name="description" content="Page to add new item" />
 </svelte:head>
 
-<Section name="advancedTable" sectionClass="w-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
+<Section name="advancedTable" sectionClass="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
 	<TableSearch placeholder="Search" hoverable={true} bind:inputValue={searchTerm} {divClass} {innerDivClass} {searchClass}>
 		{#snippet header()}
 			<div class="flex w-full flex-shrink-0 flex-col items-stretch justify-end space-y-2 md:w-auto md:flex-row md:items-center md:space-y-0 md:space-x-3">
@@ -513,57 +555,156 @@
 
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div type="overlay" class="overlay"  > 
-			<!-- <div class="mb-4 text-xl font-bold text-gray-900 dark:text-white">  -->
-      <div class="rounded-lg expanded centered mb-6 p-4 dark:bg-slate-800 bg-slate-200 border dark:border-slate-400 border-slate-800 "  >
+    <div type="overlay" class="w-full"  > 
+      <div class="rounded-lg expanded w-full centered mb-6 p-4 dark:bg-slate-800 bg-slate-200 border dark:border-slate-400 border-slate-800 "  >
         <div class="flex justify-end">
           <CloseButton onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white" />
         </div>
-        <Section name="crudcreateform" class="flex justify-centered w-full">
-          <div class="flex justify-center p-2">
-            <h2 class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-orange-800 dark:border-orange-400 rounded-lg">{item.name}</h2>
-			    </div>
-          <div class="flex items-center justify-center ">
-            <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full max-w-96 border rounded-lg border-slate-900"  />
-          </div>
-          <form class="p-2">
-            <div class="mb-6 grid gap-6 md:grid-cols-2">
-              <div>
-                <!-- svelte-ignore attribute_quoted -->
-                  {#if enableEdit}
-                    <Input clearable value="{item.name}"/>
-                  {:else}
-                    <Label for="name" class="mb-2 p-2">Name: {item.name}</Label>
-                  {/if}
-              </div>
+        <div class="flex justify-center">
+          <h2 class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-orange-800 dark:border-orange-400 rounded-lg">{item.name}</h2>
+        </div>
+        <Section name="crudcreateform" class="justify-centered w-full">
+          <div class="mb-6 grid gap-6 md:grid-cols-2">
 
-              <div>
-                <!-- svelte-ignore attribute_quoted -->
-                  {#if enableEdit}
-                    <Input clearable value="{item.manufacturer}" placeholder="Manufacturer"/>
-                  {:else}
-                    <Label for="name" class="mb-2 p-2 text-inherit" >Manufacturer: {item.manufacturer}</Label>
-                  {/if}
-              </div>
-
-              <div>
-                <Label class="mb-2 p-2 text-inherit">Count: {item.number_items}</Label>
-              </div>
-
-              <div>
-                <Label class="mb-2 p-2">Type: {item.item_type}</Label>
-              </div>
-
-              <div>
-                {#if item.detials}
-                  <Label class="mb-2 p-2">Details: {item.details}</Label>
+            <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+              
+              <div class="flex justify-center mt-auto">
+                {#if item.is_checked_out}
+                  <Label color="red" class="mb-2 p-2 text-red-500 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</Label>
                 {:else}
-                  <Label class="mb-2 p-2">Details: N/A</Label>
+                  <Label color="green" class="mb-2 p-2 text-green-500 font-semibold border border-green-500 rounded-lg">Available</Label>
                 {/if}
               </div>
-
+              
+              <div class="flex items-center justify-center ">
+                <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full border rounded-lg border-slate-900"  />
+              </div>
             </div>
 
+
+            <form class="p-2">
+              <div class="mb-6 grid gap-6 md:grid-cols-2">
+                <div>
+                  <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput clearable variant="outlined"  bind:value={item.name} class="bg-white dark:bg-slate-900 rounded-lg">name</FloatingLabelInput>
+                    {:else}
+                      <Label for="name" class="mb-2 p-2">Name: {item.name}</Label>
+                    {/if}
+                </div>
+
+                <div>
+                  <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput clearable variant="outlined"  bind:value={item.manufacturer} class="bg-white dark:bg-slate-900 rounded-lg">manufacturer</FloatingLabelInput>
+                    {:else}
+                      <Label for="name" class="mb-2 p-2 text-inherit" >Manufacturer: {item.manufacturer}</Label>
+                    {/if}
+                </div>
+
+                <div class="mb-6">
+                  {#if enableEdit}
+                    <Label for="number_items" class="mb-2 block">Number of Items</Label>
+                    <div class="relative flex max-w-[8rem] items-center mb-6">
+                      <ButtonGroup>
+                        <Button type="button" id="decrement-button" onclick={() => (item.number_items -= 1)}>
+                          <MinusOutline />
+                        </Button>
+                        <Input bind:value={item.number_items} type="number" id="quantity-input" aria-describedby="helper-text-explanation" placeholder="{item.number_items} " required class="w-20" />
+                        <Button type="button" id="increment-button" onclick={() => (item.number_items += 1)}>
+                          <PlusOutline />
+                        </Button>
+                      </ButtonGroup>
+                    </div>
+                  {:else}
+                    <Label class="mb-2 p-2 text-inherit">Count: {item.number_items}</Label>
+                  {/if}
+                </div>
+
+                <div>
+                  {#if enableEdit}
+                    <Label
+                      >Item Type
+                      <Select class="mt-2" items={categories} bind:value={item.item_type} />
+                    </Label>
+                  {:else}
+                    <Label class="mb-2 p-2">Type: {item.item_type}</Label>
+                  {/if}
+                </div>
+
+                <div>
+                  {#if enableEdit}
+                    <div class="mb-2 justify-center w-full">
+                      <Label for="description" class="mb-2">Description</Label>
+                      <Textarea id="message" class="w-full" placeholder="{item.detials}" rows={2} name="message" bind:value={item.details} />
+                    </div>
+                  {:else}
+                    {#if item.detials}
+                      <Label class="mb-2 p-2">Details: {item.details}</Label>
+                    {:else}
+                      <Label class="mb-2 p-2">Details: N/A</Label>
+                    {/if}
+                  {/if}
+                </div>
+
+              </div>
+
+              <div class="row-span-3 md:row-span-4">
+                {#if enableEdit}
+                  <Button onclick={() => updateItem(selectedItemId, item)}>
+                    <CheckCircleOutline type="print-button" class="me-2 h-5 w-5"  /> confirm edit
+                  </Button>
+                  <Button color="red" onclick={() => requestDelete()}>
+                    <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> delete item
+                  </Button>
+                  <Button color="light" onclick={() => toggleEdit()}>
+                    <CloseOutline type="print-button" class="me-2 h-5 w-5" /> cancel edit
+                  </Button>
+                {:else if showConfirm}
+                  <div class="mb-2 p-2 border border-red-900 bg-red-500 rounded-lg">
+                    <Label class="mb-2 p-2 text-slate-950">Are you sure you want to delete this item?</Label>
+                    <div class="row-span-3 md:row-span-4">
+                      <Button color="red" onclick={confirmDelete} class="mb-4 border border-slate-900">
+                        <ExclamationCircleOutline type="delete-button" class="me-2 h-5 w-5"  /> yes, delete
+                      </Button>
+                      <Button color="light" onclick={cancelDelete} class="mb-4 dark:text-white">
+                        <CloseOutline type="confirm-button" class="me-2 h-5 w-5"  /> cancel
+                      </Button>
+                    </div>
+                  </div>
+                {:else}
+                  {#if item.is_checked_out}
+                    <Button color="green" onclick={() => returnItem(selectedItemId)} class="mb-4">
+                      <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> return item
+                    </Button>
+                  {:else}
+                    <Button onclick={() => checkoutItem(selectedItemId)} class="mb-4">
+                      <CartPlusAltOutline type="return-button" class="me-2 h-5 w-5"  /> borrow
+                    </Button>
+                  {/if}
+                  <Button onclick={() => printLabel(selectedItemId)} class="mb-4">
+                    <PrinterOutline type="print-button" class="me-2 h-5 w-5"  /> print label
+                  </Button>
+                  <Button onclick={() => toggleEdit()} class="mb-4">
+                    <PenOutline type="print-button" class="me-2 h-5 w-5"  /> modify
+                  </Button>
+                  <Button color="light" onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white">
+                    <CloseOutline type="print-button" class="me-2 h-5 w-5"  /> close
+                  </Button>
+                {/if}
+              </div>
+            </form>
+          </div>
+        </Section>
+      </div>
+    </div>
+
+		<!-- --------------------------- EXTENDED CARD END --------------------- -->
+				{:else if !selectedItemId}
+					<!-- Normal grid card display -->
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div class="mb-6 h-full flex-col items-center justify-start border rounded-lg border-inherit bg-slate-100 dark:bg-slate-700 p-2" onclick={() => toggleItem(item.id)}>
             <div class="flex justify-center mt-auto">
               {#if item.is_checked_out}
                 <Label color="red" class="mb-2 p-2 text-red-500 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</Label>
@@ -571,62 +712,6 @@
                 <Label color="green" class="mb-2 p-2 text-green-500 font-semibold border border-green-500 rounded-lg">Available</Label>
               {/if}
             </div>
-
-            <div class="row-span-3 md:row-span-4">
-              {#if enableEdit}
-                <Button onclick={() => updateItem(selectedItemId, item)}>
-                  <CheckCircleOutline type="print-button" class="me-2 h-5 w-5"  /> confirm edit
-                </Button>
-                <Button color="red" onclick={() => requestDelete()}>
-                  <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> delete item
-                </Button>
-                <Button color="light" onclick={() => toggleEdit()}>
-                  <CloseOutline type="print-button" class="me-2 h-5 w-5" /> cancel edit
-                </Button>
-              {:else if showConfirm}
-                <div class="mb-2 p-2 border border-red-900 bg-red-500 rounded-lg">
-                  <Label class="mb-2 p-2 text-slate-950">Are you sure you want to delete this item?</Label>
-                  <div class="row-span-3 md:row-span-4">
-                    <Button color="red" onclick={confirmDelete} class="mb-4 border border-slate-900">
-                      <ExclamationCircleOutline type="delete-button" class="me-2 h-5 w-5"  /> yes, delete
-                    </Button>
-                    <Button color="light" onclick={cancelDelete} class="mb-4 dark:text-white">
-                      <CloseOutline type="confirm-button" class="me-2 h-5 w-5"  /> cancel
-                    </Button>
-                  </div>
-                </div>
-              {:else}
-                {#if item.is_checked_out}
-                  <Button color="green" onclick={() => returnItem(selectedItemId)} class="mb-4">
-                    <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> return item
-                  </Button>
-                {:else}
-                  <Button onclick={() => checkoutItem(selectedItemId)} class="mb-4">
-                    <CartPlusAltOutline type="return-button" class="me-2 h-5 w-5"  /> borrow
-                  </Button>
-                {/if}
-                <Button onclick={() => printLabel(selectedItemId)} class="mb-4">
-                  <PrinterOutline type="print-button" class="me-2 h-5 w-5"  /> print label
-                </Button>
-                <Button onclick={() => toggleEdit()} class="mb-4">
-                  <PenOutline type="print-button" class="me-2 h-5 w-5"  /> modify
-                </Button>
-                <Button color="light" onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white">
-                  <CloseOutline type="print-button" class="me-2 h-5 w-5"  /> close
-                </Button>
-              {/if}
-            </div>
-          </form>
-        </Section>
-      </div>
-    </div>
-
-		<!-- --------------------------- EXTENDED CARD END --------------------- -->
-				{:else if !selectedItemId}
-					<!-- Normal card display -->
-					<!-- svelte-ignore a11y_click_events_have_key_events -->
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<div class="mb-6 flex flex-col items-center border rounded-lg border-inherit justify-center bg-slate-100 dark:bg-slate-700 p-2" onclick={() => toggleItem(item.id)}>
 						<img src={`${media_url}${item.image}.png`} alt={item.name} class="mb-6 w-full max-w-96 border rounded-lg border-slate-900"/>
 						<div class="p-2 text-orange-500 font-bold">{item.name}</div>
             {#if item.manufacturer}
@@ -637,13 +722,6 @@
             {#if item.item_type}
 						  <div class="p-2 text-slate-900 dark:text-slate-200 ">Type: {item.item_type}</div>
             {/if}
-            <div class="flex justify-center mt-auto">
-              {#if item.is_checked_out}
-                <Label color="red" class="mb-2 p-2 text-red-500 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</Label>
-              {:else}
-                <Label color="green" class="mb-2 p-2 text-green-500 font-semibold border border-green-500 rounded-lg">Available</Label>
-              {/if}
-            </div>
 					</div>
 				{/if}
 			{/each}
@@ -670,10 +748,6 @@
 	</TableSearch>
 </Section>
 
-<Section name="advancedTable" sectionClass="w-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
-
-</Section>
-
 <!-- ---------------------   ADD ITEM SIDE PANEL --------------------------- -->
 
 <Section name="crudcreatedrawer">
@@ -691,11 +765,9 @@
         
         {#if showCameraStream}
 
-          <div class="mb-6 block p-2">
-            <Label for="name" class="mb-2 block p-2">Take an item picture in the studio</Label>
-            <Button color="blue" class="w-full border mb-2 " onclick={capture_image}>
-              capture image
-            </Button>
+          <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+            <Label for="name" class="mb-2 block p-2">Record item image</Label>
+            <Button class="w-full border mb-2 " onclick={capture_image}>capture image</Button>
             <img src={streamUrl} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
             <Button color="light" class="w-full mb-2" onclick={toggleCameraVisibility}>close camera</Button>
             <Label class="b-2 block">{camera_error}</Label>
@@ -752,9 +824,6 @@
             <div class="items-center justify-center w-full">
                 <label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
                     <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                        <!-- <svg class="w-8 h-8 mb-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                        </svg> -->
                         <p class="mb-2 text-xs text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
                         <p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG </p>
                     </div>
@@ -795,7 +864,6 @@
 
 	</Drawer>
 </Section>
-
 
 <style>
 

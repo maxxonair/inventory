@@ -4,7 +4,8 @@
   import { LogIn, LogOut, PlusCircle, ScanQrCode, FolderDown, Home } from 'lucide-svelte';
   // import logo from "$lib/images/svelte-logo.svg";
   import { user, logout } from '$lib/stores/auth.js';
-  import { DarkMode } from "flowbite-svelte";
+  import { DarkMode, Button} from "flowbite-svelte";
+  import {  ArrowLeftToBracketOutline, OpenDoorOutline, HomeSolid } from "flowbite-svelte-icons";
 
   let isMobile = false;
 
@@ -39,22 +40,19 @@
     </svg>
     <ul>
       {#if isLoggedIn}
+
+        <!--   Add additional pages here  -->
+
         <!-- <li aria-current={page.url.pathname === "/scanner" ? "page" : undefined}>
           <a href="/scanner" aria-label="Scanner" title="Open QR Scanner">
             <ScanQrCode size={20} />
           </a>
         </li> -->
+
         <li aria-current={page.url.pathname === "/" ? "home" : undefined}>
-          <a href="/" title="Inventory Home">
-            <Home size={20} />
-            <p class="button-label"></p>
-          </a>
+          <Button class="p-2!"><HomeSolid class="h-6 w-6" /></Button>
         </li>
-        <!-- <li aria-current={page.url.pathname === "/studio" ? "page" : undefined}>
-          <a href="/studio" aria-label="Studio" title="Add Item Section">
-            <PlusCircle size={20} />
-          </a>
-        </li> -->
+
       {/if}
     </ul>
     <svg viewBox="0 0 2 3" aria-hidden="true">
@@ -65,16 +63,17 @@
 
   <div class="corner">
 
-  <button class="icon-button" 
-          on:click={isLoggedIn ? logout : login} 
+  <Button class="p-2!" onclick={isLoggedIn ? logout : login} 
           aria-label={isLoggedIn ? 'Logout' : 'Login'}
           title={isLoggedIn ? 'Log out' : 'Log in'}>
-  {#if isLoggedIn}
-    <LogOut class="icon" />
-  {:else}
-    <LogIn class="icon" />
-  {/if}
-</button>
+    {#if isLoggedIn}
+      <OpenDoorOutline class="h-6 w-6" />
+    {:else}
+      <ArrowLeftToBracketOutline class="h-6 w-6" />
+    {/if}
+  
+  </Button>
+
   </div>
 </header>
 
@@ -125,22 +124,6 @@
     justify-content: flex-end; /* if you want them to align right in the header */
   }
 
-  .download-button{
-    background-color: #252525;
-    color:  #fa8d1f;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    margin: 0 auto 1rem; 
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .button-label{
-    color:  #fa8d1f;
-  }
-
   .corner a {
     display: flex;
     align-items: center;
@@ -158,7 +141,7 @@
   nav {
     display: flex;
     justify-content: center;
-    --background: rgba(225, 225, 225, 0.7);
+    --background: rgba(162, 162, 162, 0.7);
   }
 
   svg {
@@ -217,25 +200,5 @@
 
   a:hover {
     color: var(--color-theme-1);
-  }
-
-  .icon-button {
-    background-color: #f19812;
-    border: none;
-    border-radius: 9999px;
-    padding: 0.5rem;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-
-  .icon-button:hover {
-    background-color: #e0e0e0;
-  }
-
-  .icon {
-    width: 24px;
-    height: 24px;
-    stroke: #333;
   }
 </style>
