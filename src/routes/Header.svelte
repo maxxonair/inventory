@@ -83,59 +83,11 @@
     justify-content: space-between;
   }
 
-  .tooltip-container {
-    position: relative;
-    display: inline-block;
-  }
-
-  .tooltip-text {
-    visibility: hidden;
-    background-color: black;
-    color: white;
-    text-align: center;
-    border-radius: 4px;
-    padding: 5px 8px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%; /* Position above */
-    left: 50%;
-    transform: translateX(-50%);
-    opacity: 0;
-    transition: opacity 0.2s;
-    white-space: nowrap;
-  }
-
-  .tooltip-container:hover .tooltip-text {
-    visibility: visible;
-    opacity: 1;
-  }
-
   .corner {
     display: flex;
     gap: 0.5rem; /* space between buttons */
     align-items: center; /* optional: vertically align icons */
     justify-content: flex-end; /* if you want them to align right in the header */
-  }
-
-  .corner button {
-    display: flex;
-    gap: 0.5rem; /* space between buttons */
-    align-items: center; /* optional: vertically align icons */
-    justify-content: flex-end; /* if you want them to align right in the header */
-  }
-
-  .corner a {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-  }
-
-  .corner img {
-    width: 2em;
-    height: 2em;
-    object-fit: contain;
   }
 
   nav {
@@ -182,23 +134,5 @@
     left: calc(50% - var(--size));
     border: var(--size) solid transparent;
     border-top: var(--size) solid var(--color-theme-1);
-  }
-
-  nav a {
-    display: flex;
-    height: 100%;
-    align-items: center;
-    padding: 0 0.5rem;
-    color: var(--color-text);
-    font-weight: 700;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    text-decoration: none;
-    transition: color 0.2s linear;
-  }
-
-  a:hover {
-    color: var(--color-theme-1);
   }
 </style>

@@ -15,9 +15,18 @@
 	import { Section } from 'flowbite-svelte-blocks';
   import { CartPlusAltOutline, MinusOutline, PlusOutline } from "flowbite-svelte-icons";
   
-  const { user } = $props();
+  let { user } = $props();
 
   /* ------------------  Main Table function ----------------------- */
+
+  // Define user privilege level
+  const PRIVILEGE_GUEST = 0;
+  const PRIVILEGE_REPORTER = 1;
+  const PRIVILEGE_DEVELOPPER = 2;
+  const PRIVILEGE_MAINTAINER = 3;
+  const PRIVILEGE_OWNER = 5;
+
+  let user_privilege = $state(null);
 
 	let divClass = 'bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden';
 	let innerDivClass = 'flex flex-col md:flex-row items-center justify-between space-y-3 md:space-y-0 md:space-x-4 p-4';
@@ -38,6 +47,32 @@
 
 	// Fetch data from backend
 	const fetchData = async () => {
+    // Get user
+    try {
+      const res = await fetch("http://localhost:5000/me", {credentials: "include"});
+			const data = await res.json();
+			user = data.user;
+		} catch (err) {
+			console.error('Failed to get user:', err);
+		}
+
+    // Get user privilege level
+    try {
+      const res = await fetch("http://localhost:5000/user_privilege", {
+        method: "POST",
+        credentials: "include",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ user }),
+      });
+
+			const data = await res.json();
+			user_privilege = data.privilege;
+      console.log(user_privilege)
+		} catch (err) {
+			console.error('Failed to load user privilege level:', err);
+		}
+
+    // Load all inventory items
 		loading = true;
 		try {
 			const res = await fetch('http://localhost:5000/items', {credentials: 'include'});
@@ -51,14 +86,20 @@
 			loading = false;
 		}
 	};
+  
+  let filteredItems = $derived(items.filter((item => 
+      Object.values(item).some(value => 
+          String(value).toLowerCase().includes(searchTerm.toLowerCase())))
+      )
+  );
 
 	const updateDataAndPagination = () => {
-		let currentPageItems = items.slice(currentPosition, currentPosition + itemsPerPage);
+		let currentPageItems = filteredItems.slice(currentPosition, currentPosition + itemsPerPage);
 		renderPagination(currentPageItems.length);
 	};
 
 	const loadNextPage = () => {
-		if (currentPosition + itemsPerPage < items.length) {
+		if (currentPosition + itemsPerPage < filteredItems.length) {
 			currentPosition += itemsPerPage;
 			updateDataAndPagination();
 		}
@@ -72,7 +113,7 @@
 	};
 
 	const renderPagination = (totalItems) => {
-		totalPages = Math.ceil(items.length / itemsPerPage);
+		totalPages = Math.ceil(filteredItems.length / itemsPerPage);
 		const currentPage = Math.ceil((currentPosition + 1) / itemsPerPage);
 
 		startPage = currentPage - Math.floor(showPage / 2);
@@ -90,15 +131,7 @@
 	let startRange = $derived(currentPosition + 1);
 	let endRange = $derived(Math.min(currentPosition + itemsPerPage, totalItems));
 
-	let currentPageItems = $derived(items.slice(currentPosition, currentPosition + itemsPerPage));
-	// let filteredItems = $derived(items.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase())));
-
-	let filteredItems = $derived(items.filter((item => 
-      Object.values(item).some(value => 
-          String(value).toLowerCase().includes(searchTerm.toLowerCase())))
-      )
-  );
-
+	let currentPageItems = $derived(filteredItems.slice(currentPosition, currentPosition + itemsPerPage));
 
 	$effect(() => {
 		// Fetch inventory data on mount
@@ -197,6 +230,18 @@
   let enableEdit = $state(false);
   let showCameraStream = $state(false);
   let showStaticImg = $state(false);
+
+  // Define possible options to filter the item type
+  const item_type_filter_options = ["Flooring", "Curtain"];
+  let selectedTypes = $state([]);
+
+  function toggleType(type) {
+    if (selectedTypes.includes(type)) {
+      selectedTypes = selectedTypes.filter(t => t !== type);
+    } else {
+      selectedTypes = [...selectedTypes, type];
+    }
+  }
 
   function toggleEdit() {
     enableEdit = !enableEdit;
@@ -512,36 +557,33 @@
 	<TableSearch placeholder="Search" hoverable={true} bind:inputValue={searchTerm} {divClass} {innerDivClass} {searchClass}>
 		{#snippet header()}
 			<div class="flex w-full flex-shrink-0 flex-col items-stretch justify-end space-y-2 md:w-auto md:flex-row md:items-center md:space-y-0 md:space-x-3">
-				<Button onclick={toggleAddItemPanel}>
-					<PlusOutline class="mr-2 h-3.5 w-3.5" />Add item
-				</Button>
+        {#if user_privilege > PRIVILEGE_REPORTER}
+          <Button onclick={toggleAddItemPanel}>
+            <PlusOutline class="mr-2 h-3.5 w-3.5" />Add item
+          </Button>
+        {/if}
 		    <Button onclick={toggleScannerPanel}>
 					<QrCodeOutline class="mr-2 h-3.5 w-3.5" /> Scan QR
 				</Button>
 				<Button color="alternative">More<ChevronDownOutline class="ml-2 h-3 w-3 " /></Button>
 				<Dropdown simple class="w-44 divide-y divide-gray-100">
-					<DropdownItem onclick={downloadExcel} class="text-xs">Export inventory excel</DropdownItem>
-          <DropdownItem onclick={downloadCSV} class="text-xs">Export inventory csv</DropdownItem>
+          {#if user_privilege > PRIVILEGE_GUEST}
+            <DropdownItem onclick={downloadExcel} class="text-xs">Export inventory excel</DropdownItem>
+            <DropdownItem onclick={downloadCSV} class="text-xs">Export inventory csv</DropdownItem>
+          {/if}
 				</Dropdown>
 				<Button color="alternative">Filter<FilterSolid class="ml-2 h-3 w-3 " /></Button>
 				<Dropdown class="w-48 space-y-2 p-3 text-sm">
 					<h6 class="mb-3 text-sm font-medium text-gray-900 dark:text-white">Choose item type</h6>
 					<List tag="dl">
+            {#each item_type_filter_options as type_option}
 						<Li>
-							<Checkbox>Type A</Checkbox>
+							<Checkbox checked={selectedTypes.includes(type_option)}
+                        onchange={() => toggleType(type_option)}>
+                {type_option}
+              </Checkbox>
 						</Li>
-						<Li>
-							<Checkbox>Type B</Checkbox>
-						</Li>
-						<Li>
-							<Checkbox>Type C</Checkbox>
-						</Li>
-						<Li>
-							<Checkbox>Type D</Checkbox>
-						</Li>
-						<Li>
-							<Checkbox>Type E</Checkbox>
-						</Li>
+            {/each}
 					</List>
 				</Dropdown>
 			</div>
@@ -636,7 +678,7 @@
                   {#if enableEdit}
                     <div class="mb-2 justify-center w-full">
                       <Label for="description" class="mb-2">Description</Label>
-                      <Textarea id="message" class="w-full" placeholder="{item.detials}" rows={2} name="message" bind:value={item.details} />
+                      <Textarea id="message" class="w-full" placeholder={item.detials} rows={2} name="message" bind:value={item.details} />
                     </div>
                   {:else}
                     {#if item.detials}
@@ -654,9 +696,12 @@
                   <Button onclick={() => updateItem(selectedItemId, item)}>
                     <CheckCircleOutline type="print-button" class="me-2 h-5 w-5"  /> confirm edit
                   </Button>
-                  <Button color="red" onclick={() => requestDelete()}>
-                    <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> delete item
-                  </Button>
+                  <!-- Delete Items only for users of maintainer privilege and above -->
+                  {#if user_privilege >= PRIVILEGE_MAINTAINER}
+                    <Button color="red" onclick={() => requestDelete()}>
+                      <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> delete item
+                    </Button>
+                  {/if}
                   <Button color="light" onclick={() => toggleEdit()}>
                     <CloseOutline type="print-button" class="me-2 h-5 w-5" /> cancel edit
                   </Button>
@@ -685,9 +730,11 @@
                   <Button onclick={() => printLabel(selectedItemId)} class="mb-4">
                     <PrinterOutline type="print-button" class="me-2 h-5 w-5"  /> print label
                   </Button>
-                  <Button onclick={() => toggleEdit()} class="mb-4">
-                    <PenOutline type="print-button" class="me-2 h-5 w-5"  /> modify
-                  </Button>
+                  {#if user_privilege > PRIVILEGE_REPORTER}
+                    <Button onclick={() => toggleEdit()} class="mb-4">
+                      <PenOutline type="print-button" class="me-2 h-5 w-5"  /> modify
+                    </Button>
+                  {/if}
                   <Button color="light" onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white">
                     <CloseOutline type="print-button" class="me-2 h-5 w-5"  /> close
                   </Button>

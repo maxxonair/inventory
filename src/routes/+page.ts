@@ -13,17 +13,9 @@ export async function load({ fetch }) {
     throw redirect(302, '/login');
   }
 
-  const user = await res.json();
+  const response = await res.json();
 
-  const itemRes = await fetch('http://localhost:5000/items', {
-    credentials: 'include'
-  });
-
-  if (!itemRes.ok) {
-    throw redirect(302, '/login');
-  }
-
-  const items = await itemRes.json();
+  const user = response;
   
   return { user };
 }

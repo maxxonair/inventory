@@ -526,9 +526,9 @@ class DataBaseClient():
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 
-  def get_inventory_user_as_df(self, user_name: str):
+  def get_inventory_user_as_dict(self, user_name: str) -> dict:
     """
-    Return a specific inventory user identified by its user_name as dataframe
+    Return a specific inventory user identified by its user_name as dictionary
     """
     # Query to fetch all data from the specified table
     query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = %s"
@@ -545,7 +545,9 @@ class DataBaseClient():
     # Create a DataFrame from the fetched data
     df = pd.DataFrame(rows, columns=columns)
 
-    return df
+    item_dict = df.to_dict('records')
+
+    return item_dict[0]
 
   def get_inventory_user_as_object(self, user_name: str):
     """

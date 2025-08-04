@@ -1,7 +1,7 @@
 """                 [Inventory] Inventory Server 
 
 
-For debugging run as a module with 
+Run this module with:
 
 $ uv run -m backend.InventoryServer
 
@@ -68,6 +68,9 @@ class InventoryServer:
     self.configure_routes()
 
   def configure_routes(self):
+    """Configure Http routes for this server
+
+    """
 
     @self.app.route('/media/<filename>')
     def serve_image(filename):
@@ -227,7 +230,24 @@ class InventoryServer:
       if 'user' in session:
         return jsonify({'user': session['user']})
       return jsonify({'error': 'Not logged in'}), 401
+    
+    @self.app.route('/user_privilege', methods=['POST'])
+    def user_privilege():
+      """Return privilege level for a given user
+      """
+      data = request.get_json()
+      if 'user' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+      # Load privilege level for this user 
+      print(f"Load privilege level for user {str(data.get('user'))}")
+      try:
+        user_dict = self.db.get_inventory_user_as_dict(str(data.get('user')))
+        print(f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}")
+        return jsonify({'privilege': user_dict['user_privileges']})
+      except:
+        return jsonify({'error': f"User: {data.get('user')} not found"}), 404
 
+    
     @self.app.route('/qr', methods=['POST'])
     def qr():
       """Update the QR in the state
