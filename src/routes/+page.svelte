@@ -26,6 +26,11 @@
   const PRIVILEGE_MAINTAINER = 3;
   const PRIVILEGE_OWNER = 5;
 
+  const INVENTORY_HOST = "127.0.0.1";
+  const CAMERA_HOST = "127.0.0.1";
+  const INVENTORY_PORT = 5000;
+  const CAMERA_PORT = 5050;
+
   let user_privilege = $state(null);
 
 	let divClass = 'bg-white dark:bg-gray-800 relative shadow-md sm:rounded-lg overflow-hidden';
@@ -193,6 +198,45 @@
 
 	let selectedFile = $state(null);
 
+  function onDrop(event) {
+    event.preventDefault();
+    handleDragAndDropFileUpload(event);
+  }
+
+  function onDragOver(event) {
+    event.preventDefault();
+  }
+
+	async function handleDragAndDropFileUpload(Event) {
+    const files = event.target.files || event.dataTransfer.files;
+
+		if (files && files.length > 0) {
+			selectedFile = files[0];
+
+			const formData = new FormData();
+			formData.append("avatar", selectedFile);
+
+			try {
+				const response = await fetch("http://127.0.0.1:5000/image_upload", {
+					method: "POST",
+					body: formData,
+				});
+
+				if (response.ok) {
+					const result = await response.json();
+					image = result.image;
+					imageUrl = `${media_url}/${image}.png`;
+					showStaticImg = true;
+					console.log("Upload successful:", result);
+				} else {
+					console.error("Upload failed:", await response.text());
+				}
+			} catch (error) {
+				console.error("Error uploading file:", error);
+			}
+		}
+	}
+
 	async function handleFileUpload(Event) {
 		const input = event.target;
 		if (input.files && input.files.length > 0) {
@@ -244,6 +288,7 @@
   }
 
   function toggleEdit() {
+    imageUrl = 0;
     enableEdit = !enableEdit;
   }
 
@@ -260,7 +305,7 @@
     }, 120000);
   }
 
-  async function add_inventory_item() {
+  async function addItem() {
     if (!name) {
       error_msg = "No item name set. Define item name before adding.";
       showErrorAlertFnct();
@@ -474,8 +519,51 @@
     }
   }
   
-	async function updateItem(itemId, item){
-    // Function TODO 
+	async function updateItem(id, item){
+    name = item.name;
+    manufacturer = item.manufacturer;
+    details = item.details;
+    item_type = item.item_type;
+    location = item.location;
+    number_items = item.number_items;
+    tags = item.tags;
+
+    // TODO add function to update image
+
+    if (!name) {
+      error_msg = "No item name set. Define item name before updating.";
+      showErrorAlertFnct();
+    } else {
+      let date_now = new Date();
+      let date_added = date_now.toISOString();
+      const res = await fetch("http://localhost:5000/update_item", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          name,
+          manufacturer,
+          details,
+          item_type,
+          number_items,
+          description,
+          location,
+          tags,
+        }),
+      });
+
+      if (!res.ok) {
+        error_msg = "Adding Item Failed";
+        showErrorAlertFnct();
+      } else {
+        error_msg = "";
+        showErrorAlert = false;
+        toggleEdit();
+      }
+    }
   }
   
   async function printLabel(itemId){
@@ -572,7 +660,7 @@
             <DropdownItem onclick={downloadCSV} class="text-xs">Export inventory csv</DropdownItem>
           {/if}
 				</Dropdown>
-				<Button color="alternative">Filter<FilterSolid class="ml-2 h-3 w-3 " /></Button>
+				<Button color="alternative" disabled>Filter<FilterSolid class="ml-2 h-3 w-3 " /></Button>
 				<Dropdown class="w-48 space-y-2 p-3 text-sm">
 					<h6 class="mb-3 text-sm font-medium text-gray-900 dark:text-white">Choose item type</h6>
 					<List tag="dl">
@@ -599,39 +687,44 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div type="overlay" class="w-full"  > 
       <div class="rounded-lg expanded w-full centered mb-6 p-4 dark:bg-slate-800 bg-slate-200 border dark:border-slate-400 border-slate-800 "  >
-        <div class="flex justify-end">
+        
+        <div class="relative flex items-center justify-between w-full ">
+          
+           <div class="flex justify-center">
+             <h2 class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-cyan-950 dark:border-cyan-400 rounded-lg">
+               {item.name}
+             </h2>
+           </div>
+             
+           <div class="flex justify-center mt-auto">
+             {#if item.is_checked_out}
+               <label for="borrowed"  class="mb-2 p-2 bg-red-500 text-slate-900 font-semibold border border-red-900 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</label>
+             {:else}
+               <label for="available" class="mb-2 p-2 bg-green-500 text-slate-800 font-semibold border border-slate-900 rounded-lg">Available</label>
+             {/if}
+           </div>
+
           <CloseButton onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white" />
         </div>
-        <div class="flex justify-center">
-          <h2 class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-orange-800 dark:border-orange-400 rounded-lg">{item.name}</h2>
-        </div>
-        <Section name="crudcreateform" class="justify-centered w-full">
-          <div class="mb-6 grid gap-6 md:grid-cols-2">
-
-            <div class="mb-6 flex flex-col items-center p-2 col-span-1">
-              
-              <div class="flex justify-center mt-auto">
-                {#if item.is_checked_out}
-                  <Label color="red" class="mb-2 p-2 text-red-500 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</Label>
-                {:else}
-                  <Label color="green" class="mb-2 p-2 text-green-500 font-semibold border border-green-500 rounded-lg">Available</Label>
-                {/if}
-              </div>
-              
-              <div class="flex items-center justify-center ">
-                <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full border rounded-lg border-slate-900"  />
-              </div>
+        
+        <div class="mb-6 grid gap-6 md:grid-cols-2">
+          <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+            
+            <div class="flex items-center justify-center ">
+              <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full border rounded-lg border-slate-900"  />
             </div>
+          </div>
 
 
             <form class="p-2">
-              <div class="mb-6 grid gap-6 md:grid-cols-2">
+              <div class="mb-2 grid gap-2 md:grid-cols-2">
                 <div>
                   <!-- svelte-ignore attribute_quoted -->
                     {#if enableEdit}
                       <FloatingLabelInput clearable variant="outlined"  bind:value={item.name} class="bg-white dark:bg-slate-900 rounded-lg">name</FloatingLabelInput>
                     {:else}
-                      <Label for="name" class="mb-2 p-2">Name: {item.name}</Label>
+                      <Label for="name" class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                        <span class="text-red-500">Name: </span> {item.name}</Label>
                     {/if}
                 </div>
 
@@ -640,11 +733,13 @@
                     {#if enableEdit}
                       <FloatingLabelInput clearable variant="outlined"  bind:value={item.manufacturer} class="bg-white dark:bg-slate-900 rounded-lg">manufacturer</FloatingLabelInput>
                     {:else}
-                      <Label for="name" class="mb-2 p-2 text-inherit" >Manufacturer: {item.manufacturer}</Label>
+                      <Label for="name" class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg" >
+                        <span class="text-red-500">Manufacturer: </span> {item.manufacturer}
+                      </Label>
                     {/if}
                 </div>
 
-                <div class="mb-6">
+                <div class="mb-4">
                   {#if enableEdit}
                     <Label for="number_items" class="mb-2 block">Number of Items</Label>
                     <div class="relative flex max-w-[8rem] items-center mb-6">
@@ -659,7 +754,8 @@
                       </ButtonGroup>
                     </div>
                   {:else}
-                    <Label class="mb-2 p-2 text-inherit">Count: {item.number_items}</Label>
+                    <Label class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg">
+                      <span class="text-red-500">Count: </span> {item.number_items}</Label>
                   {/if}
                 </div>
 
@@ -670,28 +766,77 @@
                       <Select class="mt-2" items={categories} bind:value={item.item_type} />
                     </Label>
                   {:else}
-                    <Label class="mb-2 p-2">Type: {item.item_type}</Label>
+                    <Label class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                       <span class="text-red-500">Type: </span> {item.item_type}</Label>
+                  {/if}
+                </div>
+
+                <!-- svelte-ignore attribute_quoted -->
+                {#if enableEdit}
+                  <div>
+                    <FloatingLabelInput clearable variant="outlined"  bind:value={item.location} class="bg-white dark:bg-slate-900 rounded-lg">storage location</FloatingLabelInput>
+                  </div>
+                {:else}
+                  <div>
+                    <Label for="storage" class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg" >
+                      <span class="text-red-500">Storage location: </span> {item.location}</Label>
+                  </div>
+                {/if}
+
+                <div>
+                  <!-- svelte-ignore attribute_quoted -->
+                  {#if enableEdit}
+                    <FloatingLabelInput clearable variant="outlined"  bind:value={item.tags} class="bg-white dark:bg-slate-900 rounded-lg">tags</FloatingLabelInput>
+                  {:else}
+                    <Label for="storage" class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg" >
+                      <span class="text-red-500">Tags: </span> {item.tags}</Label>
                   {/if}
                 </div>
 
                 <div>
-                  {#if enableEdit}
-                    <div class="mb-2 justify-center w-full">
-                      <Label for="description" class="mb-2">Description</Label>
-                      <Textarea id="message" class="w-full" placeholder={item.detials} rows={2} name="message" bind:value={item.details} />
-                    </div>
-                  {:else}
-                    {#if item.detials}
-                      <Label class="mb-2 p-2">Details: {item.details}</Label>
+                  {#if !enableEdit}
+                    {#if item.details}
+                      <Label class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                        <span class="text-red-500">Details: </span> {item.details}</Label>
                     {:else}
-                      <Label class="mb-2 p-2">Details: N/A</Label>
+                      <Label class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                        <span class="text-red-500">Details: </span> N/A</Label>
                     {/if}
                   {/if}
                 </div>
 
               </div>
 
-              <div class="row-span-3 md:row-span-4">
+              <div>
+                {#if enableEdit}
+                  <div class="mb-2 justify-center w-full">
+                    <Label for="description" class="mb-2">Details</Label>
+                    <Textarea id="message" class="w-full" placeholder={item.detials} rows={1} name="message" bind:value={item.details} />
+                  </div>
+
+                  <div 
+                    class="items-center justify-center w-full mb-4"
+                    role="region"
+                    ondrop={onDrop} 
+                    ondragover={onDragOver}
+                  >
+                    <label 
+                      for="dropzone-file" 
+                      class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600"
+                    >
+                      <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                          <span class="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG</p>
+                      </div>
+                      <input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
+                    </label>
+                  </div>
+                {/if}
+              </div>
+
+              <div class="bottom-0 left-0 flex w-full justify-start space-x-4 pb-4 md:px-4">
                 {#if enableEdit}
                   <Button onclick={() => updateItem(selectedItemId, item)}>
                     <CheckCircleOutline type="print-button" class="me-2 h-5 w-5"  /> confirm edit
@@ -742,11 +887,11 @@
               </div>
             </form>
           </div>
-        </Section>
       </div>
     </div>
 
 		<!-- --------------------------- EXTENDED CARD END --------------------- -->
+
 				{:else if !selectedItemId}
 					<!-- Normal grid card display -->
 					<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -754,9 +899,9 @@
 					<div class="mb-6 h-full flex-col items-center justify-start border rounded-lg border-inherit bg-slate-100 dark:bg-slate-700 p-2" onclick={() => toggleItem(item.id)}>
             <div class="flex justify-center mt-auto">
               {#if item.is_checked_out}
-                <Label color="red" class="mb-2 p-2 text-red-500 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</Label>
+                <label for="red" class="mb-2 p-2 bg-red-500 text-slate-900 font-semibold border border-red-500 rounded-lg">Checked out by {item.check_out_poc} since {item.check_out_date}</label>
               {:else}
-                <Label color="green" class="mb-2 p-2 text-green-500 font-semibold border border-green-500 rounded-lg">Available</Label>
+                <label for="green" class="mb-2 p-2 bg-green-500 text-slate-800 font-semibold border border-green-500 rounded-lg">Available</label>
               {/if}
             </div>
 						<img src={`${media_url}${item.image}.png`} alt={item.name} class="mb-6 w-full max-w-96 border rounded-lg border-slate-900"/>
@@ -821,27 +966,31 @@
           </div>
 
         {:else}
-          {#if image}
-            <div class="w-full flex justify-center">
-              <img src={`${media_url}${image}.png`} alt={image} class="max-w-[220px] max-h-[220px]"/>
-            </div>
-          {/if}
-          <div class="mb-4 p-2 gap-1"> 
-            <div class="mb-4 grid gap-2 md:grid-cols-2"> 
-
+        <div class="mb-4 p-2 gap-1"> 
+          <div class="mb-4 grid gap-2 md:grid-cols-2"> 
+              {#if image}
+                <div class="w-full flex justify-center">
+                  <img src={`${media_url}${image}.png`} alt={image} class="max-w-[220px] max-h-[220px]"/>
+                </div>
+              {:else}
+                <div class="bg-slate-900 flex justify-center max-w-[220px] max-h-[220px] min-w-[220px] min-h-[220px]"></div>
+              {/if}
+              
               <div class="mb-6">
-                <Label for="name" class="mb-2 block">Name</Label>
-                <Input id="name" name="name" required placeholder="Item name" bind:value={name}/>
+                <div class="mb-6">
+                  <Label for="name" class="mb-2 block">Name</Label>
+                  <Input id="name" name="name" required placeholder="Item name" bind:value={name}/>
+                </div>
+
+                <div class="mb-6">
+                  <Label for="manufacturer" class="mb-2 block">Manufacturer</Label>
+                  <Input id="manufacturer" name="manufacturer" placeholder="Item manufacturer" bind:value={manufacturer}/>
+                </div>
               </div>
 
-              <div class="mb-6">
-                <Label for="manufacturer" class="mb-2 block">Manufacturer</Label>
-                <Input id="manufacturer" name="manufacturer" placeholder="Item manufacturer" bind:value={manufacturer}/>
-              </div>
-
-              <div class="mb-6">
+              <div class="mb-6 w-full">
                 <Label for="number_items" class="mb-2 block">Number of Items</Label>
-                <div class="relative flex max-w-[8rem] items-center mb-6">
+                <div class="relative  items-center mb-6">
                   <ButtonGroup>
                     <Button type="button" id="decrement-button" onclick={() => (number_items -= 1)}>
                       <MinusOutline />
@@ -861,30 +1010,50 @@
                 </Label>
               </div> 
 
+              <div class="mb-6">
+                <Label for="location" class="mb-2 block">Storage Location</Label>
+                <Input id="location" name="location" placeholder="Storage location" bind:value={location}/>
+              </div>
+
+              <div class="mb-6">
+                <Label for="tags" class="mb-2 block">Tags</Label>
+                <Input id="tags" name="tags" placeholder="Tags" bind:value={tags}/>
+              </div>
             </div>
 
             <div class="mb-2 justify-center w-full">
               <Label for="description" class="mb-2">Description</Label>
-              <Textarea id="message" class="w-full" placeholder="Enter a detailed item description here" rows={2} name="message" bind:value={details} />
+              <Textarea id="message" class="w-full" placeholder="Enter a detailed item description here" rows={1} name="message" bind:value={details} />
+            </div>
+            
+            <div 
+              class="items-center justify-center w-full"
+              role="region"
+              ondrop={onDrop} 
+              ondragover={onDragOver}
+            >
+              <label 
+                for="dropzone-file" 
+                class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600"
+              >
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                  <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span class="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG</p>
+                </div>
+                <input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
+              </label>
             </div>
 
-            <div class="items-center justify-center w-full">
-                <label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600">
-                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG </p>
-                    </div>
-                    <input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
-                </label>
-            </div> 
           </div>
 
           <div class="bottom-0 left-0 flex w-full justify-center space-x-4 pb-4 md:absolute md:px-4">
-            <Button type="submit" class="w-full" onclick={add_inventory_item}>add item</Button>
+            <Button type="submit" class="w-full" onclick={addItem}>add item</Button>
             <Button type="camera" class="w-full" onclick={toggleCameraVisibility} >open camera</Button>
             <Button class="w-full" color="light" onclick={handleCancel}>
-              <svg aria-hidden="true" class="-ml-1 h-5 w-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
-                ><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <svg aria-hidden="true" class="-ml-1 h-5 w-5 sm:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
               cancel
             </Button>

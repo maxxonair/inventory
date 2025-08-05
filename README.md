@@ -23,6 +23,7 @@ each item in the inventory.
 | **Check-out PoC**        | Check-out point of contact, aka the person responsible for the item from the moment it has been checked out.                                               |
 | **Date Added**           | Date when the item has been added to the database. Automatically handled in the background.                                                                |
 | **Tags**                 | Tags to identify item. Tags should be separated by a semicolon                                                                                             |
+| **Type**                 | Item Type                                                                                             |
 | **Storage Location**     | Storage location of the item                                                                                                                               |
 
 # Configuration
