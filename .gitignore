@@ -24,7 +24,7 @@ database/media/*
 **/*.jpeg
 
 # --- [SVELTE]
-node_modules/*
+app/node_modules/*
 
 # --- [FLASK]
 flask_session/*

@@ -5,6 +5,8 @@ Minimal inventory management system to track physical assets in a digital databa
 
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
+## Architecture
+
 ### Item Data
 
 The following shows the currently implemented meta data that is recorded for
@@ -23,11 +25,30 @@ each item in the inventory.
 | **Check-out PoC**        | Check-out point of contact, aka the person responsible for the item from the moment it has been checked out.                                               |
 | **Date Added**           | Date when the item has been added to the database. Automatically handled in the background.                                                                |
 | **Tags**                 | Tags to identify item. Tags should be separated by a semicolon                                                                                             |
+| **Type**                 | Item Type                                                                                             |
 | **Storage Location**     | Storage location of the item                                                                                                                               |
 
 # Configuration
 
 Settings of different elements of the front and backend are configurable via their respective config file. The following gives a brief overview where to find these files and which parameters to adjust.
+
+##
+
+This project is using [bun](https://bun.sh/) to develop, test and deploy the svelte front-end. 
+
+Set up bun 
+
+```
+curl -fsSL https://bun.sh/install | bash
+```
+
+```bash
+# Run app for development
+bun run dev
+
+# Build app
+bun --bun run build
+```
 
 ## Configure Database
 
@@ -139,7 +160,7 @@ The following privelege levels are currently maintained, the table shows their a
 Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
 ```bash
-npm run dev
+bun run dev
 
 # or start the server and open the app in a new browser tab
 npm run dev -- --open
@@ -150,10 +171,10 @@ npm run dev -- --open
 To create a production version of your app:
 
 ```bash
-npm run build
+bun run build
 ```
 
-You can preview the production build with `npm run preview`.
+You can preview the production build with `bun run preview`.
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
 

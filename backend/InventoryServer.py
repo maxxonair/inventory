@@ -177,7 +177,9 @@ class InventoryServer:
       if 'user' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
       data_dict = request.json
-      self.db.update_inventory_item(data_dict)
+      item_id = int(data_dict['id'])
+      data_dict.pop("id")
+      self.db.update_inventory_item(data_dict, item_id)
       return jsonify({'status': 'item updated'}), 200
 
     @self.app.route('/logout', methods=['POST'])
