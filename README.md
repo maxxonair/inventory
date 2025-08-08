@@ -11,11 +11,11 @@ Minimal physical inventory management system to track physical assets in a digit
 
 ### Key Features
 
-:thumbsup: Easy access, easy to maintain inventory database.
-:vertical_traffic_light: Keep in control of item borrowing with QR code system. 
-:computer: Designed for minimal hardware cost. 
-:raising_hand: Use build in user management or hook up to your own.
-:fire: Access through web app build with [svelte](https://svelte.dev/)
+:thumbsup: Easy access, easy to maintain inventory database.  
+:vertical_traffic_light: Keep in control of item borrowing with QR code system.  
+:computer: Designed for minimal hardware cost.  
+:raising_hand: Use build in user management or hook up to your own.  
+:fire: Access through web app build with [svelte](https://svelte.dev/)  
 
 # SETUP
 
