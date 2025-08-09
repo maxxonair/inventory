@@ -24,4 +24,5 @@ RUN bun install
 # EXPOSE 5173/tcp
 # ENTRYPOINT [ "bun", "run", "index.ts" ]
 
+# Run dev for testing
 ENTRYPOINT [ "bun", "run", "dev" ]

@@ -1,11 +1,10 @@
 
 
-
 # --- [PYTHON]
-# Ignore virtual environments
+# Ignore virtual environments of any kind
 env/
 .venv/
-__pycache__/
+**/__pycache__
 
 
 # --- [DATABASE]
@@ -25,8 +24,10 @@ database/media/*
 
 # --- [SVELTE]
 app/node_modules/*
+app/.svelte-kit
 
 # --- [FLASK]
+# Don't commit any session data
 flask_session/*
 
 **/*.example.py
