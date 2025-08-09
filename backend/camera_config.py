@@ -2,6 +2,10 @@
 Camera server configuration file
 
 """
+from pathlib import Path
+
+# Determine absolute path of directory where this script is located
+config_path = Path(__file__).parent.resolve()
 
 # CameraServer IP
 # Default: Run on localhost
@@ -13,5 +17,4 @@ camera_server_port = 5050
 
 
 # Path to location where media files are stored 
-# TODO move this to uniform location to define it only once
-media_file_path = "/home/mrx/Documents/inventory/database/media/"
+media_file_path = (config_path / ".." / "database" / "media" ).resolve() 

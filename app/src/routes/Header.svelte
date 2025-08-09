@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { LogIn, LogOut, PlusCircle, ScanQrCode, FolderDown, Home } from 'lucide-svelte';
-  // import logo from "$lib/images/svelte-logo.svg";
+  import logo from "$lib/images/inventory.svg";
   import { user, logout } from '$lib/stores/auth.js';
   import { DarkMode, Button} from "flowbite-svelte";
   import {  ArrowLeftToBracketOutline, OpenDoorOutline, HomeSolid } from "flowbite-svelte-icons";

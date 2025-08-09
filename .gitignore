@@ -12,10 +12,11 @@ env/
 database/volumes/*
 database/media/*
 **/volumes/
+database/.env
 
 # --- [ENVIRONMENT FILES]
 # Ignore all environment files 
-**/*.env
+**/.env
 
 # --- [FILES]
 # Ignore all image files

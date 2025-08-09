@@ -5,6 +5,12 @@ Printer parameter file
 import sys
 from pathlib import Path
 
+#-------------------------------------------------------------------------------
+#
+#                   PRINTER CONFIG SET FOR NIIMBOT D110
+#
+#-------------------------------------------------------------------------------
+
 # Mac address of the Niimbot D110 printer used to print inventory labels
 niimbot_d110_inventory_mac_address = '04:08:04:01:31:04'
 

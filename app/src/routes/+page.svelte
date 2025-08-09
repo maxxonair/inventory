@@ -638,7 +638,7 @@ async function downloadExcel() {
   });
   
 </script>
-
+<!-- --------------------------- PAGE CONTENT ------------------------------- -->
 <svelte:head>
   <title>Inventory</title>
   <meta name="description" content="Page to add new item" />
