@@ -1,9 +1,9 @@
-"""                 [Inventory] Camera Server 
+"""[Inventory] Camera Server
 
-Uses OpenCV to get a video stream from a connected webcam and flask to host the 
+Uses OpenCV to get a video stream from a connected webcam and flask to host the
 video stream.
 
-For debugging run as a module with 
+For debugging run as a module with
 
 $ uv run -m backend.CameraServer
 
@@ -17,21 +17,16 @@ import asyncio
 import requests
 from typing import Tuple
 from time import time
-from pathlib import Path
-import hashlib
 import pygame
 import threading
 
-from backend import (decode_id_from_qr_message,
-                     camera_server_ip,
-                     camera_server_port)
+from backend import decode_id_from_qr_message, camera_server_ip, camera_server_port
 
 from backend.util import detect_and_decode_qr_marker
 from backend.inventory_server_config import inventory_server_ip, inventory_server_port
-from backend.camera_config import media_file_path
 
 
-class CameraServer():
+class CameraServer:
   """
   Class to use Flask to host a camera web server. This web stream is used
   to:
@@ -40,17 +35,19 @@ class CameraServer():
 
   """
 
-  def __init__(self, 
-               enable_qr_scanner: bool = True, 
-               suspend_scan_dur_thr_s: float = 3.0, 
-               camera_index: int = 0):
-    """Initialise server instance 
+  def __init__(
+    self,
+    enable_qr_scanner: bool = True,
+    suspend_scan_dur_thr_s: float = 3.0,
+    camera_index: int = 0,
+  ):
+    """Initialise server instance
 
     Args:
-        enable_qr_scanner (bool, optional): Enable QR scanning function. 
+        enable_qr_scanner (bool, optional): Enable QR scanning function.
             Defaults to True.
-        suspend_scan_dur_thr_s (float, optional): Time QR scanning will be suspended 
-            for after a valid code has been scanned. 
+        suspend_scan_dur_thr_s (float, optional): Time QR scanning will be suspended
+            for after a valid code has been scanned.
             Defaults to 3.0 seconds
     """
     # Enable/Disable displaying the QR message in the streamed image
@@ -59,93 +56,112 @@ class CameraServer():
     self.app = Flask(__name__)
     # Enable CORS
     CORS(self.app, supports_credentials=True)
-    
+
     self.camera_index = camera_index
-    
+
     # Flag if True the QR scanning function of this server is enabled
     self.enable_qr_scanner = enable_qr_scanner
-    
+
     # Init pygame mixer to play audio files
     self.mixer = pygame.mixer.init()
-      
+
     # Flag if True QR scanning is disabled temporarily
     self.is_suspend_qr_scan = False
-    
+
     # Counter to track the time spend while QR scanning is disabled
     self.time_qr_suspended_s = 0
-    
-    # Threshold for the maximum time QR scanning is disabled after a successful 
+
+    # Threshold for the maximum time QR scanning is disabled after a successful
     # scan
     self.suspend_scan_dur_thr_s = suspend_scan_dur_thr_s
-      
+
     # Define routes inside the constructor
-    self.app.add_url_rule('/', 'video_feed', self.video_feed)
+    self.app.add_url_rule("/", "video_feed", self.video_feed)
     self.configure_routes()
-    
+
   def play_beep(self):
-    """Play a beep sound (when a QR code is scanned successfully)
-    """
+    """Play a beep sound (when a QR code is scanned successfully)"""
     pygame.mixer.music.load("backend/assets/beep.wav")
+
     def _play():
       pygame.mixer.music.play()
 
     threading.Thread(target=_play, daemon=True).start()
-    
+
   def play_shutter_sound(self):
-    """Play a beep sound (when a QR code is scanned successfully)
-    """
+    """Play a beep sound (when a QR code is scanned successfully)"""
     pygame.mixer.music.load("backend/assets/camera_shutter.wav")
+
     def _play():
       pygame.mixer.music.play()
 
     threading.Thread(target=_play, daemon=True).start()
-    
+
+  def send_image(self, image_bytes) -> Tuple[bool, str]:
+    """Send image capture to inventory server"""
+    files = {"file": ("camera_frame.png", image_bytes, "image/png")}
+    url = f"http://{inventory_server_ip}:{inventory_server_port}/store_media_image"
+    try:
+      response = requests.post(url, files=files)
+      # raise exception for HTTP errors
+      response.raise_for_status()
+      # parse JSON response from the inventory server
+      data = response.json()
+
+      # Extract values
+      success = data.get("status") == "success"
+      image_hash = data.get("hash", "")
+
+      print(f"Success: {success}, Hash: {image_hash}")
+      return True, image_hash
+
+    except requests.exceptions.RequestException as e:
+      print(f"Error sending image: {e}")
+      return False, ""
+    except ValueError:
+      # JSON decoding failed
+      print("Invalid JSON response from server.")
+      return False, ""
+
   def configure_routes(self):
-
-    @self.app.route('/capture_image', methods=['POST'])
+    @self.app.route("/capture_image", methods=["POST"])
     def capture_image():
-      """Serve requested image from the media directory
-      """
+      """Serve requested image from the media directory"""
       self.play_shutter_sound()
-      # Create a hex hash based on the frame data
-      cam_img_bytes = self.frame.tobytes()
-      hash_object = hashlib.sha256(cam_img_bytes)
-      hash_hex = hash_object.hexdigest()
+      _, buffer = cv.imencode(".jpg", self.frame)
+      frame_bytes = buffer.tobytes()
+      
+      # Send captured frame to inventory server to save it in media vault
+      ret, hash_hex = self.send_image(frame_bytes)
 
-      img_path = Path(media_file_path) / f'{hash_hex}.png'
-
-      # Save image to file
-      ret = cv.imwrite(img_path.resolve(), self.frame)
-      if not ret:
-        print(f"❌ Failed to write image to {img_path}")
+      if ret:
+        return jsonify(hash_hex)
       else:
-        print(f"✅ Image saved to: {img_path}")
-      return jsonify(hash_hex)
-    
+        return {"error": "Failed to save image"}, 500
+
   def start_video_stream(self):
-    """Launch video streaming
-    """
+    """Launch video streaming"""
     # Create OpenCV VideoCapture instance for webcam at port 0
     camera = cv.VideoCapture(int(self.camera_index))
     while True:
       # Get a time marker for the start of this loop
       now = time()
-      
+
       # Capture frame from the camera
       success, self.frame = camera.read()
 
       if not success:
-        error('Failed to conntect to camera.')
+        error("Failed to conntect to camera.")
         break
       else:
         # Compile frame for output stream
-        _, buffer = cv.imencode('.jpg', self.frame)
+        _, buffer = cv.imencode(".jpg", self.frame)
         frame_bytes = buffer.tobytes()
-        
+
         if self.enable_qr_scanner:
           if self.is_suspend_qr_scan:
             # Increment timer to track the time since this function is disabled
-            self.time_qr_suspended_s += (time() - now)
+            self.time_qr_suspended_s += time() - now
             # If threshold is reached -> lift suspension
             if self.time_qr_suspended_s > self.suspend_scan_dur_thr_s:
               self.is_suspend_qr_scan = False
@@ -153,31 +169,34 @@ class CameraServer():
             self.time_qr_suspended_s = 0
             try:
               # Detect and mark QR markers in frame
-              (self.frame,
-              _,
-              num_markers,
-              decoded_list) = detect_and_decode_qr_marker(self.frame)
+              (self.frame, _, num_markers, decoded_list) = detect_and_decode_qr_marker(
+                self.frame
+              )
 
               # Process detected markers and notify the inventory server
-              id_valid, item_id  = self.handle_qr_marker_list(num_markers, decoded_list)
+              id_valid, item_id = self.handle_qr_marker_list(num_markers, decoded_list)
             except:
-              warning(f'Detecting QR marker failed for this frame {self.frame.shape}')
+              warning(f"Detecting QR marker failed for this frame {self.frame.shape}")
               id_valid = False
-            
+
             # If a valid marker has been scanned successfully -> Suspend further
-            # scanning for self.suspend_scan_dur_thr_s seconds to avoid scanning the 
+            # scanning for self.suspend_scan_dur_thr_s seconds to avoid scanning the
             # same item over and over again.
             if id_valid:
-              info(f'Marker detection (ID = {item_id}). Suspend QR scanning for {self.suspend_scan_dur_thr_s} seconds ... ')
+              info(
+                f"Marker detection (ID = {item_id}). Suspend QR scanning for {self.suspend_scan_dur_thr_s} seconds ... "
+              )
               self.is_suspend_qr_scan = True
 
-        yield (b'--frame\r\n'
-               # concat frame one by one and show result
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        yield (
+          b"--frame\r\n"
+          # concat frame one by one and show result
+          b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+        )
 
   def handle_qr_marker_list(self, num_markers, decoded_list) -> Tuple[bool, int]:
     """Process the decoded list of QR markers in the image
-    
+
     Function to handle the list of processed QR markers:
     * Check if more than one marker is detected
     * Decode message from detected marker
@@ -195,32 +214,34 @@ class CameraServer():
     # Only use the decoded messages if one and only one marker is detected
     # within the image
     if num_markers == 1:
-
       # Retrieve the inventory ID from the the QR message payload
       is_valid, item_id = decode_id_from_qr_message(decoded_list[0])
 
       # Check validity of the decoded item ID
       if is_valid:
-        debug(f'[+--] Valid QR marker detected -> {item_id}')
-        
+        debug(f"[+--] Valid QR marker detected -> {item_id}")
+
         # Play sound to indicate a successful scan
         # TODO Fix and debug before adding back beep
         self.play_beep()
-        
+
         # Set inventory server url
-        inventory_server_url = f'http://{inventory_server_ip}:{inventory_server_port}/qr'
+        inventory_server_url = (
+          f"http://{inventory_server_ip}:{inventory_server_port}/qr"
+        )
         # Set request payload
-        payload = {'id': f'{item_id}'}
+        payload = {"id": f"{item_id}"}
         # Send request to inventory server
         _ = requests.post(inventory_server_url, json=payload)
-        
+
         return True, item_id
       else:
-        info(f'Decoded message invalid {decoded_list[0]} -> {item_id}')
+        info(f"Decoded message invalid {decoded_list[0]} -> {item_id}")
 
     elif num_markers > 1:
       warning(
-          f'Multiple ({num_markers}) QR marker detected within the image. Aborting compiling the decoded message.')
+        f"Multiple ({num_markers}) QR marker detected within the image. Aborting compiling the decoded message."
+      )
     else:
       # If list is empty -> do nothing
       pass
@@ -230,28 +251,26 @@ class CameraServer():
     """
     Video streaming route. Put this in the src attribute of an img tag
     """
-    return Response(self.start_video_stream(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(
+      self.start_video_stream(), mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
 
-  async def run(self,
-                host: str = camera_server_ip,
-                port: int = camera_server_port):
+  async def run(self, host: str = camera_server_ip, port: int = camera_server_port):
     """
     Start the camera server
     """
+
     # Start video streaming server
     def start_flask():
-      self.app.run(host=host,
-                   port=port,
-                   debug=False,
-                   use_reloader=False,
-                   threaded=True)
+      self.app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
 
     # Run the Flask app in a separate thread and return it as an asyncio
     # task
     return await asyncio.to_thread(start_flask)
 
   async def stop(self):
-      info("Stopping CameraServer...")
+    info("Stopping CameraServer...")
+
 
 if __name__ == "__main__":
   """Allows to call this module directly
@@ -259,5 +278,4 @@ if __name__ == "__main__":
   server = CameraServer()
   loop = asyncio.new_event_loop()
   asyncio.set_event_loop(loop)
-  loop.run_until_complete(asyncio.gather(
-      server.run()))
+  loop.run_until_complete(asyncio.gather(server.run()))

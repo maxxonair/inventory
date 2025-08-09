@@ -27,8 +27,13 @@ tmux split-window -v -t $SESSION
 # In pane 1: cd to inventory directory and start CameraServer
 tmux send-keys -t $SESSION "cd $WORKDIR && uv run -m backend.CameraServer" C-m
 
+tmux split-window -v -t $SESSION
+
+# In pane 1: cd to inventory directory and start PrinterServer
+tmux send-keys -t $SESSION "cd $WORKDIR && uv run -m backend.PrinterServer" C-m
+
 # Arrange panes
-tmux select-layout -t $SESSION even-horizontal
+tmux select-layout -t $SESSION even-vertical
 
 # Attach to session
 tmux attach-session -t $SESSION

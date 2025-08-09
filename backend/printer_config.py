@@ -5,6 +5,16 @@ Printer parameter file
 import sys
 from pathlib import Path
 
+# ---- PRINTER SERVER CONFIG ----
+
+# Printer Server host IP
+# Default: Localhost
+PRINTER_SERVER_IP = "127.0.0.1"
+
+# Printer Server port
+# Default: 5100
+PRINTER_SERVER_PORT = 5100
+
 #-------------------------------------------------------------------------------
 #
 #                   PRINTER CONFIG SET FOR NIIMBOT D110

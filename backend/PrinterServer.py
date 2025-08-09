@@ -6,25 +6,19 @@ For debugging run as a module with
 $ uv run -m backend.PrinterServer
 
 """
-from flask import Flask, request, jsonify,  session
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-from flask_session import Session
 from logging import info
 import asyncio
 
 from backend.PrinterClient import PrinterClient
-
-# --- CONSTANTS ----
-PRINTER_SEVER_IP = "127.0.0.1"
-PRINTER_SERVER_PORT = 5100
+from backend.printer_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
 
 class PrinterServer:
   def __init__(self):
-    """Await docstring generation..."""
     self.app = Flask(__name__)
     # Enable CORS
     CORS(self.app, supports_credentials=True)  
-    Session(self.app)
 
     self.printer_client = PrinterClient()
 
@@ -35,11 +29,7 @@ class PrinterServer:
 
     @self.app.route('/print_label', methods=['POST'])
     def print_label():
-      """Print item label 
-
-      """
-      if 'user' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
+      """Print item QR label """
       data = request.get_json()
       item_id = int(data.get('itemId'))
       print(f'Print label for item with ID {item_id}')
@@ -49,7 +39,7 @@ class PrinterServer:
 
       return jsonify({'status': 'success'}), 200
   
-  async def run(self, host: str = PRINTER_SEVER_IP,
+  async def run(self, host: str = PRINTER_SERVER_IP,
                 port: int = PRINTER_SERVER_PORT):
     """Run the server
 
@@ -66,7 +56,7 @@ class PrinterServer:
     return await asyncio.to_thread(start_flask)
 
   async def stop(self):
-    info("Stopping Inventory Server...")
+    info("Stopping Printer Server...")
 
 
 if __name__ == '__main__':

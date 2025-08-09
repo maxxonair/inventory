@@ -18,4 +18,8 @@ dependencies = [
   "qrcode",
   "pyserial",
   "pyzbar",
+  "rich"
 ]
+
+[tool.ruff]
+indent-width = 2

@@ -32,19 +32,23 @@ import cv2 as cv
 from backend.database_config import (INVENTORY_TABLE_NAME,
                                      INVENTORY_DB_NAME,
                                      INVENTORY_USER_TABLE_NAME,
-                                     media_directory)
+                                     media_directory,
+                                     database_host,
+                                     database_port,
+                                     DATABASE_USER_NAME,
+                                     DATABASE_PASSWORD)
 from backend.InventoryUser import InventoryUser
 
 
 class DataBaseClient():
 
-  def __init__(self, host: str, port: int = 46123):
+  def __init__(self, host: str = database_host, port: int = database_port):
     self.connection_config = {
-        'user': 'inventory_user',
-        'password': 'inventory24',
+        'user': DATABASE_USER_NAME,
+        'password': DATABASE_PASSWORD,
         'host': host,
         'port': port,
-        'database': 'inventory',
+        'database': INVENTORY_DB_NAME,
         'connect_timeout': 0
     }
 
@@ -436,8 +440,6 @@ class DataBaseClient():
     database will hold a path to the respective file in the media folder instead.
 
     """
-    pwd_path = Path(os.path.realpath(__file__))
-    media_directory = pwd_path.parent / '..' / 'database' / 'media'
     if not media_directory.exists():
       info(f'[x] Create media directory at {media_directory}')
       os.makedirs(media_directory.absolute().as_posix(), 0o775)
