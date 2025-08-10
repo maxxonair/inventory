@@ -1,20 +1,13 @@
-
 import hashlib
 from pandas import DataFrame
 from logging import warning
 from enum import Enum
 
-
-# [CONSTANT] Name of the main database to store the Inventory
-INVENTORY_DB_NAME = 'inventory'
-
-# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
-#            Inventory
-INVENTORY_TABLE_NAME = 'inventory'
-
-# [CONSTANT] Name of the table in INVENTORY_DB_NAME database to store the
-#            Inventory users
-INVENTORY_USER_TABLE_NAME = 'inventory_user'
+from server.database_config import (
+  INVENTORY_DB_NAME,
+  INVENTORY_TABLE_NAME,
+  INVENTORY_USER_TABLE_NAME,
+)
 
 
 class UserPrivileges(Enum):
@@ -25,17 +18,17 @@ class UserPrivileges(Enum):
   OWNER = 4
 
 
-class InventoryUser():
-
+class InventoryUser:
   # Salt for password hashing
   # TDOO to be changed and moved out of here
-  SALT = 'sda8DF7d13e3F2'
+  SALT = "sda8DF7d13e3F2"
 
-  def __init__(self,
-               user_name: str,
-               user_password: str,
-               user_privileges: UserPrivileges = UserPrivileges.GUEST):
-
+  def __init__(
+    self,
+    user_name: str,
+    user_password: str,
+    user_privileges: UserPrivileges = UserPrivileges.GUEST,
+  ):
     self.user_name = user_name
     self.hashed_user_password = self._hash(user_password)
     self.user_privileges = user_privileges.value
@@ -55,22 +48,23 @@ class InventoryUser():
 
   def is_password(self, test_password: str):
     """
-    Function to test if a given password matches the user passord of this 
+    Function to test if a given password matches the user passord of this
     InventoryUser instance
     """
     hash_test_password = self._hash(test_password)
-    return (hash_test_password == self.hashed_user_password)
+    return hash_test_password == self.hashed_user_password
 
   def populate_from_df(self, user_data_df: DataFrame):
     """
     Function to populate user data from a dataframe object
     """
-    if user_data_df.empty == False:
-      self.user_name = user_data_df.iloc[0]['user_name']
-      self.hashed_user_password = user_data_df.iloc[0]['user_password']
-      self.user_privileges = int(user_data_df.iloc[0]['user_privileges'])
+    if not user_data_df.empty:
+      self.user_name = user_data_df.iloc[0]["user_name"]
+      self.hashed_user_password = user_data_df.iloc[0]["user_password"]
+      self.user_privileges = int(user_data_df.iloc[0]["user_privileges"])
     else:
-      warning('Attempted to populate InventoryItem from empty DataFrame')
+      warning("Attempted to populate InventoryItem from empty DataFrame")
+
   # ------------------------------------------------------------------------
   #                       [PRIVATE]
   # ------------------------------------------------------------------------
@@ -78,9 +72,9 @@ class InventoryUser():
   def _update_dict(self):
     #  Create dictonary from item data
     self.inventoryUserDict = {
-        "user_name": str(self.user_name),
-        "user_password": self.hashed_user_password,
-        "user_privileges": self.user_privileges
+      "user_name": str(self.user_name),
+      "user_password": self.hashed_user_password,
+      "user_privileges": self.user_privileges,
     }
 
   def _hash(self, message: str):
@@ -100,11 +94,12 @@ class InventoryUser():
     """
 
     # Compile query
-    create_table_query = f'CREATE TABLE IF NOT EXISTS {
-        INVENTORY_USER_TABLE_NAME} ( id INT PRIMARY KEY AUTO_INCREMENT,'
-    create_table_query += f'user_name VARCHAR(50) UNIQUE NOT NULL,'
-    create_table_query += f'user_password VARCHAR(50),'
-    create_table_query += f'user_privileges INT )'
+    create_table_query = f"CREATE TABLE IF NOT EXISTS {
+      INVENTORY_USER_TABLE_NAME
+    } ( id INT PRIMARY KEY AUTO_INCREMENT,"
+    create_table_query += "user_name VARCHAR(50) UNIQUE NOT NULL,"
+    create_table_query += "user_password VARCHAR(50),"
+    create_table_query += "user_privileges INT )"
 
     return create_table_query
 
@@ -120,15 +115,16 @@ class InventoryUser():
 
     # Pre-construct set each value statement
     set_clause = ", ".join(
-        [f"{column}" for column in list(self.inventoryUserDict.keys())])
+      [f"{column}" for column in list(self.inventoryUserDict.keys())]
+    )
 
     # Create series of ? that matches the number of values in
     # list(self.inventoryUserDict.values())
-    value_clause = ", ".join(
-        [f"?" for column in list(self.inventoryUserDict.values())])
+    value_clause = ", ".join([f"?" for column in list(self.inventoryUserDict.values())])
 
     sql = f"INSERT INTO {INVENTORY_USER_TABLE_NAME} ( {set_clause} ) VALUES ( {
-        value_clause} )"
+      value_clause
+    } )"
 
     # Prepare the data to update
     values = list(self.inventoryUserDict.values())
@@ -147,10 +143,10 @@ class InventoryUser():
 
     # Pre-construct set each value statement
     set_clause = ", ".join(
-        [f"{column} = ?" for column in list(self.inventoryUserDict.keys())])
+      [f"{column} = ?" for column in list(self.inventoryUserDict.keys())]
+    )
 
-    sql = f"UPDATE {INVENTORY_USER_TABLE_NAME} SET {
-        set_clause} WHERE user_name = ?"
+    sql = f"UPDATE {INVENTORY_USER_TABLE_NAME} SET {set_clause} WHERE user_name = ?"
 
     # Prepare the data to update
     values = list(self.inventoryUserDict.values()) + [user_name]

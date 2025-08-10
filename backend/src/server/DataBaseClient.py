@@ -3,16 +3,16 @@
 Inventory main table:
   name VARCHAR(255) NOT NULL
   image VARCHAR(1055)
-  description VARCHAR(1055) 
+  description VARCHAR(1055)
   manufacturer VARCHAR(255)
   details VARCHAR(1055)
   is_checked_out BOOLEAN
-  check_out_date VARCHAR(255) 
-  check_out_poc VARCHAR(1055) 
-  date_added VARCHAR(255) 
-  tags VARCHAR(1055) 
-  location VARCHAR(1055) 
-  item_type VARCHAR(1055) 
+  check_out_date VARCHAR(255)
+  check_out_poc VARCHAR(1055)
+  date_added VARCHAR(255)
+  tags VARCHAR(1055)
+  location VARCHAR(1055)
+  item_type VARCHAR(1055)
   number_items INT(32) )
 
 Raises:
@@ -21,35 +21,36 @@ Raises:
 Returns:
     _type_: _description_
 """
+
 import mariadb
 from logging import info, warning, debug, error
 import pandas as pd
-import os
 from datetime import datetime
 from pathlib import Path
 import cv2 as cv
 
-from server.database_config import (INVENTORY_TABLE_NAME,
-                                     INVENTORY_DB_NAME,
-                                     INVENTORY_USER_TABLE_NAME,
-                                     media_directory,
-                                     database_host,
-                                     database_port,
-                                     DATABASE_USER_NAME,
-                                     DATABASE_PASSWORD)
+from server.database_config import (
+  INVENTORY_TABLE_NAME,
+  INVENTORY_DB_NAME,
+  INVENTORY_USER_TABLE_NAME,
+)
+from server.inventory_server_config import (
+  DEFAULT_DB_HOST,
+  DEFAULT_DB_PORT,
+)
+from server.mysql import MYSQL_PASSWORD, MYSQL_USER
 from server.InventoryUser import InventoryUser
 
 
-class DataBaseClient():
-
-  def __init__(self, host: str = database_host, port: int = database_port):
+class DataBaseClient:
+  def __init__(self, host: str = DEFAULT_DB_HOST, port: int = DEFAULT_DB_PORT):
     self.connection_config = {
-        'user': DATABASE_USER_NAME,
-        'password': DATABASE_PASSWORD,
-        'host': host,
-        'port': port,
-        'database': INVENTORY_DB_NAME,
-        'connect_timeout': 10
+      "user": MYSQL_USER,
+      "password": MYSQL_PASSWORD,
+      "host": host,
+      "port": port,
+      "database": INVENTORY_DB_NAME,
+      "connect_timeout": 10,
     }
 
     try:
@@ -62,42 +63,35 @@ class DataBaseClient():
 
       info("[x] Connected to the inventory database")
     except mariadb.Error as e:
-      error('')
+      error("")
       raise RuntimeError(f"Error connecting to MariaDB: {e}")
 
     # -- Ensure that database exists --
     if not self.is_database(INVENTORY_DB_NAME):
-      error(
-          f' {INVENTORY_DB_NAME} database not found.')
+      error(f" {INVENTORY_DB_NAME} database not found.")
       exit(1)
     else:
-      info(f'[x] {INVENTORY_DB_NAME} database found.')
+      info(f"[x] {INVENTORY_DB_NAME} database found.")
 
     # Use inventory database from here onwards
     self.cursor.execute(f"USE {INVENTORY_DB_NAME}")
 
     # -- Ensure that inventory table exists --
     if not self.is_table(INVENTORY_TABLE_NAME):
-      error(
-          f' {INVENTORY_TABLE_NAME} table not found.')
+      error(f" {INVENTORY_TABLE_NAME} table not found.")
       exit(1)
     else:
-      info(f'[x] {INVENTORY_TABLE_NAME} table found.')
+      info(f"[x] {INVENTORY_TABLE_NAME} table found.")
 
     # -- Ensure that inventory user table exists --
     if not self.is_table(INVENTORY_USER_TABLE_NAME):
-      error(
-          f' {INVENTORY_USER_TABLE_NAME} table not found.')
+      error(f" {INVENTORY_USER_TABLE_NAME} table not found.")
       exit(1)
     else:
-      info(f'[x] {INVENTORY_USER_TABLE_NAME} table found.')
-
-    # Initialize media folder
-    self.init_media_dir()
+      info(f"[x] {INVENTORY_USER_TABLE_NAME} table found.")
 
   def close(self):
-    """
-    """
+    """ """
     self.cursor.close()
     self.connection.close()
 
@@ -111,7 +105,7 @@ class DataBaseClient():
     """
     self.cursor.execute("SHOW TABLES;")
     db_list = []
-    for (databases) in self.cursor:
+    for databases in self.cursor:
       db_list.append(databases[0])
     return db_list
 
@@ -121,13 +115,13 @@ class DataBaseClient():
     """
     self.cursor.execute("SHOW DATABASES")
     db_list = []
-    for (databases) in self.cursor:
+    for databases in self.cursor:
       db_list.append(databases[0])
     return db_list
 
   def is_database(self, database_name: str) -> bool:
     """
-    Check if database of given name exists. If so return True, False 
+    Check if database of given name exists. If so return True, False
     otherwise
 
     """
@@ -139,7 +133,7 @@ class DataBaseClient():
 
   def is_table(self, table_name: str) -> bool:
     """
-    Check if table of given name exists. If so return True, False 
+    Check if table of given name exists. If so return True, False
     otherwise
 
     """
@@ -181,7 +175,7 @@ class DataBaseClient():
 
   def get_inventory_item_as_df(self, item_id):
     """
-    Return a specific inventory item identified by its ID from a database 
+    Return a specific inventory item identified by its ID from a database
     in a pandas dataframe
     """
     # Query to fetch all data from the specified table
@@ -199,13 +193,13 @@ class DataBaseClient():
     # Create a DataFrame from the fetched data
     df = pd.DataFrame(rows, columns=columns)
 
-    info(f'Inventory data {df}')
+    info(f"Inventory data {df}")
 
     return df
 
   def get_inventory_item_as_dict(self, item_id) -> dict:
     """
-    Return a specific inventory item identified by its ID from a database 
+    Return a specific inventory item identified by its ID from a database
     as a dictionary
     """
     # Query to fetch all data from the specified table
@@ -223,7 +217,7 @@ class DataBaseClient():
     # Create a DataFrame from the fetched data
     df = pd.DataFrame(rows, columns=columns)
 
-    item_dict = df.to_dict('records')
+    item_dict = df.to_dict("records")
 
     return item_dict[0]
 
@@ -235,29 +229,30 @@ class DataBaseClient():
     """
     Create database
     """
-    query = f'CREATE DATABASE `{database_name}`;'
+    query = f"CREATE DATABASE `{database_name}`;"
     self.cursor.execute(query)
 
   def create_inventory_table(self):
     """
-    Create inventory table 
+    Create inventory table
     """
     # Compile query to create inventory table
-    create_table_query = f'CREATE TABLE IF NOT EXISTS {
-        INVENTORY_TABLE_NAME} ( id INT PRIMARY KEY AUTO_INCREMENT,'
-    create_table_query += f'name VARCHAR(255) NOT NULL,'
-    create_table_query += f'image VARCHAR(1055),'
-    create_table_query += f'description VARCHAR(1055) ,'
-    create_table_query += f'manufacturer VARCHAR(255),'
-    create_table_query += f'details VARCHAR(1055),'
-    create_table_query += f'is_checked_out BOOLEAN,'
-    create_table_query += f'check_out_date VARCHAR(255) ,'
-    create_table_query += f'check_out_poc VARCHAR(1055) ,'
-    create_table_query += f'date_added VARCHAR(255) ,'
-    create_table_query += f'tags VARCHAR(1055) ,'
-    create_table_query += f'location VARCHAR(1055) ,'
-    create_table_query += f'item_type VARCHAR(1055) ,'
-    create_table_query += f'number_items INT(32) )'
+    create_table_query = f"CREATE TABLE IF NOT EXISTS {
+      INVENTORY_TABLE_NAME
+    } ( id INT PRIMARY KEY AUTO_INCREMENT,"
+    create_table_query += "name VARCHAR(255) NOT NULL,"
+    create_table_query += "image VARCHAR(1055),"
+    create_table_query += "description VARCHAR(1055) ,"
+    create_table_query += "manufacturer VARCHAR(255),"
+    create_table_query += "details VARCHAR(1055),"
+    create_table_query += "is_checked_out BOOLEAN,"
+    create_table_query += "check_out_date VARCHAR(255) ,"
+    create_table_query += "check_out_poc VARCHAR(1055) ,"
+    create_table_query += "date_added VARCHAR(255) ,"
+    create_table_query += "tags VARCHAR(1055) ,"
+    create_table_query += "location VARCHAR(1055) ,"
+    create_table_query += "item_type VARCHAR(1055) ,"
+    create_table_query += "number_items INT(32) )"
 
     # Execute query
     self.cursor.execute(create_table_query)
@@ -267,10 +262,10 @@ class DataBaseClient():
 
   def create_inventory_user_table(self):
     """
-    Create inventory user table 
+    Create inventory user table
     """
     # Create InventoryUser instance and compile query to create the user table
-    user = InventoryUser('', '')
+    user = InventoryUser("", "")
     query = user.get_sql_query_table_for_user()
 
     # Execute query
@@ -284,7 +279,7 @@ class DataBaseClient():
     Returns the ID of the most recent added item
 
     """
-    sql = 'SELECT LAST_INSERT_ID()'
+    sql = "SELECT LAST_INSERT_ID()"
     # Execute the query
     self.exec_sql_cmd(sql, [])
 
@@ -299,7 +294,7 @@ class DataBaseClient():
 
   def add_inventory_item(self, inventory_item_dict: dict) -> id:
     """
-    Create row in INVENTORY_TABLE_NAME 
+    Create row in INVENTORY_TABLE_NAME
 
 
     returns ID of the created inventory item
@@ -307,16 +302,15 @@ class DataBaseClient():
     # --- Construct the SQL INSERT statement
 
     # Pre-construct set each value statement
-    set_clause = ", ".join(
-        [f"{column}" for column in list(inventory_item_dict.keys())])
+    set_clause = ", ".join([f"{column}" for column in list(inventory_item_dict.keys())])
 
     # Create series of ? that matches the number of values in
     # list(inventory_item_dict.values())
-    value_clause = ", ".join(
-        [f"?" for column in list(inventory_item_dict.values())])
+    value_clause = ", ".join(["?" for column in list(inventory_item_dict.values())])
 
-    sql = f"INSERT INTO {INVENTORY_TABLE_NAME} ( {set_clause} ) VALUES ( {
-        value_clause} )"
+    sql = (
+      f"INSERT INTO {INVENTORY_TABLE_NAME} ( {set_clause} ) VALUES ( {value_clause} )"
+    )
 
     # Prepare the data to update
     values = list(inventory_item_dict.values())
@@ -333,7 +327,8 @@ class DataBaseClient():
 
     # Pre-construct set each value statement
     set_clause = ", ".join(
-        [f"{column} = ?" for column in list(inventory_item_dict.keys())])
+      [f"{column} = ?" for column in list(inventory_item_dict.keys())]
+    )
 
     sql = f"UPDATE {INVENTORY_TABLE_NAME} SET {set_clause} WHERE id = ?"
 
@@ -345,7 +340,7 @@ class DataBaseClient():
 
   def update_inventory_item_image_path(self, id: int, path: str):
     """
-    Modify the image path of an inventory item identified by ID with the 
+    Modify the image path of an inventory item identified by ID with the
     given path
     """
     sql = f"UPDATE {INVENTORY_TABLE_NAME} SET image = ? WHERE id = ?"
@@ -354,28 +349,27 @@ class DataBaseClient():
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 
-  def update_inventory_item_checkout_status(self,
-                                            item_id: int,
-                                            poc: str,
-                                            checkout_status: int = 1):
-    """Modify the  item checkout status of an inventory item identified by ID 
-    with the parameters provided 
+  def update_inventory_item_checkout_status(
+    self, item_id: int, poc: str, checkout_status: int = 1
+  ):
+    """Modify the  item checkout status of an inventory item identified by ID
+    with the parameters provided
 
     Args:
         id (int): Item ID
         poc (str): Check-out point of contact user name
-        checkout_status (int): Check-out status flag. If 1 item is checked out, 
+        checkout_status (int): Check-out status flag. If 1 item is checked out,
             0 otherwise.
     """
     date_time_now = datetime.now()
     check_out_date = date_time_now.strftime("%m/%d/%Y, %H:%M:%S")
     if checkout_status == 1:
       sql = f"UPDATE {
-          INVENTORY_TABLE_NAME} SET is_checked_out = ?, check_out_date = ?, check_out_poc = ? WHERE id = ?"
+        INVENTORY_TABLE_NAME
+      } SET is_checked_out = ?, check_out_date = ?, check_out_poc = ? WHERE id = ?"
       values = [int(checkout_status)] + [check_out_date] + [poc] + [item_id]
     else:
-      sql = f"UPDATE {
-          INVENTORY_TABLE_NAME} SET is_checked_out = ? WHERE id = ?"
+      sql = f"UPDATE {INVENTORY_TABLE_NAME} SET is_checked_out = ? WHERE id = ?"
       values = [int(checkout_status)] + [item_id]
 
     # Execute the UPDATE statement
@@ -402,9 +396,9 @@ class DataBaseClient():
     # Create a DataFrame from the fetched data
     df = pd.DataFrame(rows, columns=columns)
 
-    data_list_out = df.to_dict('records')
+    data_list_out = df.to_dict("records")
 
-    debug(f'Inventory data {df}')
+    debug(f"Inventory data {df}")
 
     return data_list_out
 
@@ -420,7 +414,7 @@ class DataBaseClient():
 
   def exec_sql_cmd(self, sql, values: list):
     """
-    Generic execute SQL command defined by sql qery and its accompanying 
+    Generic execute SQL command defined by sql qery and its accompanying
     values
 
     """
@@ -429,20 +423,10 @@ class DataBaseClient():
 
     # Commit the transaction
     self.connection.commit()
+
   # -----------------------------------------------------------------------
   #                        [MISC]
   # -----------------------------------------------------------------------
-
-  def init_media_dir(self):
-    """
-    Initialize subdirectory to store media data. Media data is data that will
-    not be stored in the database itself (images, video, audio). The inventory
-    database will hold a path to the respective file in the media folder instead.
-
-    """
-    if not media_directory.exists():
-      info(f'[x] Create media directory at {media_directory}')
-      os.makedirs(media_directory.absolute().as_posix(), 0o775)
 
   def load_media_image(self, image_path: Path):
     """
@@ -455,7 +439,7 @@ class DataBaseClient():
   # -----------------------------------------------------------------------
   def get_inventory_user_as_object(self, user_name: str):
     """
-    Return a specific inventory user identified by its user_name 
+    Return a specific inventory user identified by its user_name
     as a InventoryUser object
     """
     valid = False
@@ -475,18 +459,17 @@ class DataBaseClient():
     columns = [col[0] for col in self.cursor.description]
 
     # Create InventoryUser instance
-    inventoryUser = InventoryUser('', '')
+    inventoryUser = InventoryUser("", "")
 
     # Populate all fields from the database export
-    inventoryUser.populate_from_df(
-        user_data_df=pd.DataFrame(rows, columns=columns))
+    inventoryUser.populate_from_df(user_data_df=pd.DataFrame(rows, columns=columns))
     return valid, inventoryUser
 
   def delete_inventory_user(self, user_name: str):
     """
     Delete Inventory user
     """
-    info(f'[-] Delete user {user_name} ')
+    info(f"[-] Delete user {user_name} ")
     sql = f"DELETE FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
     values = list([user_name])
 
@@ -495,10 +478,9 @@ class DataBaseClient():
 
   def add_inventory_user(self, user: InventoryUser):
     """
-    Create column in INVENTORY_USER_TABLE_NAME 
+    Create column in INVENTORY_USER_TABLE_NAME
     """
-    info(
-        f'[+] Add user {user.user_name} with privileges {user.user_privileges}')
+    info(f"[+] Add user {user.user_name} with privileges {user.user_privileges}")
     # SQL query to insert a new row into the table
     sql, values = user.get_sql_query_add_user()
 
@@ -508,8 +490,9 @@ class DataBaseClient():
     """
     Update password of existing inventory user
     """
-    sql = f"UPDATE {
-        INVENTORY_USER_TABLE_NAME} SET user_password = ? WHERE user_name = ?"
+    sql = (
+      f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_password = ? WHERE user_name = ?"
+    )
     values = [user.user_password] + [user.user_name]
 
     # Execute the UPDATE statement
@@ -519,10 +502,10 @@ class DataBaseClient():
     """
     Update privileges of existing inventory user
     """
-    info(
-        f'[+] Update privileges for user {user.user_name} to {user.user_privileges}')
-    sql = f"UPDATE {
-        INVENTORY_USER_TABLE_NAME} SET user_privileges = ? WHERE user_name = ?"
+    info(f"[+] Update privileges for user {user.user_name} to {user.user_privileges}")
+    sql = (
+      f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_privileges = ? WHERE user_name = ?"
+    )
     values = [user.user_privileges] + [user.user_name]
 
     # Execute the UPDATE statement
@@ -547,39 +530,9 @@ class DataBaseClient():
     # Create a DataFrame from the fetched data
     df = pd.DataFrame(rows, columns=columns)
 
-    item_dict = df.to_dict('records')
+    item_dict = df.to_dict("records")
 
     return item_dict[0]
-
-  def get_inventory_user_as_object(self, user_name: str):
-    """
-    Return a specific inventory user identified by its user_name 
-    as a InventoryUser object
-    """
-    valid = False
-    # Query to fetch all data from the specified table
-    query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = %s"
-
-    # Execute the query
-    self.exec_sql_cmd(query, (user_name,))
-
-    # Fetch all rows from the executed query
-    rows = self.cursor.fetchall()
-
-    if len(rows) == 1:
-      valid = True
-
-    # Get column names from the cursor
-    columns = [col[0] for col in self.cursor.description]
-
-    # Create InventoryUser instance
-    inventoryUser = InventoryUser('', '')
-
-    # Populate all fields from the database export
-    inventoryUser.populate_from_df(
-        user_data_df=pd.DataFrame(rows, columns=columns))
-
-    return valid, inventoryUser
 
   def get_inventory_users_as_df(self):
     """

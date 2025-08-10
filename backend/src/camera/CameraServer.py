@@ -5,10 +5,11 @@ video stream.
 
 For debugging run as a module with
 
-$ uv run -m backend.CameraServer
+$ uv run -m backend.src.camera.CameraServer
 
 """
 
+from pyzbar.pyzbar import decode
 from flask_cors import CORS
 from flask import Flask, Response, jsonify
 import cv2 as cv
@@ -17,13 +18,17 @@ import asyncio
 import requests
 from typing import Tuple
 from time import time
+import numpy as np
 import pygame
 import threading
 
-from backend.src.applications import decode_id_from_qr_message, camera_server_ip, camera_server_port
-
-from src.util import detect_and_decode_qr_marker
-from src.inventory_server_config import inventory_server_ip, inventory_server_port
+from .qr_config import qr_id_iden_str, qr_iden_str, qr_msg_delimiter
+from .camera_config import (
+  camera_server_ip,
+  camera_server_port,
+  DEFAULT_INVENTORY_HOST,
+  DEFAULT_INVENTORY_PORT,
+)
 
 
 class CameraServer:
@@ -97,10 +102,84 @@ class CameraServer:
 
     threading.Thread(target=_play, daemon=True).start()
 
+  def detect_and_decode_qr_marker(self, frame, enableQrText: bool = False):
+    """Detect and decode one or several QR code messages within a given image.
+
+    This functions uses pyzbar for detection and decoding
+
+    Args:
+        frame (np.ndarray): Camaera image
+        enableQrText (bool, optional): Enable drawing QR payload in output image.
+            Defaults to False (For debugging only)
+
+    """
+    # ---------------------------------------------------------------------
+    # ----- Decode QR message with Pyzbar
+    # ---------------------------------------------------------------------
+    # Initialize flag to track if a marker has been found
+    qr_marker_found = False
+    # Initialize counter to track the number of markers detected in the image
+    num_markers = 0
+    # Initialize a list to store all decoded messages
+    decoded_list = []
+
+    for d in decode(frame):
+      qr_marker_found = True
+      num_markers += 1
+      decoded_text = str(d.data.decode())
+      decoded_list.append(decoded_text)
+
+      # Draw perimeter of the marker
+      frame = cv.polylines(frame, [np.array(d.polygon)], True, (0, 255, 0), 2)
+      # Draw marker text
+      if enableQrText:
+        frame = cv.putText(
+          frame,
+          decoded_text,
+          (d.rect.left, d.rect.top + d.rect.height),
+          cv.FONT_HERSHEY_SIMPLEX,
+          0.6,
+          (0, 0, 255),
+          1,
+          cv.LINE_AA,
+        )
+
+    return frame, qr_marker_found, num_markers, decoded_list
+
+  def decode_id_from_qr_message(self, msg: str):
+    """
+    Decode QR message and retrieve item ID
+
+    Expected message format:
+    <qr_iden_str> <qr_msg_delimiter> <qr_id_iden_str> <qr_msg_delimiter> <ITEM_ID>
+
+    """
+    is_msg_valid = False
+    item_id = -1
+
+    # First check if all substring identifier are contained in the message
+    if qr_iden_str in msg and qr_id_iden_str in msg and qr_msg_delimiter in msg:
+      try:
+        # Remove all identifier strings and convert to integer
+        # Step 1: Split the test_str using the delimiter
+        parts = msg.split(qr_msg_delimiter)
+
+        # Step 2: Retrieve the ID message
+        id_str = parts[-1]
+
+        if id_str:
+          # Step 3: Convert the remaining part to an integer
+          item_id = int(id_str)
+          is_msg_valid = True
+      except:
+        warning("Parsing QR code message failed. ")
+
+    return is_msg_valid, item_id
+
   def send_image(self, image_bytes) -> Tuple[bool, str]:
     """Send image capture to inventory server"""
     files = {"file": ("camera_frame.png", image_bytes, "image/png")}
-    url = f"http://{inventory_server_ip}:{inventory_server_port}/store_media_image"
+    url = f"http://{DEFAULT_INVENTORY_HOST}:{DEFAULT_INVENTORY_PORT}/store_media_image"
     try:
       response = requests.post(url, files=files)
       # raise exception for HTTP errors
@@ -130,7 +209,7 @@ class CameraServer:
       self.play_shutter_sound()
       _, buffer = cv.imencode(".jpg", self.frame)
       frame_bytes = buffer.tobytes()
-      
+
       # Send captured frame to inventory server to save it in media vault
       ret, hash_hex = self.send_image(frame_bytes)
 
@@ -169,8 +248,8 @@ class CameraServer:
             self.time_qr_suspended_s = 0
             try:
               # Detect and mark QR markers in frame
-              (self.frame, _, num_markers, decoded_list) = detect_and_decode_qr_marker(
-                self.frame
+              (self.frame, _, num_markers, decoded_list) = (
+                self.detect_and_decode_qr_marker(self.frame)
               )
 
               # Process detected markers and notify the inventory server
@@ -215,19 +294,18 @@ class CameraServer:
     # within the image
     if num_markers == 1:
       # Retrieve the inventory ID from the the QR message payload
-      is_valid, item_id = decode_id_from_qr_message(decoded_list[0])
+      is_valid, item_id = self.decode_id_from_qr_message(decoded_list[0])
 
       # Check validity of the decoded item ID
       if is_valid:
         debug(f"[+--] Valid QR marker detected -> {item_id}")
 
         # Play sound to indicate a successful scan
-        # TODO Fix and debug before adding back beep
         self.play_beep()
 
         # Set inventory server url
         inventory_server_url = (
-          f"http://{inventory_server_ip}:{inventory_server_port}/qr"
+          f"http://{DEFAULT_INVENTORY_HOST}:{DEFAULT_INVENTORY_PORT}/qr"
         )
         # Set request payload
         payload = {"id": f"{item_id}"}

@@ -3,35 +3,38 @@
 Client to interface with the Niimbot label printer
 
 """
-from PIL import Image, ImageOps
+
+from PIL import Image
 from logging import info, error
 from pathlib import Path
 from datetime import datetime
 import qrcode
-from logging import warning
 
 # Niimbot printer interface
-from .niimbot_printer import BluetoothTransport, NiimbotClient, SerialTransport
+from .niimbot_printer import BluetoothTransport, NiimbotClient
 
 # ---- Config imports ----
-from .printer_config import (niimbot_d110_inventory_mac_address,
-                             print_label_image_file_directory,
-                             test_image_file_name,
-                             print_density,
-                             enable_save_label_print_cmds_to_file,
-                             num_reconnection_attempts,
-                             printer_max_image_height_px,
-                             printer_max_image_width_px)
+from .printer_config import (
+  niimbot_d110_inventory_mac_address,
+  print_label_image_file_directory,
+  test_image_file_name,
+  print_density,
+  enable_save_label_print_cmds_to_file,
+  num_reconnection_attempts,
+  printer_max_image_height_px,
+  printer_max_image_width_px,
+)
 from .qr_config import encode_id_to_qr_message
 
 
-class PrinterClient():
+class PrinterClient:
   """
   * Handle setting up the respective label printer interface
   * Handle load images from file
   * Handle print from file
   * Handle print form PIL Image
   """
+
   # ------------------------------------------------------------------------
   #                     INIT
   # ----------------------------------------------------------------------
@@ -49,19 +52,19 @@ class PrinterClient():
     """
     Call print a test image
 
-    Test image file at backend/images_to_print/B21_30x15mm_240x120px.png 
+    Test image file at backend/images_to_print/B21_30x15mm_240x120px.png
     required!
 
     """
     if self._establish_printer_connection():
       test_image_path = print_label_image_file_directory / test_image_file_name
       self._load_image(test_image_path)
-      info(f'Print test label: {test_image_path.name}')
+      info(f"Print test label: {test_image_path.name}")
       self.printer.print_image(self.image, density=self.density)
 
   def print_image(self, image_name: str):
     """
-    Call print a image from file 
+    Call print a image from file
 
     image needs to be saved first as a file in backend/images_to_print/
 
@@ -74,12 +77,14 @@ class PrinterClient():
       # load the image from file
       self._load_image(image_path)
 
-      info(f'Print label: {image_name}')
+      info(f"Print label: {image_name}")
       self.printer.print_image(self.image, density=self.density)
 
-  def print_qr_label_from_id(self, item_id: int):
+  def print_qr_label_from_id(
+    self, item_id: int, save_label_to_file: bool = False
+  ) -> bool:
     """
-    Call print a image from file 
+    Call print a image from file
 
     image needs to be saved first as a file in backend/images_to_print/
 
@@ -89,15 +94,19 @@ class PrinterClient():
     if self._establish_printer_connection():
       # Create QR marker image
       self.image, qr_message = self._create_qr_image(item_id=item_id)
-      info(f'Print label for item ID {item_id} - QR message: {qr_message}')
+      info(f"Print label for item ID {item_id} - QR message: {qr_message}")
 
       # Save label to png
       if enable_save_label_print_cmds_to_file:
         now = datetime.now()
         date_time = now.strftime("%Y_%m_%d__%H_%M_%S")
-        info(f'Save label to file: {date_time}_label.png')
-        self.image.save(
-            (print_label_image_file_directory / f'{date_time}_label.png').absolute().as_posix())
+        if save_label_to_file:
+          info(f"Save label to file: {date_time}_label.png")
+          self.image.save(
+            (print_label_image_file_directory / f"{date_time}_label.png")
+            .absolute()
+            .as_posix()
+          )
 
       # Send print command
       self.printer.print_image(self.image, density=self.density)
@@ -123,7 +132,7 @@ class PrinterClient():
     @returns: True if connection successful, false otherwise
     """
     for attempt in range(num_reconnection_attempts):
-      info(f'Connecting to Niimbot D110 label printer. attempth {attempt}')
+      info(f"Connecting to Niimbot D110 label printer. attempth {attempt}")
       try:
         # -- Init bluetooth connection
         self.transport = BluetoothTransport(niimbot_d110_inventory_mac_address)
@@ -131,7 +140,7 @@ class PrinterClient():
         return True
       except:
         pass
-    error('Connecting to the printer failed!')
+    error("Connecting to the printer failed!")
     return False
 
   def _create_qr_image(self, item_id: id):
@@ -139,7 +148,7 @@ class PrinterClient():
 
     self.image = qrcode.make(qr_message)
 
-    self.image = self.image.convert('1')
+    self.image = self.image.convert("1")
 
     # Add white bar to the top of the bar code to ensure having it centered
     # on the actual label
@@ -148,17 +157,19 @@ class PrinterClient():
     # Reseize the generated QR code to fit the label
     # self.image = self.image.resize(
     #     (printer_max_image_height_px, printer_max_image_height_px))
-    self.image.thumbnail((printer_max_image_width_px,
-                          printer_max_image_height_px), Image.Resampling.LANCZOS)
+    self.image.thumbnail(
+      (printer_max_image_width_px, printer_max_image_height_px),
+      Image.Resampling.LANCZOS,
+    )
 
     return self.image, qr_message
 
   def _add_white_bar_to_qr_image(self, img, bar_height: float):
-    """Add a white bar to the QR code image to have it centered on the label   
+    """Add a white bar to the QR code image to have it centered on the label
 
     Args:
         img (PIL image): Input image
-        bar_height (float): size of the white bar added as fraction of the 
+        bar_height (float): size of the white bar added as fraction of the
             input images height
 
     Returns:

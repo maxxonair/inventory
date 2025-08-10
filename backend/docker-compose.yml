@@ -28,6 +28,8 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
+    volumes:
+      - ./media:/app/media
     environment:
       DB_HOST: inventory_db
       DB_PORT: 3306
@@ -35,6 +37,38 @@ services:
       - inventory_db
     networks:
       - invnet
+
+  inventory_camera:
+    image: inventorycamera:latest
+    container_name: inventory-camera
+    ports:
+      - "5050:5050"
+    devices:
+      - "/dev/video0:/dev/video0"   
+    environment:
+      - PULSE_SERVER=unix:/tmp/pulseaudio.socket
+    volumes:
+      - ${HOME}/.config/pulse/cookie:/root/.config/pulse/cookie
+      - /run/user/${UID}/pulse/native:/tmp/pulseaudio.socket
+    group_add:
+      - audio
+      - video
+    privileged: true 
+
+  inventory_printer:
+    image: inventoryprinter:latest
+    container_name: inventory-printer
+    network_mode: host 
+    ports:
+      - "5100:5100" 
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0 
+      - /dev/hci0:/dev/hci0 
+    environment:
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+    privileged: true 
 
 networks:
   invnet:

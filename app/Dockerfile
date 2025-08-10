@@ -8,15 +8,12 @@ COPY *.yaml ./
 COPY *.js ./
 COPY *.ts ./
 COPY src ./
-COPY .svelte-kit ./
-
-
 
 ENV NODE_ENV=production
 # Run tests when implemented
 # RUN bun test
 
-EXPOSE 5173 5000 5050
+EXPOSE 5173
 
 RUN bun install
 # RUN bun run build

@@ -34,6 +34,7 @@ from server.inventory_server_config import (
   inventory_server_port,
   MEDIA_DEFAULT_PATH,
   DEFAULT_DB_HOST,
+  DEFAULT_DB_PORT
 )
 
 
@@ -41,11 +42,22 @@ class InventoryServer:
   def __init__(
     self,
     db_host: str = DEFAULT_DB_HOST,
-    db_port: int = 3306,
+    db_port: int = DEFAULT_DB_PORT,
     media_path: str = MEDIA_DEFAULT_PATH,
     session_timeout_min: float = 60.0,
   ):
-    """Await docstring generation..."""
+    """Create InventoryServer instance
+
+    Args:
+        db_host (str, optional): Database server IP. 
+            Defaults to DEFAULT_DB_HOST.
+        db_port (int, optional): Database server port. 
+            Defaults to DEFAULT_DB_PORT.
+        media_path (str, optional): Media storage file path. 
+            Defaults to MEDIA_DEFAULT_PATH.
+        session_timeout_min (float, optional): Session timeout for active user 
+            sessions. Defaults to 60.0 minutes
+    """
     self.app = Flask(__name__)
     self.app.secret_key = "super-secret"
     self.app.config["SESSION_TYPE"] = "filesystem"

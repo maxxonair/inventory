@@ -880,7 +880,7 @@ async function downloadExcel() {
                   </Button>
                   {#if user_privilege > PRIVILEGE_REPORTER}
                     <Button onclick={() => toggleEdit()} class="mb-4">
-                      <PenOutline type="print-button" class="me-2 h-5 w-5"  /> modify
+                      <PenOutline type="print-button" class="me-2 h-5 w-5"  /> edit
                     </Button>
                   {/if}
                   <Button color="light" onclick={() => (selectedItemId = null)} class="mb-4 dark:text-white">

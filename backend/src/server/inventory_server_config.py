@@ -11,7 +11,7 @@ config_path = Path(__file__).parent.resolve()
 # --- SETTINGS ---
 
 # InventoryServer IP
-# Default: Localhost
+# Default: 0.0.0.0 (expose service outside the container)
 inventory_server_ip = "0.0.0.0"
 
 # InventorySever port
@@ -21,8 +21,8 @@ inventory_server_port = 5000
 # ---- PRINTER SERVER CONFIG ----
 
 # Printer Server host IP
-# Default: Localhost
-PRINTER_SERVER_IP = "127.0.0.1"
+# Default: inventory_printer (container)
+PRINTER_SERVER_IP = "inventory_printer"
 
 # Printer Server port
 # Default: 5100
@@ -31,13 +31,15 @@ PRINTER_SERVER_PORT = 5100
 # --- CONSTANTS ---
 
 # Path to where media files are saved
-MEDIA_DEFAULT_PATH = (config_path / ".." / "database" / "media" ).resolve() 
+MEDIA_DEFAULT_PATH = (config_path / ".." / "media" ).resolve() 
 
 # IP address of the database server
-# Default: localhost
+# Default: inventory_db (container)
 DEFAULT_DB_HOST = 'inventory_db'
 
-# TODO parameterise DB port here!
+# Port of the database server
+# Default: 3306 (mapped container port)
+DEFAULT_DB_PORT = 3306
 
 # [CONSTANT] Name of the main database to store the Inventory
 INVENTORY_DB_NAME = 'inventory'

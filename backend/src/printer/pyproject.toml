@@ -1,0 +1,20 @@
+[project]
+name = "printer_server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "flask",
+  "flask_sqlalchemy",
+  "flask_cors",
+  "flask_session",
+  "requests",
+  "serial",
+  "pillow",
+  "pyserial",
+  "qrcode",
+]
+
+[tool.ruff]
+indent-width = 2

@@ -8,8 +8,8 @@ from pathlib import Path
 # ---- PRINTER SERVER CONFIG ----
 
 # Printer Server host IP
-# Default: Localhost
-PRINTER_SERVER_IP = "127.0.0.1"
+# Default: 0.0.0.0
+PRINTER_SERVER_IP = "0.0.0.0"
 
 # Printer Server port
 # Default: 5100

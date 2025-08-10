@@ -5,6 +5,7 @@
 env/
 .venv/
 **/__pycache__
+**/*mysql.py
 
 
 # --- [DATABASE]
@@ -30,5 +31,3 @@ app/.svelte-kit
 # --- [FLASK]
 # Don't commit any session data
 flask_session/*
-
-**/*.example.py

@@ -1,5 +1,5 @@
 
-from logging import warning, info
+
 # -------------------------------------------------------------------------
 #                             [QR]
 # -------------------------------------------------------------------------
@@ -31,32 +31,3 @@ def encode_id_to_qr_message(id: int) -> str:
   return f'{qr_iden_str}{qr_msg_delimiter}{qr_id_iden_str}{qr_msg_delimiter}{id}'
 
 
-def decode_id_from_qr_message(msg: str):
-  """
-  Decode QR message and retrieve item ID
-
-  Expected message format:
-  <qr_iden_str> <qr_msg_delimiter> <qr_id_iden_str> <qr_msg_delimiter> <ITEM_ID>
-
-  """
-  is_msg_valid = False
-  item_id = -1
-
-  # First check if all substring identifier are contained in the message
-  if qr_iden_str in msg and qr_id_iden_str in msg and qr_msg_delimiter in msg:
-    try:
-      # Remove all identifier strings and convert to integer
-      # Step 1: Split the test_str using the delimiter
-      parts = msg.split(qr_msg_delimiter)
-
-      # Step 2: Retrieve the ID message
-      id_str = parts[-1]
-
-      if id_str:
-        # Step 3: Convert the remaining part to an integer
-        item_id = int(id_str)
-        is_msg_valid = True
-    except:
-      warning('Parsing QR code message failed. ')
-
-  return is_msg_valid, item_id

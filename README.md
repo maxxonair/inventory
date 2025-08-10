@@ -27,7 +27,7 @@ This application consists of several modules that run independently and can be r
 
 :construction: work in progress :construction: 
 
-## Set up bun
+### Set up bun
 
 This project is using [bun](https://bun.sh/) to develop, test and deploy the svelte front-end. 
 
@@ -50,7 +50,31 @@ bun run dev
 bun --bun run build
 ```
 
-## Build and run the inventory server container
+### Set up podman/docker
+
+You will need docker or podman to run this project, so install docker or podman first. 
+
+Furthermore the database requires the following mariadb packages on the host machine.
+
+```bash
+sudo apt install libmariadb3 libmariadb-dev
+```
+
+## Automatically set up backend
+
+Run the automatic setup script to start all required services in their respective containers.
+
+```bash
+sudo ./setup_app.sh
+```
+
+Set up and launch camera and printer services with:
+
+```bash
+sudo ./setup_services.sh
+```
+
+## Manually build and run the inventory server container
 
 Build the inventory server image with
 
@@ -106,26 +130,6 @@ Configure the UI server via the frontend/frontend_config.py file. Make sure
 the IP and port of the server are configured correctly, as well as IP and
 port of the camera server for the embedded html content.
 
-# Run with Docker
-
-## Run the Database Server with Docker
-
-Required dependencies to run the database
-
-```
-sudo apt install libmariadb3 libmariadb-dev
-```
-
-This project uses docker to run the database that is holding the inventory.
-To compose and run docker needs to be installed.
-
-Start the database container as follows
-
-```bash
-cd inventory/database
-
-sudo docker compose up -d inventory_db
-```
 
 ## Useful Docker Commands
 
