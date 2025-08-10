@@ -12,8 +12,8 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from backend.DataBaseClient import DataBaseClient
-from backend.database_config import (
+from src.DataBaseClient import DataBaseClient
+from src.database_config import (
     INVENTORY_TABLE_NAME,
     INVENTORY_DB_NAME,
     INVENTORY_USER_TABLE_NAME,

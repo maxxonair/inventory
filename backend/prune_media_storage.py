@@ -13,7 +13,7 @@ from rich.prompt import Confirm
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from backend.DataBaseClient import DataBaseClient
+from src.DataBaseClient import DataBaseClient
 from backend import media_directory
 
 def is_in_db(item_hash: str, db_list: list):

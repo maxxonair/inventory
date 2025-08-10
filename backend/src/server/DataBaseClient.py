@@ -29,7 +29,7 @@ from datetime import datetime
 from pathlib import Path
 import cv2 as cv
 
-from backend.database_config import (INVENTORY_TABLE_NAME,
+from server.database_config import (INVENTORY_TABLE_NAME,
                                      INVENTORY_DB_NAME,
                                      INVENTORY_USER_TABLE_NAME,
                                      media_directory,
@@ -37,7 +37,7 @@ from backend.database_config import (INVENTORY_TABLE_NAME,
                                      database_port,
                                      DATABASE_USER_NAME,
                                      DATABASE_PASSWORD)
-from backend.InventoryUser import InventoryUser
+from server.InventoryUser import InventoryUser
 
 
 class DataBaseClient():
@@ -49,7 +49,7 @@ class DataBaseClient():
         'host': host,
         'port': port,
         'database': INVENTORY_DB_NAME,
-        'connect_timeout': 0
+        'connect_timeout': 10
     }
 
     try:
@@ -260,7 +260,7 @@ class DataBaseClient():
     create_table_query += f'number_items INT(32) )'
 
     # Execute query
-    self.cursor.execute(query)
+    self.cursor.execute(create_table_query)
 
     # Commit the transaction
     self.connection.commit()

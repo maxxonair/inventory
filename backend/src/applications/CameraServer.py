@@ -20,10 +20,10 @@ from time import time
 import pygame
 import threading
 
-from backend import decode_id_from_qr_message, camera_server_ip, camera_server_port
+from backend.src.applications import decode_id_from_qr_message, camera_server_ip, camera_server_port
 
-from backend.util import detect_and_decode_qr_marker
-from backend.inventory_server_config import inventory_server_ip, inventory_server_port
+from src.util import detect_and_decode_qr_marker
+from src.inventory_server_config import inventory_server_ip, inventory_server_port
 
 
 class CameraServer:

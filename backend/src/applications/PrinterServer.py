@@ -11,8 +11,8 @@ from flask_cors import CORS
 from logging import info
 import asyncio
 
-from backend.PrinterClient import PrinterClient
-from backend.printer_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
+from src.PrinterClient import PrinterClient
+from src.printer_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
 
 class PrinterServer:
   def __init__(self):

@@ -19,3 +19,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    networks:
+      - invnet
+
+  inventory_server:
+    image: inventoryserver:latest
+    container_name: inventory-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: inventory_db
+      DB_PORT: 3306
+    depends_on:
+      - inventory_db
+    networks:
+      - invnet
+
+networks:
+  invnet:

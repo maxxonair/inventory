@@ -37,12 +37,44 @@ Set up bun
 curl -fsSL https://bun.sh/install | bash
 ```
 
+Run or build the frontend application
+
 ```bash
+
+cd app
+
 # Run app for development
 bun run dev
 
 # Build app
 bun --bun run build
+```
+
+## Build and run the inventory server container
+
+Build the inventory server image with
+
+```bash
+cd backend/src/server
+
+sudo docker build -t inventoryserver:latest .
+```
+
+The databse uses a default mariadb images and which doesn't need building. Run both containers:
+
+```bash
+cd backend
+
+sudo docker compose up -d inventory_db
+sudo docker compose up -d inventory_server
+```
+
+Check container is running as expected (with docker ps):
+
+```bash
+CONTAINER ID   IMAGE                    COMMAND                  CREATED          STATUS                    PORTS                                           NAMES
+e4e6a30ddcf3   inventoryserver:latest   "uv run -m server.In…"   3 minutes ago    Up 7 seconds              0.0.0.0:5000->5000/tcp, :::5000->5000/tcp       inventory-server
+a3617b15b20c   mariadb:10.5             "docker-entrypoint.s…"   43 minutes ago   Up 33 minutes (healthy)   0.0.0.0:46123->3306/tcp, [::]:46123->3306/tcp   inventory_db
 ```
 
 ## Configure Database
@@ -89,26 +121,23 @@ To compose and run docker needs to be installed.
 
 Start the database container as follows
 
-```
+```bash
 cd inventory/database
 
 sudo docker compose up -d inventory_db
-
 ```
 
 ## Useful Docker Commands
 
 To check the container status, run:
 
-```
-
+```bash
 docker ps -a
-
 ```
 
 Which should show the influxDb container up and running:
 
-```
+```bash
 CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS                       PORTS                                       NAMES
 a9066efdb6e7   mariadb:2.1   "/entrypoint.sh infl…"   25 hours ago   Up About an hour (healthy)   0.0.0.0:3306->3306/tcp, :::8086->8086/tcp   inventory
 
@@ -147,16 +176,16 @@ Use the following commands to add, delete users, or list all existing database
 users. To modify user permissions it is currently required to first delete
 the user entirely and then create it again with the altered permissions.
 
-```
-python util.create_user.py # Alternatively with uv $ uv run util.create_user.py
-```
-
-```
-python util.delete_user.py # Alternatively with uv $ uv run util.delete_user.py
+```bash
+uv run admin/create_user.py
 ```
 
+```bash
+uv run admin/delete_user.py
 ```
-python util.show_users.py # Alternatively with uv $ uv run util.show_users.py
+
+```bash
+uv run admin/show_users.py
 ```
 
 ### User Privileges
@@ -177,13 +206,13 @@ The following privelege levels are currently maintained, the table shows their a
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Start the development server for the frontend application:
 
 ```bash
 bun run dev
 
 # or start the server and open the app in a new browser tab
-npm run dev -- --open
+bun run dev -- --open
 ```
 
 ## Building
@@ -204,7 +233,7 @@ The MariaDB docker container will use port 3306 which might conflict with
 running mysql services on the target machine, leading to the following error
 when starting up the container:
 
-```
+```bash
 Error response from daemon: driver failed programming external connectivity on endpoint inventory (307f628849c076718517dcaf96313d1df854eca239ef314272932975cd6f2396): Error starting userland proxy: listen tcp4 0.0.0.0:3306: bind: address already in use
 ```
 
@@ -212,20 +241,20 @@ In that case list services that use this port and shut them down
 
 List services that use port 3306:
 
-```
+```bash
 sudo lsof -i -P -n | grep 3306
 ```
 
 Shut down mysql service on the target machine.
 
-```
+```bash
 sudo service mysql stop
 ```
 
 To prevent this issue from coming back when the host machine is restarded,
 disable the mysql service with:
 
-```
+```bash
 sudo systemctl disable mysql
 
 ```
@@ -244,7 +273,7 @@ The current label printer interface only works with Niimbot printers (tested onl
 To set up a new printer, the printer MAC address needs to be updated in
 backend/printer_config.py
 
-```
+```bash
 # Mac address of the Niimbot D110 printer used to print inventory labels
 niimbot_d110_inventory_mac_address = '04:08:04:01:31:04'
 

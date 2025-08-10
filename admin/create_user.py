@@ -13,11 +13,11 @@ import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
-from backend.DataBaseClient import DataBaseClient
-from backend.InventoryUser import InventoryUser, UserPrivileges
+from backend.src.DataBaseClient import DataBaseClient
+from backend.src.InventoryUser import InventoryUser, UserPrivileges
 
 # --- Config imports
-from backend.database_config import database_host
+from backend.src.database_config import database_host
 
 
 def main():

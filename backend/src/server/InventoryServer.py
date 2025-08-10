@@ -1,9 +1,9 @@
 """[Inventory] Inventory Server
 
 
-Run this module with:
+Run this module manually from the projects backend directory with:
 
-$ uv run -m backend.InventoryServer
+$ uv run -m src.InventoryServer
 
 """
 
@@ -23,12 +23,13 @@ import queue
 import hashlib
 from pathlib import Path
 
-from backend.InventoryUser import InventoryUser
-from backend.DataBaseClient import DataBaseClient
+from server.InventoryUser import InventoryUser
+from server.DataBaseClient import DataBaseClient
 
-from backend.printer_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
+# Import printer server address
+from server.inventory_server_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
 
-from backend import (
+from server.inventory_server_config import (
   inventory_server_ip,
   inventory_server_port,
   MEDIA_DEFAULT_PATH,
@@ -40,7 +41,7 @@ class InventoryServer:
   def __init__(
     self,
     db_host: str = DEFAULT_DB_HOST,
-    db_port: int = 46123,
+    db_port: int = 3306,
     media_path: str = MEDIA_DEFAULT_PATH,
     session_timeout_min: float = 60.0,
   ):

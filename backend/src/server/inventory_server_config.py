@@ -12,11 +12,21 @@ config_path = Path(__file__).parent.resolve()
 
 # InventoryServer IP
 # Default: Localhost
-inventory_server_ip = "127.0.0.1"
+inventory_server_ip = "0.0.0.0"
 
 # InventorySever port
 # Default: 5000
 inventory_server_port = 5000
+
+# ---- PRINTER SERVER CONFIG ----
+
+# Printer Server host IP
+# Default: Localhost
+PRINTER_SERVER_IP = "127.0.0.1"
+
+# Printer Server port
+# Default: 5100
+PRINTER_SERVER_PORT = 5100
 
 # --- CONSTANTS ---
 
@@ -25,7 +35,9 @@ MEDIA_DEFAULT_PATH = (config_path / ".." / "database" / "media" ).resolve()
 
 # IP address of the database server
 # Default: localhost
-DEFAULT_DB_HOST = '127.0.0.1'
+DEFAULT_DB_HOST = 'inventory_db'
+
+# TODO parameterise DB port here!
 
 # [CONSTANT] Name of the main database to store the Inventory
 INVENTORY_DB_NAME = 'inventory'
