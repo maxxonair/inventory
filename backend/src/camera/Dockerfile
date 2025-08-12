@@ -17,6 +17,7 @@ RUN mkdir -p camera
 # Copy in all relevant project files
 COPY *.py camera/
 COPY pyproject.toml ./
+COPY assets/*.wav ./
 
 # Sync uv environment before starting the server
 RUN uv sync --verbose

@@ -41,6 +41,7 @@ services:
   inventory_camera:
     image: inventorycamera:latest
     container_name: inventory-camera
+    restart: unless-stopped
     ports:
       - "5050:5050"
     devices:
@@ -54,11 +55,13 @@ services:
       - audio
       - video
     privileged: true 
+    networks:
+      - invnet
 
   inventory_printer:
     image: inventoryprinter:latest
     container_name: inventory-printer
-    network_mode: host 
+    restart: unless-stopped
     ports:
       - "5100:5100" 
     volumes:
@@ -69,6 +72,8 @@ services:
     environment:
       - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
     privileged: true 
+    networks:
+      - invnet
 
 networks:
   invnet:
