@@ -149,6 +149,7 @@
 	let showAddItemPanel = $state(false);
 	let showScannerPanel = $state(false);
   let showErrorAlert = $state(false);
+  let imageUpdated = $state(false);
 
 	const scannerStreamUrl = "http://127.0.0.1:5050";
 	let selected = $state();
@@ -289,7 +290,12 @@
 
   function toggleEdit() {
     imageUrl = 0;
+    if (!enableEdit)
+    {
+      imageUpdated = false;
+    }
     enableEdit = !enableEdit;
+    showCameraStream = false;
   }
 
   const closeErrorAlertAlert = () => {
@@ -347,7 +353,7 @@
     }
   }
 
-  async function capture_image() {
+  async function captureImage() {
     const res = await fetch("http://localhost:5050/capture_image", {
       method: "POST",
       credentials: "include",
@@ -361,6 +367,7 @@
       camera_error = "Image capture failed!";
     } else {
       image = await res.json();
+      imageUpdated = true;
       imageUrl = `${media_url}/${image}.png`;
       showCameraStream = false;
       showStaticImg = true;
@@ -531,7 +538,11 @@ async function downloadExcel() {
     number_items = item.number_items;
     tags = item.tags;
 
-    // TODO add function to update image
+    // If image not updated -> keep item.image
+    if (!imageUpdated)
+    {
+      image = item.image;
+    }
 
     if (!name) {
       error_msg = "No item name set. Define item name before updating.";
@@ -555,6 +566,7 @@ async function downloadExcel() {
           description,
           location,
           tags,
+          image
         }),
       });
 
@@ -714,12 +726,29 @@ async function downloadExcel() {
           <div class="mb-6 flex flex-col items-center p-2 col-span-1">
             
             <div class="flex items-center justify-center ">
-              <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full border rounded-lg border-slate-900"  />
+              {#if !imageUpdated}
+                <img src={`${media_url}${item.image}.png`} alt={item.image} class="w-full border rounded-lg border-slate-900"  />
+              {:else}
+                <img src={`${media_url}${image}.png`} alt={image} class="w-full border rounded-lg border-slate-900"  />
+              {/if}
             </div>
           </div>
 
 
             <form class="p-2">
+
+            {#if showCameraStream}
+
+              <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+                <Label for="name" class="mb-2 block p-2">Record item image</Label>
+                <Button class="w-full border mb-2 " onclick={captureImage}>capture image</Button>
+                <img src={streamUrl} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
+                <Button color="light" class="w-full mb-2" onclick={toggleCameraVisibility}>close camera</Button>
+                <Label class="b-2 block">{camera_error}</Label>
+              </div>
+
+            {:else}
+
               <div class="mb-2 grid gap-2 md:grid-cols-2">
                 <div>
                   <!-- svelte-ignore attribute_quoted -->
@@ -850,6 +879,9 @@ async function downloadExcel() {
                       <FolderArrowRightOutline type="return-button" class="me-2 h-5 w-5"  /> delete item
                     </Button>
                   {/if}
+                  <Button type="camera" onclick={toggleCameraVisibility} >
+                    open camera
+                  </Button>
                   <Button color="light" onclick={() => toggleEdit()}>
                     <CloseOutline type="print-button" class="me-2 h-5 w-5" /> cancel edit
                   </Button>
@@ -888,6 +920,7 @@ async function downloadExcel() {
                   </Button>
                 {/if}
               </div>
+              {/if}
             </form>
           </div>
       </div>
@@ -962,7 +995,7 @@ async function downloadExcel() {
 
           <div class="mb-6 flex flex-col items-center p-2 col-span-1">
             <Label for="name" class="mb-2 block p-2">Record item image</Label>
-            <Button class="w-full border mb-2 " onclick={capture_image}>capture image</Button>
+            <Button class="w-full border mb-2 " onclick={captureImage}>capture image</Button>
             <img src={streamUrl} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
             <Button color="light" class="w-full mb-2" onclick={toggleCameraVisibility}>close camera</Button>
             <Label class="b-2 block">{camera_error}</Label>

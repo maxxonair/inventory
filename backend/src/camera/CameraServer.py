@@ -86,7 +86,7 @@ class CameraServer:
 
   def play_beep(self):
     """Play a beep sound (when a QR code is scanned successfully)"""
-    pygame.mixer.music.load("backend/assets/beep.wav")
+    pygame.mixer.music.load("beep.wav")
 
     def _play():
       pygame.mixer.music.play()
@@ -95,7 +95,7 @@ class CameraServer:
 
   def play_shutter_sound(self):
     """Play a beep sound (when a QR code is scanned successfully)"""
-    pygame.mixer.music.load("backend/assets/camera_shutter.wav")
+    pygame.mixer.music.load("camera_shutter.wav")
 
     def _play():
       pygame.mixer.music.play()

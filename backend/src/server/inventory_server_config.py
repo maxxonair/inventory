@@ -22,7 +22,7 @@ inventory_server_port = 5000
 
 # Printer Server host IP
 # Default: inventory_printer (container)
-PRINTER_SERVER_IP = "inventory_printer"
+PRINTER_SERVER_IP = "host.docker.internal"
 
 # Printer Server port
 # Default: 5100

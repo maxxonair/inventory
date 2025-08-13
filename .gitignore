@@ -27,6 +27,7 @@ database/.env
 # --- [SVELTE]
 app/node_modules/*
 app/.svelte-kit
+app/build
 
 # --- [FLASK]
 # Don't commit any session data

@@ -10,16 +10,15 @@ COPY *.ts ./
 COPY src ./
 
 ENV NODE_ENV=production
-# Run tests when implemented
-# RUN bun test
 
-EXPOSE 5173
+EXPOSE 4173
 
 RUN bun install
-# RUN bun run build
+
+RUN bun run build
+
 # USER bun
-# EXPOSE 5173/tcp
 # ENTRYPOINT [ "bun", "run", "index.ts" ]
 
-# Run dev for testing
-ENTRYPOINT [ "bun", "run", "dev" ]
+# Run preview for testing
+ENTRYPOINT [ "bun", "run", "preview" ]

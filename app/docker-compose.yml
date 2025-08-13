@@ -1,0 +1,15 @@
+services:
+
+  inventory_app:
+    image: inventoryapp:latest
+    container_name: inventory-app
+    restart: unless-stopped
+    ports:
+      - "4173:4173"
+    depends_on:
+      - inventory_server
+    networks:
+      - invnet
+
+networks:
+  invnet:
