@@ -27,32 +27,50 @@ This application consists of several modules that run independently and can be r
 
 :construction: work in progress :construction: 
 
-### Set up bun
+## 1. Prerequisites
+
+### 1.1 bun
 
 This project is using [bun](https://bun.sh/) to develop, test and deploy the svelte front-end. 
 
 Set up bun 
 
-```
+```bash
 curl -fsSL https://bun.sh/install | bash
 ```
 
-Run or build the frontend application
+### 1.2 uv
+
+This project is using [uv](https://docs.astral.sh/uv/) for the Python backend and support & service scripts:
+
+Set up bun 
+
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Create the virtual environment:
+
+```bash
+cd inventory
+
+uv sync
+```
+
+:warning: On a mac you will need to install the mariadb-connector-c to be able to install the mariadb python package:
+
+```bash
+brew install mariadb-connector-c
+```
+
+### 1.3 podman/docker
+
+You will need docker or podman to run this project, so install docker or podman first. 
 
 ```bash
 
-cd app
-
-# Run app for development
-bun run dev
-
-# Build app
-bun --bun run build
 ```
-
-### Set up podman/docker
-
-You will need docker or podman to run this project, so install docker or podman first. 
 
 Furthermore the database requires the following mariadb packages on the host machine.
 
@@ -60,7 +78,34 @@ Furthermore the database requires the following mariadb packages on the host mac
 sudo apt install libmariadb3 libmariadb-dev
 ```
 
-## Automatically set up backend
+## 2. Configuration
+
+### 2.1 Configure Database
+
+Configure the Database server via the backend/database_config.py file. Make
+sure the IP address of the database server is configured correctly.
+
+:warning: The database is set up with a default user name and password. These need to be changed before using this tool in production! :warning: 
+
+### 2.2 Configure Camera Server
+
+Configure the UI server via the backend/camera_config.py file. Default is to
+run the camera server on localhost. This requires to run the UI server and
+camera server on the same machine, but can be configured otherwise.
+
+### 2.3 Configure Printer Interface
+
+Configure the printer interface via the backend/printer_config.py file. Make sure
+the printers Mac address is configured correctly. Default settings can be
+kept when using the Niimbot D110, which is the only tested printer so far.
+
+Note: The printer needs to be on, bluetooth enabled on the machine that runs
+the UI server. The printer will not connect permanently, but only
+for the short period the print command is sent.
+
+## 3. Run Project
+
+## 3.1 Automatically launch backend container
 
 Run the automatic setup script to start all required services in their respective containers.
 
@@ -74,7 +119,7 @@ Set up and launch camera and printer services with:
 sudo ./setup_services.sh
 ```
 
-## Manually build and run the inventory server container
+#### Manually build and run the inventory server container
 
 Build the inventory server image with
 
@@ -101,37 +146,28 @@ e4e6a30ddcf3   inventoryserver:latest   "uv run -m server.In…"   3 minutes ago
 a3617b15b20c   mariadb:10.5             "docker-entrypoint.s…"   43 minutes ago   Up 33 minutes (healthy)   0.0.0.0:46123->3306/tcp, [::]:46123->3306/tcp   inventory_db
 ```
 
-## Configure Database
+## 3.2 Automatically launch frontend container
 
-Configure the Database server via the backend/database_config.py file. Make
-sure the IP address of the database server is configured correctly.
+TODO
 
-:warning: The database is set up with a default user name and password. These need to be changed before using this tool in production! :warning: 
+#### Run frontend manually with bun
 
-## Configure Camera Server
+Run or build the frontend application
 
-Configure the UI server via the backend/camera_config.py file. Default is to
-run the camera server on localhost. This requires to run the UI server and
-camera server on the same machine, but can be configured otherwise.
+```bash
 
-## Configure Printer Interface
+cd app
 
-Configure the printer interface via the backend/printer_config.py file. Make sure
-the printers Mac address is configured correctly. Default settings can be
-kept when using the Niimbot D110, which is the only tested printer so far.
+# Run app for development
+bun run dev
 
-Note: The printer needs to be on, bluetooth enabled on the machine that runs
-the UI server. The printer will not connect permanently, but only
-for the short period the print command is sent.
+# Build app
+bun --bun run build
+```
 
-## Configure User Interface
+## Useful Information 
 
-Configure the UI server via the frontend/frontend_config.py file. Make sure
-the IP and port of the server are configured correctly, as well as IP and
-port of the camera server for the embedded html content.
-
-
-## Useful Docker Commands
+### Useful Docker Commands
 
 To check the container status, run:
 
@@ -206,31 +242,6 @@ The following privelege levels are currently maintained, the table shows their a
 | **Settings Access** | -     | -        | -          | x          | x     |
 
 
-# Frontend
-
-## Developing
-
-Start the development server for the frontend application:
-
-```bash
-bun run dev
-
-# or start the server and open the app in a new browser tab
-bun run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```bash
-bun run build
-```
-
-You can preview the production build with `bun run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
-
 # Troubleshooting
 
 The MariaDB docker container will use port 3306 which might conflict with
@@ -275,7 +286,7 @@ The current label printer interface only works with Niimbot printers (tested onl
 ## Label Printer setup
 
 To set up a new printer, the printer MAC address needs to be updated in
-backend/printer_config.py
+backend/src/printer/printer_config.py
 
 ```bash
 # Mac address of the Niimbot D110 printer used to print inventory labels
@@ -287,6 +298,8 @@ niimbot_d110_inventory_mac_address = '04:08:04:01:31:04'
 
 Required package on Ubuntu. Ensure the following package is installed. This is 
 required to be able to install the simpleaudio python package.
+
+Ubuntu
 
 ```bash
 sudo apt install libasound2-dev

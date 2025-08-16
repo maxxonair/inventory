@@ -44,7 +44,7 @@ class CameraServer:
     self,
     enable_qr_scanner: bool = True,
     suspend_scan_dur_thr_s: float = 3.0,
-    camera_index: int = 0,
+    camera_index: int = 1,
   ):
     """Initialise server instance
 
@@ -66,9 +66,6 @@ class CameraServer:
 
     # Flag if True the QR scanning function of this server is enabled
     self.enable_qr_scanner = enable_qr_scanner
-
-    # Init pygame mixer to play audio files
-    self.mixer = pygame.mixer.init()
 
     # Flag if True QR scanning is disabled temporarily
     self.is_suspend_qr_scan = False
@@ -206,7 +203,10 @@ class CameraServer:
     @self.app.route("/capture_image", methods=["POST"])
     def capture_image():
       """Serve requested image from the media directory"""
-      self.play_shutter_sound()
+      try:
+        self.play_shutter_sound()
+      except:
+        info('Failed to play sound: camera shutter')
       _, buffer = cv.imencode(".jpg", self.frame)
       frame_bytes = buffer.tobytes()
 
@@ -301,7 +301,10 @@ class CameraServer:
         debug(f"[+--] Valid QR marker detected -> {item_id}")
 
         # Play sound to indicate a successful scan
-        self.play_beep()
+        try:
+          self.play_beep()
+        except:
+          info('Failed to play sound: beep')
 
         # Set inventory server url
         inventory_server_url = (

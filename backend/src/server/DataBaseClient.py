@@ -65,6 +65,8 @@ class DataBaseClient:
     except mariadb.Error as e:
       error("")
       raise RuntimeError(f"Error connecting to MariaDB: {e}")
+    
+    self.init_inventory_db()
 
     # -- Ensure that database exists --
     if not self.is_database(INVENTORY_DB_NAME):
@@ -94,6 +96,41 @@ class DataBaseClient:
     """ """
     self.cursor.close()
     self.connection.close()
+
+  def init_inventory_db(self):
+    """Initialise inventory database and tables if they don't exist
+
+    Returns:
+        _type_: _description_
+    """
+    info("Initialising inventory database:")
+
+    # -- Ensure that database exists --
+    if not self.is_database(INVENTORY_DB_NAME):
+        warning(f" {INVENTORY_DB_NAME} database not found.")
+        self.create_database(INVENTORY_DB_NAME)
+        info(f"[x] Created database: {INVENTORY_DB_NAME}")
+    else:
+        info(f"[x] {INVENTORY_DB_NAME} does already exist.")
+
+    # Use inventory database from here onwards
+    self.cursor.execute(f"USE {INVENTORY_DB_NAME}")
+
+    # -- Ensure that inventory table exists --
+    if not self.is_table(INVENTORY_TABLE_NAME):
+        warning(f" {INVENTORY_TABLE_NAME} table not found.")
+        self.create_inventory_table()
+        info(f"|-> Created table: {INVENTORY_TABLE_NAME}")
+    else:
+        info(f"[x] {INVENTORY_TABLE_NAME} does already exist.")
+
+    # -- Ensure that inventory user table exists --
+    if not self.is_table(INVENTORY_USER_TABLE_NAME):
+        warning(f" {INVENTORY_USER_TABLE_NAME} table not found.")
+        self.create_inventory_user_table()
+        info(f"|-> Created table: {INVENTORY_USER_TABLE_NAME}")
+    else:
+        info(f"[x] {INVENTORY_USER_TABLE_NAME} does already exist.")
 
   # -----------------------------------------------------------------------
   #                        [LIST & SEARCH]
