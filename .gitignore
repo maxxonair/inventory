@@ -10,10 +10,9 @@ env/
 
 # --- [DATABASE]
 # Ignore database linked data folders
-database/volumes/*
-database/media/*
+backend/volumes/*
+backend/media/*
 **/volumes/
-database/.env
 
 # --- [ENVIRONMENT FILES]
 # Ignore all environment files 
@@ -31,4 +30,4 @@ app/build
 
 # --- [FLASK]
 # Don't commit any session data
-flask_session/*
+**/flask_session/*
