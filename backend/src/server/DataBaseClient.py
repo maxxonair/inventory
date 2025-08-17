@@ -530,7 +530,7 @@ class DataBaseClient:
     sql = (
       f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_password = ? WHERE user_name = ?"
     )
-    values = [user.user_password] + [user.user_name]
+    values = [user.hashed_user_password] + [user.user_name]
 
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)

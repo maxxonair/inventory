@@ -165,6 +165,29 @@ bun run dev
 bun --bun run build
 ```
 
+## 3.3 First time setup
+
+If you are setting up the project fresh from a clone and you are using the build in inventory authentification management, you will need to create a user first in order to access the database. 
+
+Authentification is currently managed via a set of CLI admin functions the can be
+called with the following script:
+
+```bash
+
+cd backend/src
+
+uv run -m server.admin
+```
+
+This allows to:
+- Create a new user.  
+- Delete a user.  
+- Change user privileges.  
+- Change user passwords.  
+
+Note: This functionality is not protected and should hence be accessible only to
+system administrators on the backend server.
+
 ## Useful Information 
 
 ### Useful Docker Commands
