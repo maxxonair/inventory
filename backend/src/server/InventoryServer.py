@@ -229,6 +229,7 @@ class InventoryServer:
     def capture_image():
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
+      # TODO missing action
 
     @self.app.route("/print_label", methods=["POST"])
     def print_label():

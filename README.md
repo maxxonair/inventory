@@ -188,6 +188,19 @@ This allows to:
 Note: This functionality is not protected and should hence be accessible only to
 system administrators on the backend server.
 
+### User Privileges
+
+Users must be created with a privelege level defined.
+The following privelege levels are currently maintained, the table shows their associated editing and visibility rights:
+
+| Privelege           | GUEST | REPORTER | DEVELOPPER | MAINTAINER | OWNER |
+| ------------------- | ----- | -------- | ---------- | ---------- | ----- |
+| **Add Item**        | -     | -        | x          | x          | x     |
+| **Delete Item**     | -     | -        | x          | x          | x     |
+| **Modify Item**     | -     | -        | x          | x          | x     |
+| **Export to CSV**   | -     | x        | x          | x          | x     |
+| **Settings Access** | -     | -        | -          | x          | x     |
+
 ## Useful Information 
 
 ### Useful Docker Commands
@@ -228,41 +241,6 @@ each item in the inventory.
 | **Tags**                 | Tags to identify item. Tags should be separated by a semicolon. This offers a flexible way to make an item easily searchable by customised tags.                                                                                             |
 | **Type**                 | Item Type                                                                                             |
 | **Storage Location**     | Storage location of the item  
-
-# User Management
-
-Adding, removing or modifying users is currently only possible in the terminal
-using helper functions. Make sure the database container is running, when
-running the following commands.
-
-Use the following commands to add, delete users, or list all existing database
-users. To modify user permissions it is currently required to first delete
-the user entirely and then create it again with the altered permissions.
-
-```bash
-uv run admin/create_user.py
-```
-
-```bash
-uv run admin/delete_user.py
-```
-
-```bash
-uv run admin/show_users.py
-```
-
-### User Privileges
-
-Users must be created with a privelege level defined.
-The following privelege levels are currently maintained, the table shows their associated editing and visibility rights:
-
-| Privelege           | GUEST | REPORTER | DEVELOPPER | MAINTAINER | OWNER |
-| ------------------- | ----- | -------- | ---------- | ---------- | ----- |
-| **Add Item**        | -     | -        | x          | x          | x     |
-| **Delete Item**     | -     | -        | x          | x          | x     |
-| **Modify Item**     | -     | -        | x          | x          | x     |
-| **Export to CSV**   | -     | x        | x          | x          | x     |
-| **Settings Access** | -     | -        | -          | x          | x     |
 
 
 # Troubleshooting
@@ -326,4 +304,32 @@ Ubuntu
 
 ```bash
 sudo apt install libasound2-dev
+```
+
+## zbar
+
+Required pacakges to run the camera server locally on the host machine outside 
+the container.
+
+Mac
+```bash
+brew install zbar
+```
+
+Ubuntu
+
+```bash
+sudo apt-get install libzbar0
+```
+
+CentOS/RHEL
+
+```bash
+sudo yum install zbar
+```
+
+Set environment variable 
+
+```bash
+export DYLD_LIBRARY_PATH=$(brew --prefix zbar)/lib:$DYLD_LIBRARY_PATH
 ```

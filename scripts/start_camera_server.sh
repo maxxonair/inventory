@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Define server working directory 
-WORKDIR="/home/mrx/Documents/inventory"
+PRJCT_DIR=$PWD
 
-cd $WORKDIR
+cd ${PRJCT_DIR}/backend/src
 
 # Start the server
-uv run -m backend.CameraServer
+OPENCV_AVFOUNDATION_SKIP_AUTH=1 DYLD_LIBRARY_PATH=$(brew --prefix zbar)/lib:$DYLD_LIBRARY_PATH uv run -m camera.CameraServer

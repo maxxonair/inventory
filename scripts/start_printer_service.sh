@@ -1,3 +1,7 @@
 !/bin/bash
 
-uv run -m backend.src.printer.PrinterServer
+PRJCT_DIR=$PWD
+
+cd ${PRJCT_DIR}/backend/src
+
+uv run -m printer.PrinterServer

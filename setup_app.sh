@@ -25,6 +25,10 @@ docker compose up -d inventory_server
 #                FRONTEND
 #-------------------------------------------
 
+cd ${ROOT_DIR}/app
+
+docker build --no-cache -t inventoryweb:latest .
+
 # TODO
 
 # display container status

@@ -44,7 +44,7 @@ class CameraServer:
     self,
     enable_qr_scanner: bool = True,
     suspend_scan_dur_thr_s: float = 3.0,
-    camera_index: int = 1,
+    camera_index: int = 0,
   ):
     """Initialise server instance
 
