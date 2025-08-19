@@ -2,13 +2,14 @@
   import { goto } from "$app/navigation";
   import { fetchUser } from "$lib/stores/auth.js";
   import {  FloatingLabelInput, Button} from 'flowbite-svelte';
+  import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';
 
   let username = "";
   let password = "";
   let error = "";
 
   async function login() {
-    const res = await fetch("http://localhost:5000/login", {
+    const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/login`, {
       method: "POST",
       credentials: "include",
       headers: {

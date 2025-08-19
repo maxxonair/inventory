@@ -87,6 +87,19 @@ sure the IP address of the database server is configured correctly.
 
 :warning: The database is set up with a default user name and password. These need to be changed before using this tool in production! :warning: 
 
+There are several files highlighted with the extension '.example' that need to be 
+updated before first use. Remove the extension and do the variable updates as outlined below.
+
+#### Set database container .env
+
+Set a root user name and password in the backend/.env file.
+
+#### Set inventory server mysql.py
+
+The inventory server will connect as a static user to the database container. 
+The backend/src/server/mysql.py.example. Remove the .example extension and ensure
+the sql log in matches the .env file.
+
 ### 2.2 Configure Camera Server
 
 Configure the UI server via the backend/camera_config.py file. Default is to

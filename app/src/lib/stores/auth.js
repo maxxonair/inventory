@@ -1,12 +1,13 @@
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
+import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';
 
 export const user = writable(null);
 export const message = writable(null);
 
 export async function fetchUser() {
   try {
-    const res = await fetch('http://localhost:5000/me', {
+    const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/me`, {
       credentials: 'include'
     });
     if (res.ok) {
@@ -21,7 +22,7 @@ export async function fetchUser() {
 }
 
 export async function logout() {
-  await fetch('http://localhost:5000/logout', {
+  await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/logout`, {
     method: 'POST',
     credentials: 'include'
   });

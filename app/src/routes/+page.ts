@@ -3,9 +3,10 @@
 export const prerender = true;
 
 import { redirect } from '@sveltejs/kit';
+import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';
 
 export async function load({ fetch }) {
-  const res = await fetch('http://localhost:5000/me', {
+  const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/me`, {
     credentials: 'include'
   });
 

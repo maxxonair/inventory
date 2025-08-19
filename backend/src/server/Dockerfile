@@ -24,7 +24,7 @@ RUN uv sync --verbose
 # MariaDB port:               3306
 # Camera server port:         5050
 # Label printer server port:  5100
-EXPOSE 5000 
+EXPOSE 5000
 
 # Start the server
 ENTRYPOINT [ "uv", "run", "-m", "server.InventoryServer" ]

@@ -1,9 +1,10 @@
 import { goto } from '$app/navigation';
 import { user } from '$lib/stores/auth.js'; // your user store
 import { page } from '$app/stores';
+import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';
 
 export async function logout() {
-  await fetch('http://localhost:5000/logout', {
+  await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/logout`, {
     method: 'POST',
     credentials: 'include'
   });

@@ -14,7 +14,8 @@
   import { ChevronLeftOutline, QrCodeOutline,  FolderArrowRightOutline} from 'flowbite-svelte-icons';
 	import { Section } from 'flowbite-svelte-blocks';
   import { CartPlusAltOutline, MinusOutline, PlusOutline } from "flowbite-svelte-icons";
-  
+  import { PUBLIC_INVENTORY_SERVER_URL, PUBLIC_INVENTORY_CAMERA_URL } from '$env/static/public';
+
   let { user } = $props();
 
   /* ------------------  Main Table function ----------------------- */
@@ -24,12 +25,7 @@
   const PRIVILEGE_REPORTER = 1;
   const PRIVILEGE_DEVELOPPER = 2;
   const PRIVILEGE_MAINTAINER = 3;
-  const PRIVILEGE_OWNER = 5;
-
-  const INVENTORY_HOST = "127.0.0.1";
-  const CAMERA_HOST = "127.0.0.1";
-  const INVENTORY_PORT = 5000;
-  const CAMERA_PORT = 5050;
+  const PRIVILEGE_OWNER = 4;
 
   let user_privilege = $state(null);
 
@@ -54,7 +50,7 @@
 	const fetchData = async () => {
     // Get user
     try {
-      const res = await fetch("http://localhost:5000/me", {credentials: "include"});
+      const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/me`, {credentials: "include"});
 			const data = await res.json();
 			user = data.user;
 		} catch (err) {
@@ -63,7 +59,7 @@
 
     // Get user privilege level
     try {
-      const res = await fetch("http://localhost:5000/user_privilege", {
+      const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/user_privilege`, {
         method: "POST",
         credentials: "include",
         headers: {"Content-Type": "application/json"},
@@ -80,7 +76,7 @@
     // Load all inventory items
 		loading = true;
 		try {
-			const res = await fetch('http://localhost:5000/items', {credentials: 'include'});
+			const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/items`, {credentials: 'include'});
 			const data = await res.json();
 			items = data;
 			totalItems = items.length;
@@ -151,7 +147,6 @@
   let showErrorAlert = $state(false);
   let imageUpdated = $state(false);
 
-	const scannerStreamUrl = "http://127.0.0.1:5050";
 	let selected = $state();
 	let categories = [
 		{ value: '', name: 'Select Type' },
@@ -184,11 +179,10 @@
   let image = $state("");
   let tags = $state("");
 
-  let streamUrl = "http://127.0.0.1:5050";
-  const media_url = "http://127.0.0.1:5000/media/";
+  const media_url = `${PUBLIC_INVENTORY_CAMERA_URL}/media/`;
 
 	let imageUrl = $state("");
-  imageUrl = "${streamUrl}";
+  imageUrl = "${PUBLIC_INVENTORY_CAMERA_URL}";
 
   let description = $state("");
   let item_type = $state("");
@@ -218,7 +212,7 @@
 			formData.append("avatar", selectedFile);
 
 			try {
-				const response = await fetch("http://127.0.0.1:5000/image_upload", {
+				const response = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/image_upload`, {
 					method: "POST",
 					body: formData,
 				});
@@ -247,7 +241,7 @@
 			formData.append("avatar", selectedFile);
 
 			try {
-				const response = await fetch("http://127.0.0.1:5000/image_upload", {
+				const response = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/image_upload`, {
 					method: "POST",
 					body: formData,
 				});
@@ -318,7 +312,7 @@
     } else {
       let date_now = new Date();
       let date_added = date_now.toISOString();
-      const res = await fetch("http://localhost:5000/add_item", {
+      const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/add_item`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -354,7 +348,7 @@
   }
 
   async function captureImage() {
-    const res = await fetch("http://localhost:5050/capture_image", {
+    const res = await fetch(`${PUBLIC_INVENTORY_CAMERA_URL}/capture_image`, {
       method: "POST",
       credentials: "include",
       headers: {
@@ -385,7 +379,7 @@
   }
 
 async function downloadCSV() {
-  const itemRes = await fetch('http://localhost:5000/items', {
+  const itemRes = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/items`, {
     credentials: 'include'
   });
 
@@ -424,7 +418,7 @@ async function downloadCSV() {
 }
 
 async function downloadExcel() {
-  const itemRes = await fetch('http://localhost:5000/items', {
+  const itemRes = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/items`, {
     credentials: 'include'
   });
 
@@ -461,7 +455,7 @@ async function downloadExcel() {
 }
 
 	async function deleteItem(itemId){
-    const res = await fetch("http://localhost:5000/delete_item", {
+    const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/delete_item`, {
       method: "POST",
       credentials: "include",
       headers: {"Content-Type": "application/json"},
@@ -482,7 +476,7 @@ async function downloadExcel() {
   }
 
   async function checkoutItem(itemId){
-    const res = await fetch("http://localhost:5000/checkout_item", {
+    const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/checkout_item`, {
       method: "POST",
       credentials: "include",
       headers: {"Content-Type": "application/json"},
@@ -506,7 +500,7 @@ async function downloadExcel() {
   }
 
   async function returnItem(itemId){
-    const res = await fetch("http://localhost:5000/return_item", {
+    const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/return_item`, {
       method: "POST",
       credentials: "include",
       headers: {"Content-Type": "application/json"},
@@ -550,7 +544,7 @@ async function downloadExcel() {
     } else {
       let date_now = new Date();
       let date_added = date_now.toISOString();
-      const res = await fetch("http://localhost:5000/update_item", {
+      const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/update_item`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -582,7 +576,7 @@ async function downloadExcel() {
   }
   
   async function printLabel(itemId){
-    const res = await fetch("http://localhost:5000/print_label", {
+    const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/print_label`, {
       method: "POST",
       credentials: "include",
       headers: {"Content-Type": "application/json"},
@@ -616,7 +610,7 @@ async function downloadExcel() {
   
   onMount(() => {
     // Set up event listener to update frontend whenever a QR code is scanned.
-    const eventSource = new EventSource("http://localhost:5000/qr_events");
+    const eventSource = new EventSource(`${PUBLIC_INVENTORY_SERVER_URL}/qr_events`);
   
     // Mark the callback as async to allow await
     eventSource.onmessage = async (event) => {
@@ -626,7 +620,7 @@ async function downloadExcel() {
         let itemId = data.itemId;
   
         // Fetch the inventory item data from the database
-        const ret = await fetch("http://localhost:5000/get_item", {
+        const ret = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/get_item`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -742,7 +736,7 @@ async function downloadExcel() {
               <div class="mb-6 flex flex-col items-center p-2 col-span-1">
                 <Label for="name" class="mb-2 block p-2">Record item image</Label>
                 <Button class="w-full border mb-2 " onclick={captureImage}>capture image</Button>
-                <img src={streamUrl} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
+                <img src={PUBLIC_INVENTORY_CAMERA_URL} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
                 <Button color="light" class="w-full mb-2" onclick={toggleCameraVisibility}>close camera</Button>
                 <Label class="b-2 block">{camera_error}</Label>
               </div>
@@ -996,7 +990,7 @@ async function downloadExcel() {
           <div class="mb-6 flex flex-col items-center p-2 col-span-1">
             <Label for="name" class="mb-2 block p-2">Record item image</Label>
             <Button class="w-full border mb-2 " onclick={captureImage}>capture image</Button>
-            <img src={streamUrl} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
+            <img src={PUBLIC_INVENTORY_CAMERA_URL} alt="Opening camera stream ..." class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2" />
             <Button color="light" class="w-full mb-2" onclick={toggleCameraVisibility}>close camera</Button>
             <Label class="b-2 block">{camera_error}</Label>
           </div>
@@ -1109,7 +1103,7 @@ async function downloadExcel() {
 				<label for="id" class="mb-6 inline-flex items-center text-base text-gray-500 dark:text-gray-400">
 					Place QR code in front of the scanner camera!
 				</label>
-				<img src={scannerStreamUrl} alt="Starting Camera Stream ... " class="text-slate-200" />
+				<img src={PUBLIC_INVENTORY_SERVER_URL} alt="Starting Camera Stream ... " class="text-slate-200" />
 			</div>
 
 		{/if}
