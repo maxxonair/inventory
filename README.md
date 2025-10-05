@@ -64,11 +64,15 @@ uv sync
 brew install mariadb-connector-c
 ```
 
-### 1.3 podman/docker
+### 1.3 podman
 
-You will need docker or podman to run this project, so install docker or podman first. 
+You will need podman to run this project, so install podman first. 
+
+Furthermore, you will need podman-compose to run the container. Install with
 
 ```bash
+
+pip3 install podman-compose
 
 ```
 
@@ -90,7 +94,7 @@ sure the IP address of the database server is configured correctly.
 There are several files highlighted with the extension '.example' that need to be 
 updated before first use. Remove the extension and do the variable updates as outlined below.
 
-#### Set database container .env
+#### Set server container .env
 
 Set a root user name and password in the backend/.env file.
 
@@ -120,7 +124,7 @@ for the short period the print command is sent.
 
 ## 3.1 Automatically launch backend container
 
-Run the automatic setup script to start all required services in their respective containers.
+Run the automatic setup script to build and start all required containers and launch services.
 
 ```bash
 sudo ./setup_app.sh
@@ -139,19 +143,18 @@ Build the inventory server image with
 ```bash
 cd backend/src/server
 
-sudo docker build -t inventoryserver:latest .
+sudo podman build -t inventoryserver:latest .
 ```
 
-The databse uses a default mariadb images and which doesn't need building. Run both containers:
+Run the inventory server container:
 
 ```bash
 cd backend
 
-sudo docker compose up -d inventory_db
-sudo docker compose up -d inventory_server
+podman-compose up -d inventory_server
 ```
 
-Check container is running as expected (with docker ps):
+Check container is running as expected (with podman ps):
 
 ```bash
 CONTAINER ID   IMAGE                    COMMAND                  CREATED          STATUS                    PORTS                                           NAMES
@@ -216,20 +219,12 @@ The following privelege levels are currently maintained, the table shows their a
 
 ## Useful Information 
 
-### Useful Docker Commands
+### Useful podman Commands
 
 To check the container status, run:
 
 ```bash
-docker ps -a
-```
-
-Which should show the influxDb container up and running:
-
-```bash
-CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS                       PORTS                                       NAMES
-a9066efdb6e7   mariadb:2.1   "/entrypoint.sh infl…"   25 hours ago   Up About an hour (healthy)   0.0.0.0:3306->3306/tcp, :::8086->8086/tcp   inventory
-
+podman ps -a
 ```
 
 # Details 
@@ -258,34 +253,20 @@ each item in the inventory.
 
 # Troubleshooting
 
-The MariaDB docker container will use port 3306 which might conflict with
-running mysql services on the target machine, leading to the following error
+The inventory server container will use port 5000 which might conflict with
+running services on the host machine, leading to the following error
 when starting up the container:
 
 ```bash
-Error response from daemon: driver failed programming external connectivity on endpoint inventory (307f628849c076718517dcaf96313d1df854eca239ef314272932975cd6f2396): Error starting userland proxy: listen tcp4 0.0.0.0:3306: bind: address already in use
+Error response from daemon: driver failed programming external connectivity on endpoint inventory (307f628849c076718517dcaf96313d1df854eca239ef314272932975cd6f2396): Error starting userland proxy: listen tcp4 0.0.0.0:5000: bind: address already in use
 ```
 
 In that case list services that use this port and shut them down
 
-List services that use port 3306:
+List services that use port 5000:
 
 ```bash
-sudo lsof -i -P -n | grep 3306
-```
-
-Shut down mysql service on the target machine.
-
-```bash
-sudo service mysql stop
-```
-
-To prevent this issue from coming back when the host machine is restarded,
-disable the mysql service with:
-
-```bash
-sudo systemctl disable mysql
-
+sudo lsof -i -P -n | grep 5000
 ```
 
 # Hardware Requirements

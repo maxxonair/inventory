@@ -9,27 +9,29 @@ ROOT_DIR=$pwd
 # ---- BUILD INVENTORY SERVER CONTAINER ----
 cd backend/src/server
 
-docker build --no-cache -t inventoryserver:latest .
+podman build --no-cache -t inventoryserver:latest .
 
 # ---- START CONTAINERS ----
 
 cd ../../
 
-# Start inventory database container
-docker compose up -d inventory_db
-# Start inventory server container
-docker compose up -d inventory_server
+# TODO: Add check if inventory_server image exists in local repository before 
+# composing the container
+
+# # Start inventory server container
+podman-compose up -d inventory_server
 
 
 #-------------------------------------------
 #                FRONTEND
 #-------------------------------------------
 
-cd ${ROOT_DIR}/app
+# cd ${ROOT_DIR}/app
 
-docker build --no-cache -t inventoryweb:latest .
+# Work in progress 
+# docker build --no-cache -t inventoryweb:latest .
 
 # TODO
 
 # display container status
-docker ps
+podman ps
