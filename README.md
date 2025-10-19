@@ -87,7 +87,6 @@ Support scripts are using [podman-compose](https://pypi.org/project/podman-compo
 pip3 install podman-compose
 ```
 
-<<<<<<< HEAD
 #### 1.5 npm, bun, svelte, svelte-kit & vite
 
 The frontend application is run directly on the host machine. Hence svelte-kit and all depencies are required to be installed to build and run the frontend:
@@ -103,18 +102,6 @@ Install apache
 
 ```bash
 sudo apt install apache2
-=======
-### 1.3 podman
-
-You will need podman to run this project, so install podman first. 
-
-Furthermore, you will need podman-compose to run the container. Install with
-
-```bash
-
-pip3 install podman-compose
-
->>>>>>> v1_alpha
 ```
 
 ## 2. First Time Setup
@@ -129,11 +116,7 @@ sure the IP address of the database server is configured correctly.
 There are several files highlighted with the extension '.example' that need to be 
 updated before first use. Remove the extension and do the variable updates as outlined below.
 
-<<<<<<< HEAD
 #### Set Database Variables
-=======
-#### Set server container .env
->>>>>>> v1_alpha
 
 Set the database access root user name and password in the ```backend/.env.example``` file. 
 - Remove ```.example``` extension
@@ -148,70 +131,21 @@ Database communication between the inventory server and the database server goes
 
 ### 2.2 Run Backend
 
-<<<<<<< HEAD
 #### 2.2.1 Build and launch inventory containers
-=======
-Configure the UI server via the backend/camera_config.py file. Default is to
-run the camera server on localhost. This requires to run the UI server and
-camera server on the same machine, but can be configured otherwise.
-
-### 2.3 Configure Printer Interface
-
-Configure the printer interface via the backend/printer_config.py file. Make sure
-the printers Mac address is configured correctly. Default settings can be
-kept when using the Niimbot D110, which is the only tested printer so far.
-
-Note: The printer needs to be on, bluetooth enabled on the machine that runs
-the UI server. The printer will not connect permanently, but only
-for the short period the print command is sent.
-
-## 3. Run Project
-
-## 3.1 Automatically launch backend container
-
-Run the automatic setup script to build and start all required containers and launch services.
-
-```bash
-sudo ./setup_app.sh
-```
-
-Set up and launch camera and printer services with:
-
-```bash
-sudo ./setup_services.sh
-```
-
-#### Manually build and run the inventory server container
->>>>>>> v1_alpha
 
 Build the inventory server image with
 
 ```bash
-<<<<<<< HEAD
 ./build_server_image.sh
-=======
-cd backend/src/server
-
-sudo podman build -t inventoryserver:latest .
->>>>>>> v1_alpha
 ```
 
 Run the inventory server container:
 
 ```bash
-<<<<<<< HEAD
 ./start_containers.sh
 ```
 
 Check container is running as expected (with ```podman ps```):
-=======
-cd backend
-
-podman-compose up -d inventory_server
-```
-
-Check container is running as expected (with podman ps):
->>>>>>> v1_alpha
 
 ```bash
 CONTAINER ID   IMAGE                    COMMAND                  CREATED          STATUS                    PORTS                                           NAMES
@@ -255,7 +189,6 @@ The following privelege levels are currently maintained, the table shows their a
 
 ### 2.3 Run Frontend
 
-<<<<<<< HEAD
 #### Build Inventory App
 
 ```bash
@@ -302,14 +235,6 @@ Load config and restart apache
 ```bash
 sudo a2ensite sveltekit.conf
 sudo systemctl reload apache2
-=======
-### Useful podman Commands
-
-To check the container status, run:
-
-```bash
-podman ps -a
->>>>>>> v1_alpha
 ```
 
 #### Run frontend manually with bun
