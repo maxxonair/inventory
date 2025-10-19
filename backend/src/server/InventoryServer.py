@@ -278,6 +278,7 @@ class InventoryServer:
       # !TODO! somehow this returns 200 even if the user is logged out.
       # Safeguarded by the frontend for now, but needs to be checked.
       if "user" in session:
+        info(f'User {session["user"]} logged in')
         return jsonify({"user": session["user"]})
       return jsonify({"error": "Not logged in"}), 401
 
