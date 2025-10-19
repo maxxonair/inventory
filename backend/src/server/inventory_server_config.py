@@ -38,11 +38,7 @@ MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
 
 # IP address of the database server
 # Default: inventory_db (container)
-<<<<<<< HEAD
 DEFAULT_DB_HOST = "inventory_db"
-=======
-DEFAULT_DB_HOST = 'localhost'
->>>>>>> v1_alpha
 
 # Port of the database server
 # Default: 3306 (mapped container port)

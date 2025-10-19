@@ -8,6 +8,9 @@
 Run with:
 $ uv run -m server.admin
 
+WARNING: This script requires direct access to the database server and should
+         be exposed to system administrators only.
+
 """
 
 from getpass import getpass
@@ -17,7 +20,6 @@ from rich.prompt import Prompt
 
 from server.DataBaseClient import DataBaseClient
 from server.InventoryUser import InventoryUser, UserPrivileges
-from server.inventory_server_config import DEFAULT_DB_PORT
 
 database_host = "127.0.0.1"
 database_port = 3307
@@ -25,6 +27,19 @@ database_port = 3307
 
 def main():
   """Admin CLI functions to handle inventory users"""
+
+  info(
+    f"Trying to connect to inventory database at {database_host}:{database_port} ..."
+  )
+  try:
+    client = DataBaseClient(host=database_host, port=database_port)
+  except Exception as e:
+    error(f"Could not connect to inventory database: {e}")
+    error(
+      "Make sure the database server is running and the port setting in this file is correct."
+    )
+    exit(1)
+
   info("Possible admin actions:")
   info("1 - Create user")
   info("2 - Delete User")
@@ -35,13 +50,13 @@ def main():
   )
 
   if answer == "1":
-    create_user()
+    create_user(client)
   elif answer == "2":
-    delete_user()
+    delete_user(client)
   elif answer == "3":
-    update_privileges()
+    update_privileges(client)
   elif answer == "4":
-    update_password()
+    update_password(client)
 
 
 # ------------------------------------------------------------------------------
@@ -49,7 +64,7 @@ def main():
 # ------------------------------------------------------------------------------
 
 
-def create_user():
+def create_user(client: DataBaseClient = None):
   """Create a new Inventory user via terminal prompts"""
   info("[Create user]")
   pw_invalid = True
@@ -107,13 +122,11 @@ def create_user():
     user_name=username, user_password=pw1, user_privileges=UserPrivileges(privileges)
   )
 
-  client = DataBaseClient(host=database_host, port=database_port)
-
   # Create new user
   client.add_inventory_user(inventoryUser)
 
 
-def delete_user():
+def delete_user(client: DataBaseClient = None):
   """Delete Inventory user"""
   info("[Delete user]")
   valid = False
@@ -123,7 +136,6 @@ def delete_user():
     # Remove whitespaces from user name
     username = username.strip(" ")
 
-    client = DataBaseClient(host=database_host, port=database_port)
     valid, _ = client.get_inventory_user_as_object(username)
 
     if not valid:
@@ -146,7 +158,7 @@ def delete_user():
   client.delete_inventory_user(username)
 
 
-def update_privileges():
+def update_privileges(client: DataBaseClient = None):
   """Update existing inventory users privileges"""
   info("[Update user privileges]")
   valid = False
@@ -157,7 +169,6 @@ def update_privileges():
     # Remove whitespaces from user name
     username = username.strip(" ")
 
-    client = DataBaseClient(host=database_host, port=database_port)
     valid, user_instance = client.get_inventory_user_as_object(username)
 
     if not valid:
@@ -204,7 +215,7 @@ def update_privileges():
   client.update_inventory_user_privileges(user=user_instance)
 
 
-def update_password():
+def update_password(client: DataBaseClient = None):
   """Update existing inventory users password"""
   info("[Update user password]")
   valid = False
@@ -215,7 +226,6 @@ def update_password():
     # Remove whitespaces from user name
     username = username.strip(" ")
 
-    client = DataBaseClient(host=database_host, port=database_port)
     valid, user_instance = client.get_inventory_user_as_object(username)
 
     if not valid:

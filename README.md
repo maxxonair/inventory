@@ -191,6 +191,8 @@ The following privelege levels are currently maintained, the table shows their a
 
 #### Build Inventory App
 
+**Set IP addresses** in ```app.env``` file to the correct ones for the server and all used inventory services.
+
 ```bash
 cd app
 # Build app
@@ -235,6 +237,47 @@ Load config and restart apache
 ```bash
 sudo a2ensite sveltekit.conf
 sudo systemctl reload apache2
+```
+
+#### Run Inventory App as a Service
+
+Create inventory systemd unit
+
+```bash
+sudo vi /etc/systemd/system/inventory.service
+```
+
+```
+[Unit]
+Description=Inventory Frontend Application
+After=network.target
+
+[Service]
+User=<USER>
+WorkingDirectory=<PATH TO INVENTORY>/inventory/app
+ExecStart=/home/<USER>/.bun/bin/bun run build/index.js
+Restart=always
+Environment=NODE_ENV=production PORT=3000
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start service:
+
+```bash
+sudo systemctl enable inventory
+sudo systemctl start inventory
+sudo systemctl status inventory
+```
+
+#### Add HTTPS Certification
+
+This updates your Apache config with SSL support automatically.
+
+```
+sudo apt install certbot python3-certbot-apache
+sudo certbot --apache -d inventory.local
 ```
 
 #### Run frontend manually with bun
@@ -321,7 +364,7 @@ The current label printer interface only works with Niimbot printers (tested onl
 - Logitec C270 webcam (item imaging and QR code detection)
 - Niimbot D110 label printer (to print item QR code labels)
 
-## Label Printer setup
+## Label Printer Setup
 
 To set up a new printer, the printer MAC address needs to be updated in
 backend/src/printer/printer_config.py
@@ -330,6 +373,38 @@ backend/src/printer/printer_config.py
 # Mac address of the Niimbot D110 printer used to print inventory labels
 niimbot_d110_inventory_mac_address = '04:08:04:01:31:04'
 
+```
+
+#### Set up Label Printer as a Service
+
+Create inventory_printer systemd unit
+
+```bash
+sudo vi /etc/systemd/system/inventory_printer.service
+```
+
+```
+[Unit]
+Description=Inventory Label Printer Application
+After=network.target
+
+[Service]
+User=<USER>
+WorkingDirectory=<PATH TO INVENTORY>/inventory/backend/src
+ExecStart=/home/<USER>/Documents/env/bin/uv run -m printer.PrinterServer
+Restart=always
+Environment=NODE_ENV=production PORT=5100
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start service:
+
+```bash
+sudo systemctl enable inventory_printer
+sudo systemctl start inventory_printer
+sudo systemctl status inventory_printer
 ```
 
 ## Audio 
