@@ -10,9 +10,9 @@ env/
 
 # --- [DATABASE]
 # Ignore database linked data folders
-backend/volumes/*
+backend/inventory_data/*
 backend/media/*
-**/volumes/
+**/inventory_data/
 
 # --- [ENVIRONMENT FILES]
 # Ignore all environment files 

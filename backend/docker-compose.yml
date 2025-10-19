@@ -1,26 +1,24 @@
 services:
   inventory_db:
     container_name: inventory_db
-    image: "mariadb:10.5"
+    image: "docker.io/library/mariadb:10.11"
     restart: unless-stopped
     ports:
-      - '46123:3306'
+      - '3307:3306'
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MARIADB_DISABLE_CHOWN: 1
     volumes:
-      - ./volumes/mariadb/data:/var/lib/mysql
-      - ./init-db-scripts:/docker-entrypoint-initdb.d
+      - ./inventory_data/mariadb/data:/var/lib/mysql:Z
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "--silent" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-    networks:
-      - invnet
 
   inventory_server:
     image: inventoryserver:latest
@@ -32,13 +30,11 @@ services:
       - ./media:/app/media
     environment:
       DB_HOST: inventory_db
-      DB_PORT: 3306
+      DB_PORT: 3307
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       - inventory_db
-    networks:
-      - invnet
 
   inventory_camera:
     image: inventorycamera:latest
@@ -79,3 +75,7 @@ services:
 
 networks:
   invnet:
+
+volumes:
+  inventory_data:
+    driver: local

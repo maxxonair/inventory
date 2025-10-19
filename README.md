@@ -25,26 +25,48 @@ Settings of different elements of the front and backend are configurable via the
 
 This application consists of several modules that run independently and can be run on a single machine or distributed across several machines (recommended). This section will provide a short summary to outline the architecture before diving in how to set it up.
 
-:construction: work in progress :construction: 
+The core modules:
+- The database 
+- The inventory server
+- The inventory applicaation
+- Services:
+    - Camera 
+    - Printer
 
-## 1. Prerequisites
+The database, inventory servera and application should be run on the same machine, while the services can be run on dedicated terminal machines, e.g. in the archive or warehouse.
 
-### 1.1 bun
+## 1. Requirements
 
-This project is using [bun](https://bun.sh/) to develop, test and deploy the svelte front-end. 
+Inventory requires several packages to be set up on the host machine. The following explaines the setup of all requirements.
 
-Set up bun 
+This setup has been tested on Ubuntu 24.04 LTS and macOS.
+
+#### 1.1 Database
+
+MariaDB will be run in a container. To be able to maintain the data on the host machine several packages are required to be installed on the host machine.
+
+**Ubuntu** install:
 
 ```bash
-curl -fsSL https://bun.sh/install | bash
+sudo apt install libmariadb3 libmariadb-dev
 ```
 
-### 1.2 uv
+**macOS** install:
 
-This project is using [uv](https://docs.astral.sh/uv/) for the Python backend and support & service scripts:
+```bash
+brew install mariadb-connector-c
+```
 
-Set up bun 
+#### 1.2 Podman
 
+- [Install podman](https://podman.io/docs/installation)
+
+- If working in a desktop environment it's recommended to [install Podman Desktop](https://podman-desktop.io/downloads) for easier container maintencance.
+
+
+#### 1.3 Python & uv
+
+This project requires Python to be installed on the host machine. Furhter [uv](https://docs.astral.sh/uv/) is used to manage dependencies and run the scripts in this proect. Install uv with the following
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -54,35 +76,39 @@ Create the virtual environment:
 
 ```bash
 cd inventory
-
 uv sync
 ```
 
-:warning: On a mac you will need to install the mariadb-connector-c to be able to install the mariadb python package:
+#### 1.4 podman-compose
+
+Support scripts are using [podman-compose](https://pypi.org/project/podman-compose/), which can be installed with pip:
 
 ```bash
-brew install mariadb-connector-c
+pip3 install podman-compose
 ```
 
-### 1.3 podman/docker
+#### 1.5 npm, bun, svelte, svelte-kit & vite
 
-You will need docker or podman to run this project, so install docker or podman first. 
+The frontend application is run directly on the host machine. Hence svelte-kit and all depencies are required to be installed to build and run the frontend:
+- Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- Install [bun](https://bun.sh/) ```curl -fsSL https://bun.sh/install | bash```
+:warning: Ensure the follow the instructions at the end of the installation and update your ```PATH```
+- Install [svelte-kit](https://svelte.dev/docs/kit/introduction)
+- Install vite ```bun install -D vite```
+
+#### 1.6 Apache
+
+Install apache
 
 ```bash
-
+sudo apt install apache2
 ```
 
-Furthermore the database requires the following mariadb packages on the host machine.
-
-```bash
-sudo apt install libmariadb3 libmariadb-dev
-```
-
-## 2. Configuration
+## 2. First Time Setup
 
 ### 2.1 Configure Database
 
-Configure the Database server via the backend/database_config.py file. Make
+Configure the Database server via the ```backend/database_config.py``` file. Make
 sure the IP address of the database server is configured correctly.
 
 :warning: The database is set up with a default user name and password. These need to be changed before using this tool in production! :warning: 
@@ -90,95 +116,44 @@ sure the IP address of the database server is configured correctly.
 There are several files highlighted with the extension '.example' that need to be 
 updated before first use. Remove the extension and do the variable updates as outlined below.
 
-#### Set database container .env
+#### Set Database Variables
 
-Set a root user name and password in the backend/.env file.
+Set the database access root user name and password in the ```backend/.env.example``` file. 
+- Remove ```.example``` extension
+- Change default values for username and password to custom values.
+- Go to ```backend/src/server``` and remove ```.example``` extension from ```mysql.py.example```. Make sure settings in ```backend/src/server/.mysql.py``` match settings in ```backend/.env```
 
-#### Set inventory server mysql.py
+#### Database Port
 
-The inventory server will connect as a static user to the database container. 
-The backend/src/server/mysql.py.example. Remove the .example extension and ensure
-the sql log in matches the .env file.
+Database communication between the inventory server and the database server goes by default through port 3306 on the host machine. If any mysql service is running on the host machine that port is likely to be busy. In that case the port can be moved to a free one by updating: 
+- ```backend/docker-compose.yml```. Port mapping for inventory_db container and DB_PORT definition for the inventory_server container.
+- Update the port set in the ```backend/src/server/admin.py``` script
 
-### 2.2 Configure Camera Server
+### 2.2 Run Backend
 
-Configure the UI server via the backend/camera_config.py file. Default is to
-run the camera server on localhost. This requires to run the UI server and
-camera server on the same machine, but can be configured otherwise.
-
-### 2.3 Configure Printer Interface
-
-Configure the printer interface via the backend/printer_config.py file. Make sure
-the printers Mac address is configured correctly. Default settings can be
-kept when using the Niimbot D110, which is the only tested printer so far.
-
-Note: The printer needs to be on, bluetooth enabled on the machine that runs
-the UI server. The printer will not connect permanently, but only
-for the short period the print command is sent.
-
-## 3. Run Project
-
-## 3.1 Automatically launch backend container
-
-Run the automatic setup script to start all required services in their respective containers.
-
-```bash
-sudo ./setup_app.sh
-```
-
-Set up and launch camera and printer services with:
-
-```bash
-sudo ./setup_services.sh
-```
-
-#### Manually build and run the inventory server container
+#### 2.2.1 Build and launch inventory containers
 
 Build the inventory server image with
 
 ```bash
-cd backend/src/server
-
-sudo docker build -t inventoryserver:latest .
+./build_server_image.sh
 ```
 
 The databse uses a default mariadb images and which doesn't need building. Run both containers:
 
 ```bash
-cd backend
-
-sudo docker compose up -d inventory_db
-sudo docker compose up -d inventory_server
+./start_containers.sh
 ```
 
-Check container is running as expected (with docker ps):
+Check container is running as expected (with ```podman ps```):
 
 ```bash
 CONTAINER ID   IMAGE                    COMMAND                  CREATED          STATUS                    PORTS                                           NAMES
 e4e6a30ddcf3   inventoryserver:latest   "uv run -m server.In…"   3 minutes ago    Up 7 seconds              0.0.0.0:5000->5000/tcp, :::5000->5000/tcp       inventory-server
-a3617b15b20c   mariadb:10.5             "docker-entrypoint.s…"   43 minutes ago   Up 33 minutes (healthy)   0.0.0.0:46123->3306/tcp, [::]:46123->3306/tcp   inventory_db
+a3617b15b20c   mariadb:10.11             "docker-entrypoint.s…"   43 minutes ago   Up 33 minutes (healthy)   0.0.0.0:46123->3306/tcp, [::]:46123->3306/tcp   inventory_db
 ```
 
-## 3.2 Automatically launch frontend container
-
-TODO
-
-#### Run frontend manually with bun
-
-Run or build the frontend application
-
-```bash
-
-cd app
-
-# Run app for development
-bun run dev
-
-# Build app
-bun --bun run build
-```
-
-## 3.3 First time setup
+#### 2.2.2 Set up user accounts
 
 If you are setting up the project fresh from a clone and you are using the build in inventory authentification management, you will need to create a user first in order to access the database. 
 
@@ -186,9 +161,7 @@ Authentification is currently managed via a set of CLI admin functions the can b
 called with the following script:
 
 ```bash
-
 cd backend/src
-
 uv run -m server.admin
 ```
 
@@ -214,25 +187,68 @@ The following privelege levels are currently maintained, the table shows their a
 | **Export to CSV**   | -     | x        | x          | x          | x     |
 | **Settings Access** | -     | -        | -          | x          | x     |
 
-## Useful Information 
+### 2.3 Run Frontend
 
-### Useful Docker Commands
-
-To check the container status, run:
+#### Build Inventory App
 
 ```bash
-docker ps -a
+cd app
+# Build app
+bun run build
 ```
 
-Which should show the influxDb container up and running:
+At this point you can start the server manually with ```bun run build/index.js```. 
+
+#### Deploy Inventory App
+
+:construction: Under construction :construction:
+
+The inventory app will be deployed using apache.
+
+Create apache config
+
+```
+sudo vi /etc/apache2/sites-available/inventory.conf
+```
+
+Add 
+
+```
+<VirtualHost *:80>
+    ServerName inventory.local
+
+    # --- Proxy to the Bun/inventory server ---
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    ProxyPass / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+
+    # Optional: log files
+    ErrorLog ${APACHE_LOG_DIR}/inventory_error.log
+    CustomLog ${APACHE_LOG_DIR}/inventory_access.log combined
+</VirtualHost>
+```
+
+Load config and restart apache
 
 ```bash
-CONTAINER ID   IMAGE          COMMAND                  CREATED        STATUS                       PORTS                                       NAMES
-a9066efdb6e7   mariadb:2.1   "/entrypoint.sh infl…"   25 hours ago   Up About an hour (healthy)   0.0.0.0:3306->3306/tcp, :::8086->8086/tcp   inventory
-
+sudo a2ensite sveltekit.conf
+sudo systemctl reload apache2
 ```
 
-# Details 
+#### Run frontend manually with bun
+
+Run or build the frontend application
+
+```bash
+cd app
+# Run app for development
+bun run dev
+```
+
+
+## Details 
 
 ### Item Data
 
@@ -256,7 +272,7 @@ each item in the inventory.
 | **Storage Location**     | Storage location of the item  
 
 
-# Troubleshooting
+## Troubleshooting
 
 The MariaDB docker container will use port 3306 which might conflict with
 running mysql services on the target machine, leading to the following error
@@ -287,6 +303,28 @@ disable the mysql service with:
 sudo systemctl disable mysql
 
 ```
+
+## Inventory Service Applications
+
+:construction: Under Construction :construction:
+
+This section will explain how to set up additional inventory services, such as the camera and printer server. Note that these services do not need to be set up on the same host machine as the database itself. They are intended to be set up on a terminal in the archive or warehouse.
+
+### 2.2 Configure Camera Server
+
+Configure the UI server via the backend/camera_config.py file. Default is to
+run the camera server on localhost. This requires to run the UI server and
+camera server on the same machine, but can be configured otherwise.
+
+### 2.3 Configure Printer Interface
+
+Configure the printer interface via the backend/printer_config.py file. Make sure
+the printers Mac address is configured correctly. Default settings can be
+kept when using the Niimbot D110, which is the only tested printer so far.
+
+Note: The printer needs to be on, bluetooth enabled on the machine that runs
+the UI server. The printer will not connect permanently, but only
+for the short period the print command is sent.
 
 # Hardware Requirements
 
