@@ -3,6 +3,7 @@
 Inventory server configuration file
 
 """
+
 from pathlib import Path
 
 # Determine absolute path of directory where this script is located
@@ -33,15 +34,21 @@ PRINTER_SERVER_PORT = 5100
 # --- CONSTANTS ---
 
 # Path to where media files are saved
-MEDIA_DEFAULT_PATH = (config_path / ".." / "media" ).resolve() 
+MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
 
 # IP address of the database server
 # Default: inventory_db (container)
+<<<<<<< HEAD
+DEFAULT_DB_HOST = "inventory_db"
+=======
 DEFAULT_DB_HOST = 'localhost'
+>>>>>>> v1_alpha
 
 # Port of the database server
 # Default: 3306 (mapped container port)
+# Note: This is not necessarily the port on the host machine. The host port
+#       might be mapped to a different value in the docker-compose.yml file.
 DEFAULT_DB_PORT = 3306
 
 # [CONSTANT] Name of the main database to store the Inventory
-INVENTORY_DB_NAME = 'inventory'
+INVENTORY_DB_NAME = "inventory"
