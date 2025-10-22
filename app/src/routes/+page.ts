@@ -4,8 +4,9 @@ export const prerender = true;
 
 import { redirect } from '@sveltejs/kit';
 import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';
+import type { PageLoad } from './$types';
 
-export async function load({ fetch }) {
+export const load: PageLoad = async ({ fetch }) => {
   const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/me`, {
     credentials: 'include'
   });

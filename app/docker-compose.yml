@@ -1,15 +1,42 @@
 services:
-
   inventory_app:
     image: inventoryapp:latest
     container_name: inventory-app
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.inventory_app.rule=Host(`192.168.1.194`)"
+      - "traefik.http.routers.inventory_app.entrypoints=websecure"
+      - "traefik.http.routers.inventory_app.tls=true"
+      - "traefik.http.services.inventory_app.loadbalancer.server.port=3000"
     ports:
-      - "4173:4173"
-    depends_on:
-      - inventory_server
-    networks:
-      - invnet
+      - "3000:3000"
+
+  traefik:
+    image: docker.io/traefik:v3.1
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.podman=true"
+      - "--providers.podman.endpoint=unix:///run/podman/podman.sock"
+      - "--providers.podman.exposedbydefault=false"
+      - "--providers.podman.watch=true"
+      - "--certificatesresolvers.selfsigned.acme.tlschallenge=true"
+      - "--certificatesresolvers.selfsigned.acme.email=admin@devm.lan"
+      - "--certificatesresolvers.selfsigned.acme.storage=/acme.json"
+      - "--log.level=DEBUG"
+    ports:
+      - "8081:80"
+      - "8443:443"
+    volumes:
+      - "/run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro"  # allow Traefik to detect containers
+      - "./letsencrypt:/letsencrypt"
+      # - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
+      # - "./traefik/acme.json:/acme.json"
+      # - "./traefik/certs:/certs"
+    restart: always
 
 networks:
   invnet:

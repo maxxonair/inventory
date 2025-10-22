@@ -14,7 +14,7 @@ cd backend/src/server
 
 podman build --no-cache -t inventoryserver:latest .
 
-# ---- START CONTAINERS ----
+# ---- THE END ----
 
-cd ../../
+cd ${ROOT_DIR}
 

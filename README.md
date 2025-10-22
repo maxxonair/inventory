@@ -205,40 +205,6 @@ At this point you can start the server manually with ```bun run build/index.js``
 
 :construction: Under construction :construction:
 
-The inventory app will be deployed using apache.
-
-Create apache config
-
-```
-sudo vi /etc/apache2/sites-available/inventory.conf
-```
-
-Add 
-
-```
-<VirtualHost *:80>
-    ServerName inventory.local
-
-    # --- Proxy to the Bun/inventory server ---
-    ProxyPreserveHost On
-    ProxyRequests Off
-
-    ProxyPass / http://127.0.0.1:3000/
-    ProxyPassReverse / http://127.0.0.1:3000/
-
-    # Optional: log files
-    ErrorLog ${APACHE_LOG_DIR}/inventory_error.log
-    CustomLog ${APACHE_LOG_DIR}/inventory_access.log combined
-</VirtualHost>
-```
-
-Load config and restart apache
-
-```bash
-sudo a2ensite sveltekit.conf
-sudo systemctl reload apache2
-```
-
 #### Run Inventory App as a Service
 
 Create inventory systemd unit

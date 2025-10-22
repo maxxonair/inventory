@@ -3,7 +3,7 @@ import { goto } from '$app/navigation';
 import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';
 
 export const user = writable(null);
-export const message = writable(null);
+export const message = writable('');
 
 export async function fetchUser() {
   try {

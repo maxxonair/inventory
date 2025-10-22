@@ -12,15 +12,15 @@ ROOT_DIR=$pwd
 
 cd backend
 
-echo "     [ COMPOSE INVENTORY DATABASE CONTAINER]"
+echo "     [ COMPOSE INVENTORY DATABASE CONTAINER ]"
 # Start inventory database container
 podman-compose up -d inventory_db
 
 
-echo "     [ COMPOSE INVENTORY SERVER CONTAINER]"
+echo "     [ COMPOSE INVENTORY SERVER CONTAINER ]"
 # Start inventory server container
 podman-compose up -d inventory_server
 
 # display container status
-echo "RUNNING CONTAINERS:"
-podman ps
+# echo "RUNNING CONTAINERS:"
+# podman ps
