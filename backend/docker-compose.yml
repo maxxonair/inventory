@@ -28,8 +28,7 @@ services:
       - "5001:5000"
     volumes:
       - ./media:/app/media
-      - ./volumes/mariadb/data:/var/lib/mysql
-      # - ./init-db-scripts:/docker-entrypoint-initdb.d
+      - ./inventory_data/mariadb/data:/var/lib/mysql
     environment:
       DB_HOST: inventory_db
       DB_PORT: 3307

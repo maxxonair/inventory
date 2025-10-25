@@ -179,10 +179,10 @@
   let image = $state("");
   let tags = $state("");
 
-  const media_url = `${PUBLIC_INVENTORY_CAMERA_URL}/media/`;
+  const media_url = `${PUBLIC_INVENTORY_SERVER_URL}/media/`;
 
 	let imageUrl = $state("");
-  imageUrl = "${PUBLIC_INVENTORY_CAMERA_URL}";
+  imageUrl = "${PUBLIC_INVENTORY_SERVER_URL}";
 
   let description = $state("");
   let item_type = $state("");

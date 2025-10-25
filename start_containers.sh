@@ -21,6 +21,3 @@ echo "     [ COMPOSE INVENTORY SERVER CONTAINER ]"
 # Start inventory server container
 podman-compose up -d inventory_server
 
-# display container status
-# echo "RUNNING CONTAINERS:"
-# podman ps

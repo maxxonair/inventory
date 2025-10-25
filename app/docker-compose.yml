@@ -3,6 +3,8 @@ services:
     image: inventoryapp:latest
     container_name: inventory-app
     restart: unless-stopped
+    environment:
+      PUBLIC_INVENTORY_SERVER_URL: http://inventory-server:5000
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.inventory_app.rule=Host(`192.168.1.194`)"

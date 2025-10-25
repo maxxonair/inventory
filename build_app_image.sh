@@ -6,9 +6,9 @@ set -e
 
 ROOT_DIR=$pwd
 
-#-------------------------------------------
-#      BUILD INVENTORY APP IMAGE
-#-------------------------------------------
+#---------------------------------------------
+# BUILD INVENTORY WEB APP ON THE HOST MACHINE 
+#---------------------------------------------
 
 cd app
 
@@ -16,8 +16,11 @@ cd app
 bun install
 
 # Build Application
-# NOTE: This stepp needs the inventory server to be running
 bun run build
+
+#---------------------------------------------
+#      BUILD INVENTORY APP IMAGE
+#---------------------------------------------
 
 podman build --no-cache -t inventoryapp:latest .
 
