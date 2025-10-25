@@ -1,6 +1,6 @@
-// since there's no dynamic data here, we can prerender
-// it so that it gets served as a static asset in production
-export const prerender = true;
+// Disable Server Side Rendering
+export const ssr = false;
+export const prerender = false;
 
 import { redirect } from '@sveltejs/kit';
 import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';

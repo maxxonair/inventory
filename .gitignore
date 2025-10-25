@@ -13,6 +13,8 @@ env/
 backend/inventory_data/*
 backend/media/*
 **/inventory_data/
+**/volumes
+
 
 # --- [ENVIRONMENT FILES]
 # Ignore all environment files 

@@ -15,11 +15,6 @@ export default defineConfig({
     }
   },
   build: {
-    rollupOptions: {
-      external: [
-        'tailwind-merge',
-        'tailwind-variants'
-      ]
-    }
+    cssCodeSplit: true,
   }
 });
