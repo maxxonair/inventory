@@ -4,13 +4,13 @@
 
 set -e
 
-ROOT_DIR=$pwd
+ROOT_DIR=$PWD
 
 #-------------------------------------------
 #      BUILD INVENTORY SERVER CONTAINER
 #-------------------------------------------
 
-cd backend/src/server
+cd ${ROOT_DIR}/backend/src/server
 
 podman build --no-cache -t inventoryserver:latest .
 

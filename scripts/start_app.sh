@@ -4,16 +4,28 @@
 
 set -e
 
-ROOT_DIR=$pwd
+ROOT_DIR=$PWD
 
-# Start all backend containers first
-./start_containers.sh
+#-------------------------------------------
+#        START INVENTORY CONTAINERS
+#-------------------------------------------
+
+cd ${ROOT_DIR}/backend
+
+echo "     [ COMPOSE INVENTORY DATABASE CONTAINER ]"
+# Start inventory database container
+podman-compose up -d inventory_db
+
+
+echo "     [ COMPOSE INVENTORY SERVER CONTAINER ]"
+# Start inventory server container
+podman-compose up -d inventory_server
 
 #-------------------------------------------
 #        START INVENTORY APP CONTAINER
 #-------------------------------------------
 
-cd app
+cd ${ROOT_DIR}/app
 
 echo "     [ COMPOSE INVENTORY APP CONTAINER]"
 # Start inventory server container

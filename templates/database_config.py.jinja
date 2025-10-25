@@ -8,12 +8,12 @@ from pathlib import Path
 config_path = Path(__file__).parent.resolve()
 
 # [CONSTANT] Name of the main database to store the Inventory
-INVENTORY_DB_NAME = 'inventory'
+INVENTORY_DB_NAME = '{{ database_name }}'
 
 # [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
 #            Inventory
-INVENTORY_TABLE_NAME = 'inventory'
+INVENTORY_TABLE_NAME = '{{ inventory_table_name }}'
 
 # [!SENSITIVE!] Name of the table in INVENTORY_DB_NAME database to store the
 #               Inventory users
-INVENTORY_USER_TABLE_NAME = 'inventory_user'
+INVENTORY_USER_TABLE_NAME = '{{ user_database_name }}'

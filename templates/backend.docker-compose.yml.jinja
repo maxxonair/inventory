@@ -4,7 +4,7 @@ services:
     image: "docker.io/library/mariadb:10.11"
     restart: unless-stopped
     ports:
-      - '3307:3306'
+      - '{{ database_port }}:3306'
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_USER: ${MYSQL_USER}
@@ -25,13 +25,13 @@ services:
     container_name: inventory-server
     restart: unless-stopped
     ports:
-      - "5001:5000"
+      - "{{ inventory_server_port }}:5000"
     volumes:
       - ./media:/app/media
       - ./inventory_data/mariadb/data:/var/lib/mysql
     environment:
       DB_HOST: inventory_db
-      DB_PORT: 3307
+      DB_PORT: {{ database_port }}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

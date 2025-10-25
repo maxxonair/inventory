@@ -4,13 +4,13 @@
 
 set -e
 
-ROOT_DIR=$pwd
+ROOT_DIR=$PWD
 
 #---------------------------------------------
 # BUILD INVENTORY WEB APP ON THE HOST MACHINE 
 #---------------------------------------------
 
-cd app
+cd ${ROOT_DIR}/app
 
 # Install Dependencies 
 bun install

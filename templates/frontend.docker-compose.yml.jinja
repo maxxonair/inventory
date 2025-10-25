@@ -7,12 +7,12 @@ services:
       PUBLIC_INVENTORY_SERVER_URL: http://inventory-server:5000
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.inventory_app.rule=Host(`192.168.1.194`)"
+      - "traefik.http.routers.inventory_app.rule=Host(`{{ host_ip_address }}`)"
       - "traefik.http.routers.inventory_app.entrypoints=websecure"
       - "traefik.http.routers.inventory_app.tls=true"
       - "traefik.http.services.inventory_app.loadbalancer.server.port=3000"
     ports:
-      - "3000:3000"
+      - "{{ inventoryapp_port }}:3000"
 
   traefik:
     image: docker.io/traefik:v3.1

@@ -89,71 +89,31 @@ pip3 install podman-compose
 
 #### 1.5 npm, bun, svelte, svelte-kit & vite
 
-The frontend application is run directly on the host machine. Hence svelte-kit and all depencies are required to be installed to build and run the frontend:
+The frontend application is run directly on the host machine. Hence svelte-kit and all depencies are required to be installed to build and run the frontend.
+
+Note: This will be done manually if npm & bun are not found on the host machine.
+
 - Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 - Install [bun](https://bun.sh/) ```curl -fsSL https://bun.sh/install | bash```
 :warning: Ensure the follow the instructions at the end of the installation and update your ```PATH```
 - Install [svelte-kit](https://svelte.dev/docs/kit/introduction)
 - Install vite ```bun install -D vite```
 
-#### 1.6 Apache
-
-Install apache
-
-```bash
-sudo apt install apache2
-```
 
 ## 2. First Time Setup
 
-### 2.1 Configure Database
+### 2.1 Run Installer
 
-Configure the Database server via the ```backend/database_config.py``` file. Make
-sure the IP address of the database server is configured correctly.
-
-:warning: The database is set up with a default user name and password. These need to be changed before using this tool in production! :warning: 
-
-There are several files highlighted with the extension '.example' that need to be 
-updated before first use. Remove the extension and do the variable updates as outlined below.
-
-#### Set Database Variables
-
-Set the database access root user name and password in the ```backend/.env.example``` file. 
-- Remove ```.example``` extension
-- Change default values for username and password to custom values.
-- Go to ```backend/src/server``` and remove ```.example``` extension from ```mysql.py.example```. Make sure settings in ```backend/src/server/.mysql.py``` match settings in ```backend/.env```
-
-#### Database Port
-
-Database communication between the inventory server and the database server goes by default through port 3306 on the host machine. If any mysql service is running on the host machine that port is likely to be busy. In that case the port can be moved to a free one by updating: 
-- ```backend/docker-compose.yml```. Port mapping for inventory_db container and DB_PORT definition for the inventory_server container.
-- Update the port set in the ```backend/src/server/admin.py``` script
-
-### 2.2 Run Backend
-
-#### 2.2.1 Build and launch inventory containers
-
-Build the inventory server image with
+The installer will:
+- Pre-compile all configuration files
+- Build all podman images
+- Compose and launch all containers
 
 ```bash
-./build_server_image.sh
+uv run install.py
 ```
 
-Run the inventory server container:
-
-```bash
-./start_containers.sh
-```
-
-Check container is running as expected (with ```podman ps```):
-
-```bash
-CONTAINER ID   IMAGE                    COMMAND                  CREATED          STATUS                    PORTS                                           NAMES
-e4e6a30ddcf3   inventoryserver:latest   "uv run -m server.In…"   3 minutes ago    Up 7 seconds              0.0.0.0:5000->5000/tcp, :::5000->5000/tcp       inventory-server
-a3617b15b20c   mariadb:10.11             "docker-entrypoint.s…"   43 minutes ago   Up 33 minutes (healthy)   0.0.0.0:46123->3306/tcp, [::]:46123->3306/tcp   inventory_db
-```
-
-#### 2.2.2 Set up user accounts
+#### 2.2 Set up user accounts
 
 If you are setting up the project fresh from a clone and you are using the build in inventory authentification management, you will need to create a user first in order to access the database. 
 
@@ -187,7 +147,10 @@ The following privelege levels are currently maintained, the table shows their a
 | **Export to CSV**   | -     | x        | x          | x          | x     |
 | **Settings Access** | -     | -        | -          | x          | x     |
 
-### 2.3 Run Frontend
+
+## 3 Manual Commands
+
+### 3.1 Run Frontend
 
 #### Build Inventory App
 
@@ -201,51 +164,6 @@ bun run build
 
 At this point you can start the server manually with ```bun run build/index.js```. 
 
-#### Deploy Inventory App
-
-:construction: Under construction :construction:
-
-#### Run Inventory App as a Service
-
-Create inventory systemd unit
-
-```bash
-sudo vi /etc/systemd/system/inventory.service
-```
-
-```
-[Unit]
-Description=Inventory Frontend Application
-After=network.target
-
-[Service]
-User=<USER>
-WorkingDirectory=<PATH TO INVENTORY>/inventory/app
-ExecStart=/home/<USER>/.bun/bin/bun run build/index.js
-Restart=always
-Environment=NODE_ENV=production PORT=3000
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start service:
-
-```bash
-sudo systemctl enable inventory
-sudo systemctl start inventory
-sudo systemctl status inventory
-```
-
-#### Add HTTPS Certification
-
-This updates your Apache config with SSL support automatically.
-
-```
-sudo apt install certbot python3-certbot-apache
-sudo certbot --apache -d inventory.local
-```
-
 #### Run frontend manually with bun
 
 Run or build the frontend application
@@ -255,7 +173,6 @@ cd app
 # Run app for development
 bun run dev
 ```
-
 
 ## Details 
 

@@ -13,8 +13,15 @@ env/
 backend/inventory_data/*
 backend/media/*
 **/inventory_data/
-**/volumes
 
+# --- [AUTO-GENERATED FILES]
+backend/docker-compose.yml
+backend/.env
+backend/src/server/mysql.py
+app/docker-compose.yml
+app/.env
+backend/src/server/inventory_server_config.py
+backend/src/server/admin.py
 
 # --- [ENVIRONMENT FILES]
 # Ignore all environment files 
@@ -29,6 +36,7 @@ backend/media/*
 app/node_modules/*
 app/.svelte-kit
 app/build
+node_modules
 
 # --- [FLASK]
 # Don't commit any session data
