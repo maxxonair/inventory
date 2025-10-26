@@ -577,6 +577,15 @@ wheels = [
 ]
 
 [[package]]
+name = "sh"
+version = "2.2.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/52/f43920223c93e31874677c681b8603d36a40d3d8502d3a37f80d3995d43e/sh-2.2.2.tar.gz", hash = "sha256:653227a7c41a284ec5302173fbc044ee817c7bad5e6e4d8d55741b9aeb9eb65b", size = 345866 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/70/98/d82f14ac7ffedbd38dfa2383f142b26d18d23ca6cf35a40f4af60df666bd/sh-2.2.2-py3-none-any.whl", hash = "sha256:e0b15b4ae8ffcd399bc8ffddcbd770a43c7a70a24b16773fbb34c001ad5d52af", size = 38295 },
+]
+
+[[package]]
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -623,6 +632,7 @@ dependencies = [
     { name = "flask-cors" },
     { name = "flask-session" },
     { name = "flask-sqlalchemy" },
+    { name = "jinja2" },
     { name = "mariadb" },
     { name = "opencv-python" },
     { name = "pandas" },
@@ -633,6 +643,7 @@ dependencies = [
     { name = "qrcode" },
     { name = "requests" },
     { name = "rich" },
+    { name = "sh" },
 ]
 
 [package.metadata]
@@ -641,6 +652,7 @@ requires-dist = [
     { name = "flask-cors" },
     { name = "flask-session" },
     { name = "flask-sqlalchemy" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mariadb" },
     { name = "opencv-python" },
     { name = "pandas" },
@@ -651,6 +663,7 @@ requires-dist = [
     { name = "qrcode" },
     { name = "requests" },
     { name = "rich" },
+    { name = "sh", specifier = ">=2.2.2" },
 ]
 
 [[package]]

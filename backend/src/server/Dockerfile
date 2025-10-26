@@ -1,35 +1,9 @@
-FROM ghcr.io/astral-sh/uv:bookworm-slim
-
-# Install dependencies for Python build
-RUN apt-get update && apt-get install -y \
-    wget \
-    build-essential \
-    libssl-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    libreadline-dev \
-    libsqlite3-dev \
-    curl \
-    libncurses5-dev \
-    libncursesw5-dev \
-    xz-utils \
-    tk-dev \
-    libffi-dev \
-    liblzma-dev \
-    libmariadb-dev \
-    libsdl2-dev \
-    libsdl2-image-dev \
-    libsdl2-mixer-dev \
-    libsdl2-ttf-dev \
-    libfreetype6-dev \
-    pkg-config \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+FROM docker.io/maxxonair/inventoryserverbase:latest
 
 WORKDIR /app
 
-# Create backend subdirectory to copy python files to
-RUN mkdir -p /app/server /app/media
+# Assume that the base image has already installed all necessary dependencies as 
+# well as set up the /app and /app/media directories.
 
 # Copy in all relevant project files
 COPY *.py server/

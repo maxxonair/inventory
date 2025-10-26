@@ -1,0 +1,19 @@
+"""
+Configuration file for all database parameters
+
+"""
+from pathlib import Path
+
+# Determine absolute path of directory where this script is located
+config_path = Path(__file__).parent.resolve()
+
+# [CONSTANT] Name of the main database to store the Inventory
+INVENTORY_DB_NAME = 'inventory'
+
+# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
+#            Inventory
+INVENTORY_TABLE_NAME = 'inventory'
+
+# [!SENSITIVE!] Name of the table in INVENTORY_DB_NAME database to store the
+#               Inventory users
+INVENTORY_USER_TABLE_NAME = 'inventory_user'

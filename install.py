@@ -1,3 +1,10 @@
+"""Installation script for the inventory management application.
+
+This script sets up configuration files, builds podman images, and deploys
+the necessary containers for the backend and frontend services.
+
+"""
+
 import sh
 from pathlib import Path
 import random
@@ -119,7 +126,7 @@ def rand_id_generator(size: int = 12) -> str:
       str: Random string
   """
   chars = string.ascii_uppercase + string.digits
-  return "".join(random.choice(chars) for _ in range(size))
+  return str("inv" + "".join(random.choice(chars) for _ in range(size)))
 
 
 def run_config_setup() -> bool:
@@ -139,9 +146,10 @@ def run_config_setup() -> bool:
   # MYSQL access credentials are solely for communidation between the backend
   # and the database. Hence, the following is randomly generated and kept hidden
   # at the backend.
-  mysql_user = rand_id_generator()
+  mysql_user = "inventoryuser"
   mysql_user_password = rand_id_generator()
-  mysql_root_password = rand_id_generator()
+  # TODO to be generated randomly
+  mysql_root_password = "inventory24"
   mysql_database = DATABASE_NAME
 
   render_template(
@@ -158,8 +166,8 @@ def run_config_setup() -> bool:
   render_template(
     "mysql.py.jinja",
     {
-      "mysql_user": mysql_user,
-      "mysql_user_password": mysql_user_password,
+      "mysql_user": "root",
+      "mysql_user_password": mysql_root_password,
     },
     PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py",
   )
@@ -171,7 +179,7 @@ def run_config_setup() -> bool:
       "inventory_table_name": INVENTORY_TABLE_NAME,
       "user_database_name": USER_DATABASE_NAME,
     },
-    PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py",
+    PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py",
   )
 
   # -- Scan for open port for database server
@@ -257,7 +265,7 @@ def run_config_setup() -> bool:
     warning(
       "IP address of current host could not be determined. Please enter a valid host address manually."
     )
-    host_ip_address = input("Enter host address :")
+    host_ip_address = input("Enter host address :  ")
   info(f"    Host IP address: {host_ip_address}")
 
   render_template(
@@ -280,6 +288,10 @@ def run_config_setup() -> bool:
     },
     PROJECT_ROOT / "app" / ".env",
   )
+  print("[green]  ---> Configuration setup completed successfully[/green]\n")
+  print(
+    f"[green]  The inventory application will be accessbile via:[/green] [orange]http://{host_ip_address}:{inventoryapp_server_port}[/orange]\n"
+  )
   return True
 
 
@@ -298,6 +310,7 @@ def build_podman_images():
     ".",
     _out=sys.stdout.write,
     _err=sys.stderr.write,
+    _tty_out=True,
   )
 
   print(Rule(title="BUILDING FRONTEND", style="bold red"))
@@ -317,12 +330,13 @@ def build_podman_images():
     ".",
     _out=sys.stdout.write,
     _err=sys.stderr.write,
+    _tty_out=True,
   )
 
 
 def compose_containers():
   """Compose and run the podman containers for backend and frontend services."""
-  print(Rule(title="COMPOSING PODMAN CONTAINERS", style="bold blue"))
+  print(Rule(title="DEPLOY CONTAINERS", style="bold blue"))
 
   # Remove existing containers if any
   try:
@@ -405,8 +419,6 @@ if __name__ == "__main__":
     if not run_config_setup():
       error("Installation process failed at the configuration stage.")
       exit(1)
-    else:
-      print("[green]  ---> Configuration setup completed successfully[/green]\n")
 
     if parser.parse_args().config_only:
       exit(0)
@@ -414,6 +426,6 @@ if __name__ == "__main__":
     # --- BUILD ---
     build_podman_images()
 
-  # --- RUN ---
+  # --- DEPLOY ---
   time.sleep(2.0)
   compose_containers()
