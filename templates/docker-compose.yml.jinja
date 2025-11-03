@@ -12,7 +12,7 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MARIADB_DISABLE_CHOWN: 1
     volumes:
-      - backend/inventory_data/mariadb/data:/var/lib/mysql:Z
+      - ./backend/inventory_data/mariadb/data:/var/lib/mysql:Z
     healthcheck:
       test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "--silent" ]
       interval: 30s
@@ -27,8 +27,8 @@ services:
     ports:
       - "{{ inventory_server_port }}:5000"
     volumes:
-      - backend/media:/app/media
-      - backend/inventory_data/mariadb/data:/var/lib/mysql
+      - ./backend/media:/app/media
+      - ./backend/inventory_data/mariadb/data:/var/lib/mysql
     environment:
       DB_HOST: inventory_db
       DB_PORT: {{ database_port }}

@@ -4,7 +4,7 @@ Camera server configuration file
 """
 # CameraServer IP
 # Default: Run on localhost
-camera_server_ip = "0.0.0.0"
+camera_server_ip = "192.168.1.194"
 
 # CameraServer port
 # Default: 5050

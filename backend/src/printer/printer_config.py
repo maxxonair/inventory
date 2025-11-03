@@ -2,6 +2,7 @@
 Printer parameter file
 
 """
+
 import sys
 from pathlib import Path
 
@@ -9,27 +10,26 @@ from pathlib import Path
 
 # Printer Server host IP
 # Default: 0.0.0.0
-PRINTER_SERVER_IP = "0.0.0.0"
+PRINTER_SERVER_IP = "192.168.1.194"
 
 # Printer Server port
 # Default: 5100
-PRINTER_SERVER_PORT = 5100
+PRINTER_SERVER_PORT = 5101
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 #
 #                   PRINTER CONFIG SET FOR NIIMBOT D110
 #
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 # Mac address of the Niimbot D110 printer used to print inventory labels
-niimbot_d110_inventory_mac_address = '04:08:04:01:31:04'
+niimbot_d110_inventory_mac_address = "04:08:04:01:31:04"
 
 # Directory where label images will be saved
-print_label_image_file_directory = Path(
-    sys.path[0]) / 'backend' / 'images_to_print'
+print_label_image_file_directory = Path(sys.path[0]) / "backend" / "images_to_print"
 
 # File name of the test image label
-test_image_file_name = 'B21_30x15mm_240x120px.png'
+test_image_file_name = "B21_30x15mm_240x120px.png"
 
 # Set print density.
 # Note: The Niimbot D110 only supports maximum density of 3

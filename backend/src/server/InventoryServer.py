@@ -23,39 +23,37 @@ import queue
 import hashlib
 from pathlib import Path
 
+
 from server.InventoryUser import InventoryUser
 from server.DataBaseClient import DataBaseClient
 
-# Import printer server address
-from server.inventory_server_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
-
 from server.inventory_server_config import (
-    inventory_server_ip,
-    inventory_server_port,
-    MEDIA_DEFAULT_PATH,
-    DEFAULT_DB_HOST,
-    DEFAULT_DB_PORT
+  inventory_server_ip,
+  inventory_server_port,
+  MEDIA_DEFAULT_PATH,
+  DEFAULT_DB_HOST,
+  DEFAULT_DB_PORT,
 )
 
 
 class InventoryServer:
   def __init__(
-      self,
-      db_host: str = DEFAULT_DB_HOST,
-      db_port: int = DEFAULT_DB_PORT,
-      media_path: str = MEDIA_DEFAULT_PATH,
-      session_timeout_min: float = 60.0,
+    self,
+    db_host: str = DEFAULT_DB_HOST,
+    db_port: int = DEFAULT_DB_PORT,
+    media_path: str = MEDIA_DEFAULT_PATH,
+    session_timeout_min: float = 60.0,
   ):
     """Create InventoryServer instance
 
     Args:
-        db_host (str, optional): Database server IP. 
+        db_host (str, optional): Database server IP.
             Defaults to DEFAULT_DB_HOST.
-        db_port (int, optional): Database server port. 
+        db_port (int, optional): Database server port.
             Defaults to DEFAULT_DB_PORT.
-        media_path (str, optional): Media storage file path. 
+        media_path (str, optional): Media storage file path.
             Defaults to MEDIA_DEFAULT_PATH.
-        session_timeout_min (float, optional): Session timeout for active user 
+        session_timeout_min (float, optional): Session timeout for active user
             sessions. Defaults to 60.0 minutes
     """
     self.app = Flask(__name__)
@@ -64,8 +62,7 @@ class InventoryServer:
     CORS(self.app, supports_credentials=True)  # Enable CORS
     Session(self.app)
 
-    self.app.permanent_session_lifetime = timedelta(
-        minutes=session_timeout_min)
+    self.app.permanent_session_lifetime = timedelta(minutes=session_timeout_min)
 
     # Set path to load media files from
     self.media_path = media_path
@@ -77,6 +74,12 @@ class InventoryServer:
     self.db = DataBaseClient(host=db_host, port=db_port)
 
     self.event_queue = queue.Queue()
+
+    # Store the camera server URL
+    self.camera_registry = {"url": None}
+
+    # Store the printer server URL
+    self.printer_registry = {"url": None}
 
     # Routes
     self.configure_routes()
@@ -95,7 +98,7 @@ class InventoryServer:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.json
       self.db.update_inventory_item_checkout_status(
-          int(data["itemId"]), session["user"], 1
+        int(data["itemId"]), session["user"], 1
       )
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
@@ -105,7 +108,7 @@ class InventoryServer:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.json
       self.db.update_inventory_item_checkout_status(
-          int(data["itemId"]), session["user"], 0
+        int(data["itemId"]), session["user"], 0
       )
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
@@ -166,9 +169,9 @@ class InventoryServer:
     def login():
       data = request.json
       is_user_exists, inventoryUser = self.db.get_inventory_user_as_object(
-          str(data["username"])
+        str(data["username"])
       )
-      print(f"Log in attempt: {data['username']} -> {is_user_exists}")
+      info(f"Log in attempt: {data['username']} -> {is_user_exists}")
       if not is_user_exists:
         return jsonify({"error": "User not found"}), 401
       if not inventoryUser.is_password(str(data["password"])):
@@ -198,7 +201,7 @@ class InventoryServer:
 
     @self.app.route("/logout", methods=["POST"])
     def logout():
-      print("Log out user")
+      info("Log out user")
       session.clear()
       return jsonify({"message": "Logged out"})
 
@@ -219,9 +222,9 @@ class InventoryServer:
         image.save(save_path)
 
         return {
-            "status": "success",
-            "hash": hash_hex,
-            "message": f"Saved to {save_path}",
+          "status": "success",
+          "hash": hash_hex,
+          "message": f"Saved to {save_path}",
         }, 200
 
       return {"status": "error", "message": "No file provided"}, 400
@@ -237,11 +240,17 @@ class InventoryServer:
       """Print item label"""
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
+
+      if self.printer_registry["url"] is None:
+        error("Failed to print label, no printer registered")
+        return {"error": "Failed to print label, no printer registered"}, 500
+
       data = request.get_json()
       item_id = int(data.get("itemId"))
-      print(f"Issue label for item with ID {item_id}")
+      printer_url = f"{self.printer_registry['url']}"
+      info(f"Issue label for item with ID {item_id}")
 
-      url = f"http://{PRINTER_SERVER_IP}:{PRINTER_SERVER_PORT}/print_label"
+      url = f"{printer_url}/print_label"
       data = {"itemId": item_id}
 
       response = requests.post(url, json=data)
@@ -249,15 +258,13 @@ class InventoryServer:
       if response.status_code == 200:
         resp_json = response.json()
         if resp_json.get("status") == "success":
-          print(f"Print command for item {item_id} succeeded.")
+          info(f"Print command for item {item_id} succeeded.")
           return jsonify({"status": "success"}), 200
         else:
-          print(f"Print command failed: {resp_json}")
+          info(f"Print command failed: {resp_json}")
           return {"error": "Failed to print label"}, 500
       else:
-        print(
-            f"Request failed with status code {response.status_code}: {response.text}"
-        )
+        info(f"Request failed with status code {response.status_code}: {response.text}")
         return {"error": "Failed to print label"}, 500
 
     @self.app.route("/delete_item", methods=["POST"])
@@ -267,7 +274,7 @@ class InventoryServer:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.get_json()
       item_id = int(data.get("itemId"))
-      print(f"Delete item with ID {item_id}")
+      info(f"Delete item with ID {item_id}")
 
       # Issue label print job
       self.db.delete_inventory_item(item_id)
@@ -277,7 +284,7 @@ class InventoryServer:
     @self.app.route("/me")
     def me():
       if "user" in session:
-        info(f'User {session["user"]} logged in')
+        info(f"User {session['user']} logged in")
         return jsonify({"user": session["user"]})
       return jsonify({"error": "Not logged in"}), 401
 
@@ -288,11 +295,11 @@ class InventoryServer:
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       # Load privilege level for this user
-      print(f"Load privilege level for user {str(data.get('user'))}")
+      info(f"Load privilege level for user {str(data.get('user'))}")
       try:
         user_dict = self.db.get_inventory_user_as_dict(str(data.get("user")))
-        print(
-            f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
+        info(
+          f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
         )
         return jsonify({"privilege": user_dict["user_privileges"]})
       except:
@@ -309,7 +316,7 @@ class InventoryServer:
       data = request.get_json()
       # Save scanned ID in state
       self.scanned_qr_id = int(data.get("id"))
-      print(f"QR with ID {self.scanned_qr_id} scanned")
+      info(f"QR with ID {self.scanned_qr_id} scanned")
 
       # Notify the frontend of the successful scan via the QR event message
       # stream
@@ -325,10 +332,44 @@ class InventoryServer:
         while True:
           qr_id = self.event_queue.get()
           data = {"event": "update", "itemId": qr_id}
-          print(f"Send event: {data}")
+          info(f"Send event: {data}")
           yield f"data: {json.dumps(data)}\n\n"
 
       return Response(event_stream(), content_type="text/event-stream")
+
+    @self.app.route("/register_camera", methods=["POST"])
+    def register_camera():
+      data = request.get_json()
+      camera_url = data.get("url")
+
+      if not camera_url:
+        return jsonify({"error": "Missing 'url'"}), 400
+
+      self.camera_registry["url"] = camera_url
+      info(f"📷 Camera registered at: {camera_url}")
+
+      return jsonify({"message": "Camera registered successfully"})
+
+    @self.app.route("/register_printer", methods=["POST"])
+    def register_printer():
+      data = request.get_json()
+      printer_url = data.get("url")
+
+      if not printer_url:
+        return jsonify({"error": "Missing 'url'"}), 400
+
+      self.printer_registry["url"] = printer_url
+      info(f"Printer registered at: {printer_url}")
+
+      return jsonify({"message": "Printer registered successfully"})
+
+    @self.app.route("/camera_url")
+    def camera_url():
+      return jsonify({"url": self.camera_registry.get("url")})
+
+    @self.app.route("/printer_url")
+    def printer_url():
+      return jsonify({"url": self.printer_registry.get("url")})
 
   def send_qr_event(self, id):
     """Compile and send a QR scanned event message
@@ -344,7 +385,7 @@ class InventoryServer:
     yield f"data: {json.dumps(data)}\n\n"
 
   async def run(
-      self, host: str = inventory_server_ip, port: int = inventory_server_port
+    self, host: str = inventory_server_ip, port: int = inventory_server_port
   ):
     """Run the server
 
@@ -352,8 +393,7 @@ class InventoryServer:
     """
 
     def start_flask():
-      self.app.run(host=host, port=port, debug=False,
-                   use_reloader=False, threaded=True)
+      self.app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
 
     # Run the Flask app in a separate thread and return it as an asyncio
     # task

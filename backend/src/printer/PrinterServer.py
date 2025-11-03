@@ -9,11 +9,15 @@ $ uv run -m backend.PrinterServer
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from logging import info
+from logging import info, error
 import asyncio
+import requests
 
 from .PrinterClient import PrinterClient
 from .printer_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
+
+DEFAULT_INVENTORY_HOST = "192.168.1.194"
+DEFAULT_INVENTORY_PORT = 5001
 
 
 class PrinterServer:
@@ -23,9 +27,21 @@ class PrinterServer:
     CORS(self.app, supports_credentials=True)
 
     self.printer_client = PrinterClient()
-
+    self.register_with_inventory()
     # Routes
     self.configure_routes()
+
+  def register_with_inventory(self):
+    printer_server_url = f"http://{PRINTER_SERVER_IP}:{PRINTER_SERVER_PORT}"
+    try:
+      res = requests.post(
+        f"http://{DEFAULT_INVENTORY_HOST}:{DEFAULT_INVENTORY_PORT}/register_printer",
+        json={"url": printer_server_url},
+      )
+      print(f"Register response: {res.status_code} -> {res.text}")
+    except Exception as e:
+      error(f"Failed to register printer: {e}")
+      exit(1)
 
   def configure_routes(self):
     @self.app.route("/print_label", methods=["POST"])

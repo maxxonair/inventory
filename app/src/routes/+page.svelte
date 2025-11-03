@@ -1,4 +1,5 @@
 <script>
+	import { createReadStream } from 'node:fs';
   // @ts-nocheck
 
   import { page } from "$app/state";
@@ -89,6 +90,8 @@
 
   let items = $state([]);
   let loading = $state(true);
+
+  let cameraServerUrl = $state("");
 
   // Fetch data from backend
   const fetchData = async () => {
@@ -217,8 +220,6 @@
     showLeftDrawer = !showLeftDrawer;
     showAddItemPanel = true;
     showScannerPanel = false;
-
-    console.log("Show drawer status:", showLeftDrawer);
   };
 
   const toggleScannerPanel = () => {
@@ -226,7 +227,7 @@
     showAddItemPanel = false;
     showScannerPanel = true;
 
-    console.log("Show drawer status:", showLeftDrawer);
+    console.log("Camera address:", cameraServerUrl);
   };
 
   let name = $state("");
@@ -249,6 +250,10 @@
   let is_checked_out = 0;
 
   let selectedFile = $state(null);
+
+  let videoEl = $state(null);
+  let stream = null;
+  let stream_error = $state(null);
 
   function onDrop(event) {
     event.preventDefault();
@@ -664,8 +669,51 @@
     selectedItemId = selectedItemId === itemId ? null : itemId;
   }
 
-  onMount(() => {
-    // Set up event listener to update frontend whenever a QR code is scanned.
+  function capturePhoto() {
+    const canvas = document.createElement("canvas");
+    canvas.width = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(videoEl, 0, 0);
+    const dataUrl = canvas.toDataURL("image/png");
+    console.log("Captured photo:", dataUrl);
+    // TODO Here `dataUrl` will need to be sent the backend
+  }
+
+  // onDestroy(() => {
+  //   // Stop the stream when the component is destroyed
+  //   if (stream) stream.getTracks().forEach((track) => track.stop());
+  // });
+
+  onMount(async () => {
+    // Ask for permission to use the device camera
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoEl.srcObject = stream;
+    } catch (err) {
+      console.error("Failed to access camera:", err);
+      stream_error = "Unable to access camera — check permissions.";
+    }
+    // --- Update the camera server URL ---
+    try {
+      const res = await fetch("/api/camera_url");
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const data = await res.json();
+
+      if (data.url) {
+        cameraServerUrl = "http://" + data.url;
+        console.log("📷 Camera URL:", cameraServerUrl);
+      } else {
+        error = "No camera registered";
+      }
+    } catch (err) {
+      console.error("Error fetching camera URL:", err);
+      error = "Failed to connect to inventory server";
+    }
+
+
+    // Set up event listener to update frontend whenever a QR code is
+    // scanned.
     const eventSource = new EventSource(`/api/qr_events`);
 
     // Mark the callback as async to allow await
@@ -838,7 +886,7 @@
                         >capture image</Button
                       >
                       <img
-                        src="/api/camera/stream"
+                        src={`${cameraServerUrl}`}
                         alt="Opening camera stream ..."
                         class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2"
                       />
@@ -1293,7 +1341,7 @@
             >capture image</Button
           >
           <img
-            src="/api/camera/stream"
+            src={`${cameraServerUrl}`}
             alt="Opening camera stream ..."
             class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2"
           />
@@ -1502,10 +1550,32 @@
         Place QR code in front of the scanner camera!
       </label>
       <img
-        src="/api/camera/stream"
+        src={cameraServerUrl}
         alt="Starting Camera Stream ... "
         class="text-slate-200"
       />
+      // TODO work in progress get access and embed device camera createReadStream
+      // Most likely will require hosting over https first
+      {#if stream_error}
+        <p class="text-red-600">{stream_error}</p>
+      {:else}
+        <div class="flex flex-col items-center">
+          <video
+            bind:this={videoEl}
+            autoplay
+            playsinline
+            class="rounded-lg border border-gray-400 w-80"
+          >
+            <track kind="captions" />
+          </video>
+          <button
+            class="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+            onclick={capturePhoto}
+          >
+            📸 Capture
+          </button>
+        </div>
+      {/if}
     </div>
   {/if}
 </Drawer>
