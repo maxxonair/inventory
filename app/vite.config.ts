@@ -16,5 +16,10 @@ export default defineConfig({
   },
   build: {
     cssCodeSplit: true,
+    // Limit parrallel file operations required to be able to build in 
+    // containers with limited resources
+    rollupOptions: {
+      maxParallelFileOps: 100
+    }
   }
 });

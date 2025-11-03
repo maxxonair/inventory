@@ -1,5 +1,5 @@
 <script>
-	import { createReadStream } from 'node:fs';
+	// import { createReadStream } from 'node:fs';
   // @ts-nocheck
 
   import { page } from "$app/state";
@@ -239,8 +239,7 @@
 
   const media_url = `/api/media/`;
 
-  let imageUrl = $state("");
-  imageUrl = "/api/media/";
+  let imageUrl = $state("/api/media/");
 
   let description = $state("");
   let item_type = $state("");
@@ -250,10 +249,11 @@
   let is_checked_out = 0;
 
   let selectedFile = $state(null);
-
-  let videoEl = $state(null);
-  let stream = null;
-  let stream_error = $state(null);
+  
+  // TODO add back when ready 
+  // let videoEl = $state(null);
+  // let stream = null;
+  // let stream_error = $state(null);
 
   function onDrop(event) {
     event.preventDefault();
@@ -345,7 +345,7 @@
   }
 
   function toggleEdit() {
-    imageUrl = 0;
+    imageUrl = "";
     if (!enableEdit) {
       imageUpdated = false;
     }
@@ -669,16 +669,16 @@
     selectedItemId = selectedItemId === itemId ? null : itemId;
   }
 
-  function capturePhoto() {
-    const canvas = document.createElement("canvas");
-    canvas.width = videoEl.videoWidth;
-    canvas.height = videoEl.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(videoEl, 0, 0);
-    const dataUrl = canvas.toDataURL("image/png");
-    console.log("Captured photo:", dataUrl);
-    // TODO Here `dataUrl` will need to be sent the backend
-  }
+  // function capturePhoto() {
+  //   const canvas = document.createElement("canvas");
+  //   canvas.width = videoEl.videoWidth;
+  //   canvas.height = videoEl.videoHeight;
+  //   const ctx = canvas.getContext("2d");
+  //   ctx.drawImage(videoEl, 0, 0);
+  //   const dataUrl = canvas.toDataURL("image/png");
+  //   console.log("Captured photo:", dataUrl);
+  //   // TODO Here `dataUrl` will need to be sent the backend
+  // }
 
   // onDestroy(() => {
   //   // Stop the stream when the component is destroyed
@@ -687,13 +687,13 @@
 
   onMount(async () => {
     // Ask for permission to use the device camera
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      videoEl.srcObject = stream;
-    } catch (err) {
-      console.error("Failed to access camera:", err);
-      stream_error = "Unable to access camera — check permissions.";
-    }
+    // try {
+    //   stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    //   videoEl.srcObject = stream;
+    // } catch (err) {
+    //   console.error("Failed to access camera:", err);
+    //   stream_error = "Unable to access camera — check permissions.";
+    // }
     // --- Update the camera server URL ---
     try {
       const res = await fetch("/api/camera_url");
@@ -1554,7 +1554,7 @@
         alt="Starting Camera Stream ... "
         class="text-slate-200"
       />
-      // TODO work in progress get access and embed device camera createReadStream
+      <!-- // TODO work in progress get access and embed device camera createReadStream
       // Most likely will require hosting over https first
       {#if stream_error}
         <p class="text-red-600">{stream_error}</p>
@@ -1575,7 +1575,7 @@
             📸 Capture
           </button>
         </div>
-      {/if}
+      {/if} -->
     </div>
   {/if}
 </Drawer>

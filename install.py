@@ -163,7 +163,7 @@ def run_config_setup() -> bool:
       "mysql_user_password": mysql_user_password,
       "mysql_database": mysql_database,
     },
-    PROJECT_ROOT / "backend" / ".env",
+    PROJECT_ROOT / ".env",
   )
 
   render_template(
@@ -215,38 +215,6 @@ def run_config_setup() -> bool:
   #                        > FRONTEND SETUP <
   # ---------------------------------------------------------------------------#
   print(Rule(title="FRONTEND CONFIG SETUP", style="bold red"))
-  skip_webdev_install = is_tool("bun") and is_tool("npm")
-  if skip_webdev_install:
-    info(
-      "[!] Found bun and npm. Assuming all required tools are installed to proceed."
-      "Skipping web development environment setup."
-    )
-  else:
-    # - Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-    # TODO
-
-    # -- Install [bun]
-    sh.curl(
-      "-fsSL",
-      "https://bun.sh/install",
-      "|",
-      "bash",
-      _out=sys.stdout.write,
-      _err=sys.stderr.write,
-      _text=True,
-    )
-
-    # :warning: Ensure the follow the instructions at the end of the installation and update your ```PATH```
-    sh.export("PATH=$HOME/.bun/bin:$PATH", _bg=True)
-
-    # - Install [svelte-kit](https://svelte.dev/docs/kit/introduction)
-
-    # TODO
-
-    # -- Install [vite]
-    sh.bun(
-      "install", "-D", "vite", _out=sys.stdout.write, _err=sys.stderr.write, _text=True
-    )
 
   # -- Scan for open port for inventory application server
   inventoryapp_server_port = scan_ports(3000, 3330)
@@ -277,12 +245,11 @@ def run_config_setup() -> bool:
     PROJECT_ROOT / "docker-compose.yml",
   )
 
-  # TODO add camera and printer server ports
   render_template(
     "frontend.env.jinja",
     {
       "host_address": INVENTORY_SERVER_CONTAINER_NAME,
-      "inventory_server_port": inventory_server_port,
+      "inventory_server_port": 5000,
     },
     PROJECT_ROOT / "app" / ".env",
   )
