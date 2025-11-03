@@ -1,32 +1,44 @@
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
-import { PUBLIC_INVENTORY_SERVER_URL } from '$env/static/public';
 
 export const user = writable(null);
 export const message = writable('');
 
+// Fetch the current logged-in user
 export async function fetchUser() {
   try {
-    const res = await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/me`, {
+    const res = await fetch('/api/me', {
       credentials: 'include'
     });
+
     if (res.ok) {
       const data = await res.json();
-      user.set(data.user);
+      user.set(data);
     } else {
       user.set(null);
     }
-  } catch {
+  } catch (err) {
+    console.error('Error fetching user:', err);
     user.set(null);
   }
 }
 
+// Log user out
 export async function logout() {
-  await fetch(`${PUBLIC_INVENTORY_SERVER_URL}/logout`, {
-    method: 'POST',
-    credentials: 'include'
-  });
-  user.set(null);
-  message.set('Logged out');
-  goto('/login');
+  try {
+    const res = await fetch('/api/logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
+
+    if (res.ok) {
+      user.set(null);
+      message.set('Logged out');
+      goto('/login');
+    } else {
+      console.error('Logout failed:', await res.text());
+    }
+  } catch (err) {
+    console.error('Error during logout:', err);
+  }
 }

@@ -15,10 +15,9 @@ backend/media/*
 **/inventory_data/
 
 # --- [AUTO-GENERATED FILES]
-backend/docker-compose.yml
+docker-compose.yml
 backend/.env
 backend/src/server/mysql.py
-app/docker-compose.yml
 app/.env
 backend/src/server/admin.py
 

@@ -30,21 +30,21 @@ from server.DataBaseClient import DataBaseClient
 from server.inventory_server_config import PRINTER_SERVER_PORT, PRINTER_SERVER_IP
 
 from server.inventory_server_config import (
-  inventory_server_ip,
-  inventory_server_port,
-  MEDIA_DEFAULT_PATH,
-  DEFAULT_DB_HOST,
-  DEFAULT_DB_PORT
+    inventory_server_ip,
+    inventory_server_port,
+    MEDIA_DEFAULT_PATH,
+    DEFAULT_DB_HOST,
+    DEFAULT_DB_PORT
 )
 
 
 class InventoryServer:
   def __init__(
-    self,
-    db_host: str = DEFAULT_DB_HOST,
-    db_port: int = DEFAULT_DB_PORT,
-    media_path: str = MEDIA_DEFAULT_PATH,
-    session_timeout_min: float = 60.0,
+      self,
+      db_host: str = DEFAULT_DB_HOST,
+      db_port: int = DEFAULT_DB_PORT,
+      media_path: str = MEDIA_DEFAULT_PATH,
+      session_timeout_min: float = 60.0,
   ):
     """Create InventoryServer instance
 
@@ -64,7 +64,8 @@ class InventoryServer:
     CORS(self.app, supports_credentials=True)  # Enable CORS
     Session(self.app)
 
-    self.app.permanent_session_lifetime = timedelta(minutes=session_timeout_min)
+    self.app.permanent_session_lifetime = timedelta(
+        minutes=session_timeout_min)
 
     # Set path to load media files from
     self.media_path = media_path
@@ -94,7 +95,7 @@ class InventoryServer:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.json
       self.db.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], 1
+          int(data["itemId"]), session["user"], 1
       )
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
@@ -104,7 +105,7 @@ class InventoryServer:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.json
       self.db.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], 0
+          int(data["itemId"]), session["user"], 0
       )
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
@@ -165,12 +166,12 @@ class InventoryServer:
     def login():
       data = request.json
       is_user_exists, inventoryUser = self.db.get_inventory_user_as_object(
-        data["username"]
+          str(data["username"])
       )
       print(f"Log in attempt: {data['username']} -> {is_user_exists}")
       if not is_user_exists:
         return jsonify({"error": "User not found"}), 401
-      if not inventoryUser.is_password(data["password"]):
+      if not inventoryUser.is_password(str(data["password"])):
         return jsonify({"error": "Invalid credentials"}), 401
 
       # Login valid -> Create a session cookie for this user
@@ -218,9 +219,9 @@ class InventoryServer:
         image.save(save_path)
 
         return {
-          "status": "success",
-          "hash": hash_hex,
-          "message": f"Saved to {save_path}",
+            "status": "success",
+            "hash": hash_hex,
+            "message": f"Saved to {save_path}",
         }, 200
 
       return {"status": "error", "message": "No file provided"}, 400
@@ -255,7 +256,7 @@ class InventoryServer:
           return {"error": "Failed to print label"}, 500
       else:
         print(
-          f"Request failed with status code {response.status_code}: {response.text}"
+            f"Request failed with status code {response.status_code}: {response.text}"
         )
         return {"error": "Failed to print label"}, 500
 
@@ -275,8 +276,6 @@ class InventoryServer:
 
     @self.app.route("/me")
     def me():
-      # !TODO! somehow this returns 200 even if the user is logged out.
-      # Safeguarded by the frontend for now, but needs to be checked.
       if "user" in session:
         info(f'User {session["user"]} logged in')
         return jsonify({"user": session["user"]})
@@ -293,7 +292,7 @@ class InventoryServer:
       try:
         user_dict = self.db.get_inventory_user_as_dict(str(data.get("user")))
         print(
-          f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
+            f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
         )
         return jsonify({"privilege": user_dict["user_privileges"]})
       except:
@@ -345,7 +344,7 @@ class InventoryServer:
     yield f"data: {json.dumps(data)}\n\n"
 
   async def run(
-    self, host: str = inventory_server_ip, port: int = inventory_server_port
+      self, host: str = inventory_server_ip, port: int = inventory_server_port
   ):
     """Run the server
 
@@ -353,7 +352,8 @@ class InventoryServer:
     """
 
     def start_flask():
-      self.app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
+      self.app.run(host=host, port=port, debug=False,
+                   use_reloader=False, threaded=True)
 
     # Run the Flask app in a separate thread and return it as an asyncio
     # task

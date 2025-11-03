@@ -30,6 +30,9 @@ DATABASE_NAME = "inventory"
 INVENTORY_TABLE_NAME = "inventory"
 USER_DATABASE_NAME = "inventory_user"
 
+INVENTORY_SERVER_CONTAINER_NAME = "inventory_server"
+INVENTORY_APP_CONTAINER_NAME = "inventory_app"
+
 # Create template environment
 environment = Environment(loader=FileSystemLoader("templates/"))
 
@@ -201,15 +204,6 @@ def run_config_setup() -> bool:
   info(f"[!] Selected inventory server port: {inventory_server_port}")
 
   render_template(
-    "backend.docker-compose.yml.jinja",
-    {
-      "database_port": database_server_port,
-      "inventory_server_port": inventory_server_port,
-    },
-    PROJECT_ROOT / "backend" / "docker-compose.yml",
-  )
-
-  render_template(
     "admin.py.jinja",
     {
       "database_port": database_server_port,
@@ -247,6 +241,8 @@ def run_config_setup() -> bool:
 
     # - Install [svelte-kit](https://svelte.dev/docs/kit/introduction)
 
+    # TODO
+
     # -- Install [vite]
     sh.bun(
       "install", "-D", "vite", _out=sys.stdout.write, _err=sys.stderr.write, _text=True
@@ -261,30 +257,32 @@ def run_config_setup() -> bool:
     return False
   info(f"[!] Selected inventory application server port: {inventoryapp_server_port}")
   host_ip_address = socket.gethostbyname(socket.gethostname())
-  if str(host_ip_address) == "127.0.1.1":
+  # TODO this search does not seem to work. Find a better way to determine host IP
+  if str(host_ip_address) == "127.0.1.1" or str(host_ip_address) == "127.0.0.1":
     warning(
       "IP address of current host could not be determined. Please enter a valid host address manually."
     )
     host_ip_address = input("Enter host address :  ")
   info(f"    Host IP address: {host_ip_address}")
 
+  # -- Create docker-compose.yml for all containers --
   render_template(
-    "frontend.docker-compose.yml.jinja",
+    "docker-compose.yml.jinja",
     {
+      "database_port": database_server_port,
+      "inventory_server_port": inventory_server_port,
       "host_ip_address": host_ip_address,
       "inventoryapp_port": inventoryapp_server_port,
     },
-    PROJECT_ROOT / "app" / "docker-compose.yml",
+    PROJECT_ROOT / "docker-compose.yml",
   )
 
   # TODO add camera and printer server ports
   render_template(
     "frontend.env.jinja",
     {
-      "host_address": host_ip_address,
+      "host_address": INVENTORY_SERVER_CONTAINER_NAME,
       "inventory_server_port": inventory_server_port,
-      "camera_server_port": None,
-      "printer_server_port": None,
     },
     PROJECT_ROOT / "app" / ".env",
   )
@@ -352,7 +350,7 @@ def compose_containers():
   except:
     pass
 
-  os.chdir(PROJECT_ROOT / "backend")
+  os.chdir(PROJECT_ROOT)
 
   info("[ COMPOSE INVENTORY DATABASE CONTAINER ]")
   sh.podman_compose(
@@ -372,8 +370,6 @@ def compose_containers():
     _err=sys.stderr.write,
   )
 
-  os.chdir(PROJECT_ROOT / "app")
-
   info("[ COMPOSE INVENTORY APP CONTAINER ]")
   sh.podman_compose(
     "up",
@@ -382,9 +378,6 @@ def compose_containers():
     _out=sys.stdout.write,
     _err=sys.stderr.write,
   )
-
-  info("[ RUNNING CONTAINERS ]")
-  sh.podman("ps", _out=sys.stdout.write, _err=sys.stderr.write)
 
 
 if __name__ == "__main__":
