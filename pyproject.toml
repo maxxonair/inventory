@@ -8,7 +8,6 @@ dependencies = [
   "flask",
   "flask_sqlalchemy",
   "flask_cors",
-  "mariadb",
   "pandas",
   "flask_session",
   "requests",
@@ -21,6 +20,7 @@ dependencies = [
   "rich",
   "jinja2>=3.1.6",
   "sh>=2.2.2",
+  "mysql-connector-python>=9.5.0",
 ]
 
 [tool.ruff]

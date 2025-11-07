@@ -3,11 +3,7 @@ from pandas import DataFrame
 from logging import warning
 from enum import Enum
 
-from server.database_config import (
-  INVENTORY_DB_NAME,
-  INVENTORY_TABLE_NAME,
-  INVENTORY_USER_TABLE_NAME,
-)
+from server.database_config import INVENTORY_USER_TABLE_NAME
 
 
 class UserPrivileges(Enum):
@@ -120,7 +116,7 @@ class InventoryUser:
 
     # Create series of ? that matches the number of values in
     # list(self.inventoryUserDict.values())
-    value_clause = ", ".join([f"?" for column in list(self.inventoryUserDict.values())])
+    value_clause = ", ".join(["%s" for column in list(self.inventoryUserDict.values())])
 
     sql = f"INSERT INTO {INVENTORY_USER_TABLE_NAME} ( {set_clause} ) VALUES ( {
       value_clause
@@ -146,7 +142,7 @@ class InventoryUser:
       [f"{column} = ?" for column in list(self.inventoryUserDict.keys())]
     )
 
-    sql = f"UPDATE {INVENTORY_USER_TABLE_NAME} SET {set_clause} WHERE user_name = ?"
+    sql = f"UPDATE {INVENTORY_USER_TABLE_NAME} SET {set_clause} WHERE user_name = %s"
 
     # Prepare the data to update
     values = list(self.inventoryUserDict.values()) + [user_name]

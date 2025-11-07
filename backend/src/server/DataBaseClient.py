@@ -22,7 +22,7 @@ Returns:
     _type_: _description_
 """
 
-import mariadb
+import mysql.connector
 from logging import info, warning, debug, error
 import pandas as pd
 from datetime import datetime
@@ -44,28 +44,31 @@ from server.InventoryUser import InventoryUser
 
 class DataBaseClient:
   def __init__(self, host: str = DEFAULT_DB_HOST, port: int = DEFAULT_DB_PORT):
-    self.connection_config = {
-      "user": MYSQL_USER,
-      "password": MYSQL_PASSWORD,
-      "host": host,
-      "port": port,
-      "database": INVENTORY_DB_NAME,
-      "connect_timeout": 10,
-    }
-
+    """Initialise database client and connect to the database server
+    Args:
+        host (str, optional): Database server host address.
+            Defaults to DEFAULT_DB_HOST.
+        port (int, optional): Database server port. Defaults to DEFAULT_DB_PORT.
+    """
     try:
       # Establishing the connection with the database server
-      self.connection = mariadb.connect(**self.connection_config)
+      self.connection = mysql.connector.connect(
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        host=host,
+        port=port,
+        database=INVENTORY_DB_NAME,
+      )
 
       # Perform database operations
-      self.cursor = self.connection.cursor()
+      self.cursor = self.connection.cursor(buffered=True)
       self.cursor.execute("SELECT DATABASE()")
 
       info("[x] Connected to the inventory database")
-    except mariadb.Error as e:
+    except mysql.connector.Error as e:
       error("")
       raise RuntimeError(f"Error connecting to MariaDB: {e}")
-    
+
     self.init_inventory_db()
 
     # -- Ensure that database exists --
@@ -107,30 +110,30 @@ class DataBaseClient:
 
     # -- Ensure that database exists --
     if not self.is_database(INVENTORY_DB_NAME):
-        warning(f" {INVENTORY_DB_NAME} database not found.")
-        self.create_database(INVENTORY_DB_NAME)
-        info(f"[x] Created database: {INVENTORY_DB_NAME}")
+      warning(f" {INVENTORY_DB_NAME} database not found.")
+      self.create_database(INVENTORY_DB_NAME)
+      info(f"[x] Created database: {INVENTORY_DB_NAME}")
     else:
-        info(f"[x] {INVENTORY_DB_NAME} does already exist.")
+      info(f"[x] {INVENTORY_DB_NAME} does already exist.")
 
     # Use inventory database from here onwards
     self.cursor.execute(f"USE {INVENTORY_DB_NAME}")
 
     # -- Ensure that inventory table exists --
     if not self.is_table(INVENTORY_TABLE_NAME):
-        warning(f" {INVENTORY_TABLE_NAME} table not found.")
-        self.create_inventory_table()
-        info(f"|-> Created table: {INVENTORY_TABLE_NAME}")
+      warning(f" {INVENTORY_TABLE_NAME} table not found.")
+      self.create_inventory_table()
+      info(f"|-> Created table: {INVENTORY_TABLE_NAME}")
     else:
-        info(f"[x] {INVENTORY_TABLE_NAME} does already exist.")
+      info(f"[x] {INVENTORY_TABLE_NAME} does already exist.")
 
     # -- Ensure that inventory user table exists --
     if not self.is_table(INVENTORY_USER_TABLE_NAME):
-        warning(f" {INVENTORY_USER_TABLE_NAME} table not found.")
-        self.create_inventory_user_table()
-        info(f"|-> Created table: {INVENTORY_USER_TABLE_NAME}")
+      warning(f" {INVENTORY_USER_TABLE_NAME} table not found.")
+      self.create_inventory_user_table()
+      info(f"|-> Created table: {INVENTORY_USER_TABLE_NAME}")
     else:
-        info(f"[x] {INVENTORY_USER_TABLE_NAME} does already exist.")
+      info(f"[x] {INVENTORY_USER_TABLE_NAME} does already exist.")
 
   # -----------------------------------------------------------------------
   #                        [LIST & SEARCH]
@@ -341,9 +344,9 @@ class DataBaseClient:
     # Pre-construct set each value statement
     set_clause = ", ".join([f"{column}" for column in list(inventory_item_dict.keys())])
 
-    # Create series of ? that matches the number of values in
+    # Create series of %s that matches the number of values in
     # list(inventory_item_dict.values())
-    value_clause = ", ".join(["?" for column in list(inventory_item_dict.values())])
+    value_clause = ", ".join(["%s" for column in list(inventory_item_dict.values())])
 
     sql = (
       f"INSERT INTO {INVENTORY_TABLE_NAME} ( {set_clause} ) VALUES ( {value_clause} )"
@@ -364,10 +367,10 @@ class DataBaseClient:
 
     # Pre-construct set each value statement
     set_clause = ", ".join(
-      [f"{column} = ?" for column in list(inventory_item_dict.keys())]
+      [f"{column} = %s" for column in list(inventory_item_dict.keys())]
     )
 
-    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET {set_clause} WHERE id = ?"
+    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET {set_clause} WHERE id = %s"
 
     # Prepare the data to update
     values = list(inventory_item_dict.values()) + [id]
@@ -380,7 +383,7 @@ class DataBaseClient:
     Modify the image path of an inventory item identified by ID with the
     given path
     """
-    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET image = ? WHERE id = ?"
+    sql = f"UPDATE {INVENTORY_TABLE_NAME} SET image = %s WHERE id = %s"
     values = [path] + [id]
 
     # Execute the UPDATE statement
@@ -403,10 +406,10 @@ class DataBaseClient:
     if checkout_status == 1:
       sql = f"UPDATE {
         INVENTORY_TABLE_NAME
-      } SET is_checked_out = ?, check_out_date = ?, check_out_poc = ? WHERE id = ?"
+      } SET is_checked_out = %s, check_out_date = %s, check_out_poc = %s WHERE id = %s"
       values = [int(checkout_status)] + [check_out_date] + [poc] + [item_id]
     else:
-      sql = f"UPDATE {INVENTORY_TABLE_NAME} SET is_checked_out = ? WHERE id = ?"
+      sql = f"UPDATE {INVENTORY_TABLE_NAME} SET is_checked_out = %s WHERE id = %s"
       values = [int(checkout_status)] + [item_id]
 
     # Execute the UPDATE statement
@@ -443,7 +446,7 @@ class DataBaseClient:
     """
     Delete Inventory item
     """
-    sql = f"DELETE FROM {INVENTORY_TABLE_NAME} WHERE id = ?"
+    sql = f"DELETE FROM {INVENTORY_TABLE_NAME} WHERE id = %s"
     values = list([id])
 
     # Execute the DELETE statement
@@ -507,7 +510,7 @@ class DataBaseClient:
     Delete Inventory user
     """
     info(f"[-] Delete user {user_name} ")
-    sql = f"DELETE FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
+    sql = f"DELETE FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = %s"
     values = list([user_name])
 
     # Execute the DELETE statement
@@ -528,7 +531,7 @@ class DataBaseClient:
     Update password of existing inventory user
     """
     sql = (
-      f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_password = ? WHERE user_name = ?"
+      f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_password = %s WHERE user_name = %s"
     )
     values = [user.hashed_user_password] + [user.user_name]
 
@@ -540,9 +543,7 @@ class DataBaseClient:
     Update privileges of existing inventory user
     """
     info(f"[+] Update privileges for user {user.user_name} to {user.user_privileges}")
-    sql = (
-      f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_privileges = ? WHERE user_name = ?"
-    )
+    sql = f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_privileges = %s WHERE user_name = %s"
     values = [user.user_privileges] + [user.user_name]
 
     # Execute the UPDATE statement

@@ -8,7 +8,7 @@ dependencies = [
   "flask",
   "flask_sqlalchemy",
   "flask_cors",
-  "mariadb",
+  "mysql-connector-python",
   "pandas",
   "flask_session",
   "requests",

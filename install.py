@@ -21,6 +21,7 @@ import sys
 import argparse
 from shutil import which
 import time
+from subprocess import call
 
 # Define project root directory path
 PROJECT_ROOT = Path(__file__).parent.resolve()
@@ -149,18 +150,13 @@ def run_config_setup() -> bool:
   # MYSQL access credentials are solely for communidation between the backend
   # and the database. Hence, the following is randomly generated and kept hidden
   # at the backend.
-  mysql_user = "inventoryuser"
-  mysql_user_password = rand_id_generator()
-  # TODO to be generated randomly
-  mysql_root_password = "inventory24"
+  mysql_root_password = rand_id_generator()
   mysql_database = DATABASE_NAME
 
   render_template(
     "backend.env.jinja",
     {
       "mysql_root_password": mysql_root_password,
-      "mysql_user": mysql_user,
-      "mysql_user_password": mysql_user_password,
       "mysql_database": mysql_database,
     },
     PROJECT_ROOT / ".env",
@@ -282,10 +278,6 @@ def build_podman_images():
 
   os.chdir(PROJECT_ROOT / "app")
 
-  sh.bun("install", _out=sys.stdout.write, _err=sys.stderr.write, _text=True)
-
-  sh.bun("run", "build", _out=sys.stdout.write, _err=sys.stderr.write)
-
   # Build frontend image
   sh.podman(
     "build",
@@ -303,48 +295,13 @@ def compose_containers():
   """Compose and run the podman containers for backend and frontend services."""
   print(Rule(title="DEPLOY CONTAINERS", style="bold blue"))
 
-  # Remove existing containers if any
-  try:
-    sh.podman("rm", "inventory_db")
-  except:
-    pass
-  try:
-    sh.podman("rm", "inventory-server")
-  except:
-    pass
-  try:
-    sh.podman("rm", "inventory-app")
-  except:
-    pass
-
   os.chdir(PROJECT_ROOT)
 
   info("[ COMPOSE INVENTORY DATABASE CONTAINER ]")
-  sh.podman_compose(
-    "up",
-    "-d",
-    "inventory_db",
-    _out=sys.stdout.write,
-    _err=sys.stderr.write,
-  )
-
   info("[ COMPOSE INVENTORY SERVER CONTAINER ]")
-  sh.podman_compose(
-    "up",
-    "-d",
-    "inventory_server",
-    _out=sys.stdout.write,
-    _err=sys.stderr.write,
-  )
-
   info("[ COMPOSE INVENTORY APP CONTAINER ]")
-  sh.podman_compose(
-    "up",
-    "-d",
-    "inventory_app",
-    _out=sys.stdout.write,
-    _err=sys.stderr.write,
-  )
+
+  call("./scripts/compose_containers.sh", shell=True)
 
 
 if __name__ == "__main__":
@@ -372,19 +329,29 @@ if __name__ == "__main__":
     action="store_true",
   )
 
+  parser.add_argument(
+    "-b",
+    "--build-only",
+    help="Only build podman container images, skip configuration and build steps",
+    action="store_true",
+  )
+
   args = parser.parse_args()
 
-  if not args.compose_only:
+  if not args.compose_only and not args.build_only:
     # --- SETUP ---
     if not run_config_setup():
       error("Installation process failed at the configuration stage.")
       exit(1)
 
-    if parser.parse_args().config_only:
+    if args.config_only:
       exit(0)
 
-    # --- BUILD ---
-    build_podman_images()
+  # --- BUILD ---
+  build_podman_images()
+
+  if args.config_only:
+    exit(0)
 
   # --- DEPLOY ---
   time.sleep(2.0)
