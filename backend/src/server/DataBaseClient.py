@@ -13,7 +13,13 @@ Inventory main table:
   tags VARCHAR(1055)
   location VARCHAR(1055)
   item_type VARCHAR(1055)
-  number_items INT(32) )
+  "manufacturer_link VARCHAR(255),"
+  "project VARCHAR(255)"
+  "manufacturer_location VARCHAR(255),"
+  "color VARCHAR(255),"
+  "material VARCHAR(255),"
+  "product_use VARCHAR(255),"
+  number_items INT(32)
 
 Raises:
     RuntimeError: _description_
@@ -302,6 +308,12 @@ class DataBaseClient:
     create_table_query += "tags VARCHAR(1055) ,"
     create_table_query += "location VARCHAR(1055) ,"
     create_table_query += "item_type VARCHAR(1055) ,"
+    create_table_query += "manufacturer_link VARCHAR(255) ,"
+    create_table_query += "project VARCHAR(255) ,"
+    create_table_query += "manufacturer_location VARCHAR(255) ,"
+    create_table_query += "color VARCHAR(255) ,"
+    create_table_query += "material VARCHAR(255) ,"
+    create_table_query += "product_use VARCHAR(255) ,"
     create_table_query += "number_items INT(32) )"
 
     # Execute query

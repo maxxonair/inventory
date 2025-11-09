@@ -153,33 +153,42 @@ def run_config_setup() -> bool:
   mysql_root_password = rand_id_generator()
   mysql_database = DATABASE_NAME
 
-  render_template(
-    "backend.env.jinja",
-    {
-      "mysql_root_password": mysql_root_password,
-      "mysql_database": mysql_database,
-    },
-    PROJECT_ROOT / ".env",
-  )
+  if (PROJECT_ROOT / ".env").exists():
+    warning("Skip regenerating .env. File already set up.")
+  else:
+    render_template(
+      "backend.env.jinja",
+      {
+        "mysql_root_password": mysql_root_password,
+        "mysql_database": mysql_database,
+      },
+      PROJECT_ROOT / ".env",
+    )
 
-  render_template(
-    "mysql.py.jinja",
-    {
-      "mysql_user": "root",
-      "mysql_user_password": mysql_root_password,
-    },
-    PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py",
-  )
+  if (PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py").exists():
+    warning("Skip regenerating mysql.py. File already set up.")
+  else:
+    render_template(
+      "mysql.py.jinja",
+      {
+        "mysql_user": "root",
+        "mysql_user_password": mysql_root_password,
+      },
+      PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py",
+    )
 
-  render_template(
-    "database_config.py.jinja",
-    {
-      "database_name": DATABASE_NAME,
-      "inventory_table_name": INVENTORY_TABLE_NAME,
-      "user_database_name": USER_DATABASE_NAME,
-    },
-    PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py",
-  )
+  if (PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py").exists():
+    warning("Skip regenerating database_config.py. File already set up.")
+  else:
+    render_template(
+      "database_config.py.jinja",
+      {
+        "database_name": DATABASE_NAME,
+        "inventory_table_name": INVENTORY_TABLE_NAME,
+        "user_database_name": USER_DATABASE_NAME,
+      },
+      PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py",
+    )
 
   # -- Scan for open port for database server
   database_server_port = scan_ports(3307, 3400)
@@ -199,13 +208,16 @@ def run_config_setup() -> bool:
     return False
   info(f"[!] Selected inventory server port: {inventory_server_port}")
 
-  render_template(
-    "admin.py.jinja",
-    {
-      "database_port": database_server_port,
-    },
-    PROJECT_ROOT / "backend" / "src" / "server" / "admin.py",
-  )
+  if (PROJECT_ROOT / "backend" / "src" / "server" / "admin.py").exists():
+    warning("Skip regenerating admin.py. File already set up.")
+  else:
+    render_template(
+      "admin.py.jinja",
+      {
+        "database_port": database_server_port,
+      },
+      PROJECT_ROOT / "backend" / "src" / "server" / "admin.py",
+    )
 
   # ---------------------------------------------------------------------------#
   #                        > FRONTEND SETUP <
@@ -230,25 +242,31 @@ def run_config_setup() -> bool:
   info(f"    Host IP address: {host_ip_address}")
 
   # -- Create docker-compose.yml for all containers --
-  render_template(
-    "docker-compose.yml.jinja",
-    {
-      "database_port": database_server_port,
-      "inventory_server_port": inventory_server_port,
-      "host_ip_address": host_ip_address,
-      "inventoryapp_port": inventoryapp_server_port,
-    },
-    PROJECT_ROOT / "docker-compose.yml",
-  )
+  if (PROJECT_ROOT / "docker-compose.yml").exists():
+    warning("Skip regenerating docker-compose.yml. File already set up.")
+  else:
+    render_template(
+      "docker-compose.yml.jinja",
+      {
+        "database_port": database_server_port,
+        "inventory_server_port": inventory_server_port,
+        "host_ip_address": host_ip_address,
+        "inventoryapp_port": inventoryapp_server_port,
+      },
+      PROJECT_ROOT / "docker-compose.yml",
+    )
 
-  render_template(
-    "frontend.env.jinja",
-    {
-      "host_address": INVENTORY_SERVER_CONTAINER_NAME,
-      "inventory_server_port": 5000,
-    },
-    PROJECT_ROOT / "app" / ".env",
-  )
+  if (PROJECT_ROOT / "app" / ".env").exists():
+    warning("Skip regenerating app/.env. File already set up.")
+  else:
+    render_template(
+      "frontend.env.jinja",
+      {
+        "host_address": INVENTORY_SERVER_CONTAINER_NAME,
+        "inventory_server_port": 5000,
+      },
+      PROJECT_ROOT / "app" / ".env",
+    )
   print("[green]  ---> Configuration setup completed successfully[/green]\n")
   print(
     f"[green]  The inventory application will be accessbile via:[/green] [orange]http://{host_ip_address}:{inventoryapp_server_port}[/orange]\n"
@@ -348,7 +366,8 @@ if __name__ == "__main__":
       exit(0)
 
   # --- BUILD ---
-  build_podman_images()
+  if not args.compose_only:
+    build_podman_images()
 
   if args.config_only:
     exit(0)

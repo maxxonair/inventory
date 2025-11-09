@@ -1,6 +1,6 @@
 services:
   inventory_db:
-    container_name: inventory_db
+    container_name: inventory-db
     image: "docker.io/library/mariadb:lts-noble"
     restart: unless-stopped
     ports:
@@ -26,12 +26,12 @@ services:
     volumes:
       - ./backend/media:/app/media
     environment:
-      DB_HOST: inventory_db
+      DB_HOST: inventory-db
       DB_PORT: {{ database_port }}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - inventory_db
+      - inventory-db
 
   inventory_app:
     image: inventoryapp:latest

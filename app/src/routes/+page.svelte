@@ -248,6 +248,14 @@
   let check_out_date = $state("");
   let is_checked_out = 0;
 
+  let manufacturer_link = $state("");
+  let manufacturer_location = $state("");
+  let project = $state("");
+  let color = $state("");
+  let material = $state("");
+  let product_use = $state("");
+  
+
   let selectedFile = $state(null);
   
   // TODO add back when ready 
@@ -393,6 +401,12 @@
           check_out_date,
           is_checked_out,
           tags,
+          manufacturer_link,
+          manufacturer_location,
+          project,
+          color,
+          material,
+          product_use,
         }),
       });
 
@@ -593,6 +607,13 @@
     location = item.location;
     number_items = item.number_items;
     tags = item.tags;
+    description = item.description;
+    manufacturer_link = item.manufacturer_link;
+    manufacturer_location = item.manufacturer_location; 
+    project = item.project;
+    color = item.color;
+    material = item.material;
+    product_use = item.product_use;
 
     // If image not updated -> keep item.image
     if (!imageUpdated) {
@@ -622,6 +643,12 @@
           location,
           tags,
           image,
+          manufacturer_link,
+          manufacturer_location,
+          project,
+          color,
+          material,
+          product_use,
         }),
       });
 
@@ -941,6 +968,48 @@
                         {/if}
                       </div>
 
+                      <div>
+                        <!-- svelte-ignore attribute_quoted -->
+                        {#if enableEdit}
+                          <FloatingLabelInput
+                            clearable
+                            variant="outlined"
+                            bind:value={item.manufacturer_link}
+                            class="bg-white dark:bg-slate-900 rounded-lg"
+                            >manufacturer link</FloatingLabelInput
+                          >
+                        {:else}
+                          <Label
+                            for="name"
+                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                          >
+                            <span class="text-red-500">Manufacturer Link: </span>
+                            {item.manufacturer_link}
+                          </Label>
+                        {/if}
+                      </div>
+
+                      <div>
+                        <!-- svelte-ignore attribute_quoted -->
+                        {#if enableEdit}
+                          <FloatingLabelInput
+                            clearable
+                            variant="outlined"
+                            bind:value={item.manufacturer_location}
+                            class="bg-white dark:bg-slate-900 rounded-lg"
+                            >manufacturer location</FloatingLabelInput
+                          >
+                        {:else}
+                          <Label
+                            for="name"
+                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                          >
+                            <span class="text-red-500">Manufacturer Location: </span>
+                            {item.manufacturer_location}
+                          </Label>
+                        {/if}
+                      </div>
+
                       <div class="mb-4">
                         {#if enableEdit}
                           <Label for="number_items" class="mb-2 block"
@@ -988,20 +1057,84 @@
                       <div>
                         {#if enableEdit}
                           <Label
-                            >Item Type
+                            >Product Type
                             <Select
                               class="mt-2"
                               items={categories}
-                              bind:value={item.item_type}
+                              bind:value={item.material}
                             />
                           </Label>
                         {:else}
                           <Label
                             class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
                           >
-                            <span class="text-red-500">Type: </span>
-                            {item.item_type}</Label
+                            <span class="text-red-500">Material: </span>
+                            {item.material}</Label
                           >
+                        {/if}
+                      </div>
+
+                      <div>
+                        <!-- svelte-ignore attribute_quoted -->
+                        {#if enableEdit}
+                          <FloatingLabelInput
+                            clearable
+                            variant="outlined"
+                            bind:value={item.product_use}
+                            class="bg-white dark:bg-slate-900 rounded-lg"
+                            >Product use</FloatingLabelInput
+                          >
+                        {:else}
+                          <Label
+                            for="name"
+                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                          >
+                            <span class="text-red-500">Product use: </span>
+                            {item.product_use}
+                          </Label>
+                        {/if}
+                      </div>
+
+
+                      <div>
+                        <!-- svelte-ignore attribute_quoted -->
+                        {#if enableEdit}
+                          <FloatingLabelInput
+                            clearable
+                            variant="outlined"
+                            bind:value={item.color}
+                            class="bg-white dark:bg-slate-900 rounded-lg"
+                            >Product color</FloatingLabelInput
+                          >
+                        {:else}
+                          <Label
+                            for="name"
+                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                          >
+                            <span class="text-red-500">Product color: </span>
+                            {item.color}
+                          </Label>
+                        {/if}
+                      </div>
+
+                      <div>
+                        <!-- svelte-ignore attribute_quoted -->
+                        {#if enableEdit}
+                          <FloatingLabelInput
+                            clearable
+                            variant="outlined"
+                            bind:value={item.project}
+                            class="bg-white dark:bg-slate-900 rounded-lg"
+                            >Project</FloatingLabelInput
+                          >
+                        {:else}
+                          <Label
+                            for="name"
+                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                          >
+                            <span class="text-red-500">Project: </span>
+                            {item.project}
+                          </Label>
                         {/if}
                       </div>
 
@@ -1391,7 +1524,57 @@
                   bind:value={manufacturer}
                 />
               </div>
+
+              <div class="mb-6">
+                <Label for="manufacturer_link" class="mb-2 block">Manufacturer Link</Label
+                >
+                <Input
+                  id="manufacturer_link"
+                  name="manufacturer_link"
+                  placeholder="Manufacturer link"
+                  bind:value={manufacturer_link}
+                />
+              </div>
+
+              <div class="mb-6">
+                <Label for="manufacturer_location" class="mb-2 block">Manufacturer Location</Label
+                >
+                <Input
+                  id="manufacturer_location"
+                  name="manufacturer_location"
+                  placeholder="Manufacturer location"
+                  bind:value={manufacturer_location}
+                />
+              </div>
             </div>
+
+          <div
+            class="items-center justify-center w-full"
+            role="region"
+            ondrop={onDrop}
+            ondragover={onDragOver}
+          >
+            <label
+              for="dropzone-file"
+              class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600"
+            >
+              <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span class="font-semibold">Click to upload</span> or drag and
+                  drop
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  SVG, PNG, JPG
+                </p>
+              </div>
+              <input
+                id="dropzone-file"
+                type="file"
+                class="hidden"
+                onchange={handleFileUpload}
+              />
+            </label>
+          </div>
 
             <div class="mb-6 w-full">
               <Label for="number_items" class="mb-2 block"
@@ -1456,6 +1639,46 @@
                 bind:value={tags}
               />
             </div>
+
+            <div class="mb-6">
+              <Label for="tags" class="mb-2 block">Material</Label>
+              <Input
+                id="material"
+                name="material"
+                placeholder="Material"
+                bind:value={material}
+              />
+            </div>
+
+            <div class="mb-6">
+              <Label for="color" class="mb-2 block">Color</Label>
+              <Input
+                id="color"
+                name="color"
+                placeholder="Color"
+                bind:value={color}
+              />
+            </div>
+
+            <div class="mb-6">
+              <Label for="project" class="mb-2 block">Project</Label>
+              <Input
+                id="project"
+                name="project"
+                placeholder="Project"
+                bind:value={project}
+              />
+            </div>
+
+            <div class="mb-6">
+              <Label for="product_use" class="mb-2 block">Product Use</Label>
+              <Input
+                id="product_use"
+                name="product_use"
+                placeholder="Product Use"
+                bind:value={product_use}
+              />
+            </div>
           </div>
 
           <div class="mb-2 justify-center w-full">
@@ -1470,38 +1693,9 @@
             />
           </div>
 
-          <div
-            class="items-center justify-center w-full"
-            role="region"
-            ondrop={onDrop}
-            ondragover={onDragOver}
-          >
-            <label
-              for="dropzone-file"
-              class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600"
-            >
-              <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span class="font-semibold">Click to upload</span> or drag and
-                  drop
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  SVG, PNG, JPG
-                </p>
-              </div>
-              <input
-                id="dropzone-file"
-                type="file"
-                class="hidden"
-                onchange={handleFileUpload}
-              />
-            </label>
-          </div>
         </div>
 
-        <div
-          class="bottom-0 left-0 flex w-full justify-center space-x-4 pb-4 md:absolute md:px-4"
-        >
+        <div class="sticky bottom-0 left-0 flex w-full justify-center space-x-4 p-4 bg-white dark:bg-gray-800 border-t">
           <Button type="submit" class="w-full" onclick={addItem}
             >add item</Button
           >

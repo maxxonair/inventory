@@ -31,14 +31,7 @@ def main():
   info(
     f"Trying to connect to inventory database at {database_host}:{database_port} ..."
   )
-  try:
-    client = DataBaseClient(host=database_host, port=database_port)
-  except Exception as e:
-    error(f"Could not connect to inventory database: {e}")
-    error(
-      "Make sure the database server is running and the port setting in this file is correct."
-    )
-    exit(1)
+  client = DataBaseClient(host=database_host, port=database_port)
 
   info("Possible admin actions:")
   info("1 - Create user")
@@ -67,6 +60,7 @@ def main():
 def create_user(client: DataBaseClient = None):
   """Create a new Inventory user via terminal prompts"""
   info("[Create user]")
+  client.connect()
   pw_invalid = True
   privileges_invalid = True
   username = input("Enter user name :")
@@ -124,12 +118,14 @@ def create_user(client: DataBaseClient = None):
 
   # Create new user
   client.add_inventory_user(inventoryUser)
+  client.close_connection()
 
 
 def delete_user(client: DataBaseClient = None):
   """Delete Inventory user"""
   info("[Delete user]")
   valid = False
+  client.connect()
 
   while not valid:
     username = input("Enter user name : ")
@@ -156,6 +152,7 @@ def delete_user(client: DataBaseClient = None):
 
   # Delete user
   client.delete_inventory_user(username)
+  client.close_connection()
 
 
 def update_privileges(client: DataBaseClient = None):
@@ -163,6 +160,7 @@ def update_privileges(client: DataBaseClient = None):
   info("[Update user privileges]")
   valid = False
   privileges_invalid = True
+  client.connect()
 
   while not valid:
     username = input("Enter user name : ")
@@ -213,6 +211,7 @@ def update_privileges(client: DataBaseClient = None):
   )
   # Update user privileges in database
   client.update_inventory_user_privileges(user=user_instance)
+  client.close_connection()
 
 
 def update_password(client: DataBaseClient = None):
@@ -220,6 +219,7 @@ def update_password(client: DataBaseClient = None):
   info("[Update user password]")
   valid = False
   pw_invalid = True
+  client.connect()
 
   while not valid:
     username = input("Enter user name : ")
@@ -249,6 +249,7 @@ def update_password(client: DataBaseClient = None):
 
   # Update user privileges in database
   client.update_inventory_user_password(user=user_instance)
+  client.close_connection()
 
   info(f"Password for user {user_instance.user_name} updated!")
 
