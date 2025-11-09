@@ -17,7 +17,7 @@ Minimal inventory management system to track physical assets in a digital databa
 :raising_hand: Use build-in authentification management or hook up to your own.  
 :fire: Easy customer access via web app built with [svelte](https://svelte.dev/)  
 
-![alt text](https://github.com/maxxonair/inventory/blob/0.0.1/templates/inventory_sketch_light.drawio.png?raw=true)
+![alt text](https://github.com/maxxonair/inventory/blob/0.0.1/imgs/inv_example.png?raw=true)
 
 # SETUP
 
@@ -36,6 +36,8 @@ The core modules:
     - Printer
 
 The database, inventory servera and application should be run on the same machine, while the services can be run on dedicated terminal machines, e.g. in the archive or warehouse.
+
+![alt text](https://github.com/maxxonair/inventory/blob/0.0.1/imgs/inventory_sketch_light.drawio.png?raw=true)
 
 ## 1. Requirements
 
@@ -168,6 +170,8 @@ each item in the inventory.
 | **Name**                 | Item Name. Does not need to be unique                                                                                                                      |
 | **Description**          | Field for more detailled description of the item                                                                                                           |
 | **Manufacturer**         | Manufacturer                                                                                                                                               |
+| **Manufacturer Link**     | Link to manufacturers product page |
+| **Manufacturer Location**     | Location of the manufacturer  |
 | **Details** | Manufacturer details                                                                                                             |
 | **Image**                | Item image. Images are stored as png's outside the database in the media directory. The database holds hashed image name. |
 | **Check-out Status**     | Flag, True if the item is currently checked-out                                                                                                            |
@@ -176,7 +180,10 @@ each item in the inventory.
 | **Date Added**           | Date when the item has been added to the database. Automatically handled in the background.                                                                |
 | **Tags**                 | Tags to identify item. Tags should be separated by a semicolon. This offers a flexible way to make an item easily searchable by customised tags.                                                                                             |
 | **Type**                 | Item Type                                                                                             |
-| **Storage Location**     | Storage location of the item  
+| **Color**     | Product color  |
+| **Product Use**     | Product use  |
+| **Material**     | Product Material |
+| **Storage Location**     | Storage location of the item  |
 
 
 ## Troubleshooting
