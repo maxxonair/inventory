@@ -50,13 +50,18 @@ class DataBaseClient:
             Defaults to DEFAULT_DB_HOST.
         port (int, optional): Database server port. Defaults to DEFAULT_DB_PORT.
     """
+    self.host = host
+    self.port = port
+
+  def connect(self):
+    """Connect to the database server and ensure that the inventory database"""
     try:
       # Establishing the connection with the database server
       self.connection = mysql.connector.connect(
         user=MYSQL_USER,
         password=MYSQL_PASSWORD,
-        host=host,
-        port=port,
+        host=self.host,
+        port=self.port,
         database=INVENTORY_DB_NAME,
       )
 
@@ -67,7 +72,8 @@ class DataBaseClient:
       info("[x] Connected to the inventory database")
     except mysql.connector.Error as e:
       error("")
-      raise RuntimeError(f"Error connecting to MariaDB: {e}")
+      error(f"Failed to connect to inventory database: {e}")
+      return False
 
     self.init_inventory_db()
 
@@ -94,11 +100,15 @@ class DataBaseClient:
       exit(1)
     else:
       info(f"[x] {INVENTORY_USER_TABLE_NAME} table found.")
+    return True
 
-  def close(self):
-    """ """
-    self.cursor.close()
-    self.connection.close()
+  def close_connection(self):
+    """Close database connection"""
+    try:
+      self.cursor.close()
+      self.connection.close()
+    except mysql.connector.Error as e:
+      error(f"Failed to close database connection: {e}")
 
   def init_inventory_db(self):
     """Initialise inventory database and tables if they don't exist

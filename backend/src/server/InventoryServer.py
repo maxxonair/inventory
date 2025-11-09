@@ -10,7 +10,7 @@ $ uv run -m src.InventoryServer
 from flask import Flask, request, jsonify, send_from_directory, session, Response
 from flask_cors import CORS
 from flask_session import Session
-from logging import info, error, debug
+from logging import info, error
 from datetime import timedelta
 from PIL import Image
 import asyncio
@@ -23,8 +23,6 @@ import queue
 import hashlib
 from pathlib import Path
 
-
-from server.InventoryUser import InventoryUser
 from server.DataBaseClient import DataBaseClient
 
 from server.inventory_server_config import (
@@ -69,14 +67,13 @@ class InventoryServer:
 
     self.scanned_qr_id = None
 
-    # Create a database client instance. The client will handle all interaction
-    # with the database server.
-    self.db = DataBaseClient(host=db_host, port=db_port)
-
     self.event_queue = queue.Queue()
 
     # Store the camera server URL
     self.camera_registry = {"url": None}
+
+    self.db_host = db_host
+    self.db_port = db_port
 
     # Store the printer server URL
     self.printer_registry = {"url": None}
@@ -97,9 +94,13 @@ class InventoryServer:
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.json
-      self.db.update_inventory_item_checkout_status(
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      client.update_inventory_item_checkout_status(
         int(data["itemId"]), session["user"], 1
       )
+      client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
     @self.app.route("/return_item", methods=["POST"])
@@ -107,16 +108,24 @@ class InventoryServer:
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.json
-      self.db.update_inventory_item_checkout_status(
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      client.update_inventory_item_checkout_status(
         int(data["itemId"]), session["user"], 0
       )
+      client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
     @self.app.route("/items")
     def get_items():
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-      data_dict = self.db.get_all_inventory_items_as_dict_list()
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      data_dict = client.get_all_inventory_items_as_dict_list()
+      client.close_connection()
       return jsonify(data_dict)
 
     @self.app.route("/get_item", methods=["POST"])
@@ -124,8 +133,11 @@ class InventoryServer:
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.json
-      data_dict = self.db.get_inventory_item_as_dict(int(data["itemId"]))
-
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      data_dict = client.get_inventory_item_as_dict(int(data["itemId"]))
+      client.close_connection()
       # TODO add callback funtion to check if item with ID exists in DB
 
       if data_dict is None:
@@ -168,9 +180,13 @@ class InventoryServer:
     @self.app.route("/login", methods=["POST"])
     def login():
       data = request.json
-      is_user_exists, inventoryUser = self.db.get_inventory_user_as_object(
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      is_user_exists, inventoryUser = client.get_inventory_user_as_object(
         str(data["username"])
       )
+      client.close_connection()
       info(f"Log in attempt: {data['username']} -> {is_user_exists}")
       if not is_user_exists:
         return jsonify({"error": "User not found"}), 401
@@ -186,7 +202,11 @@ class InventoryServer:
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       data_dict = request.json
-      new_id = self.db.add_inventory_item(data_dict)
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      new_id = client.add_inventory_item(data_dict)
+      client.close_connection()
       return jsonify({"message": f"{new_id}"}), 200
 
     @self.app.route("/update_item", methods=["POST"])
@@ -196,7 +216,11 @@ class InventoryServer:
       data_dict = request.json
       item_id = int(data_dict["id"])
       data_dict.pop("id")
-      self.db.update_inventory_item(data_dict, item_id)
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      client.update_inventory_item(data_dict, item_id)
+      client.close_connection()
       return jsonify({"status": "item updated"}), 200
 
     @self.app.route("/logout", methods=["POST"])
@@ -275,9 +299,12 @@ class InventoryServer:
       data = request.get_json()
       item_id = int(data.get("itemId"))
       info(f"Delete item with ID {item_id}")
-
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
       # Issue label print job
-      self.db.delete_inventory_item(item_id)
+      client.delete_inventory_item(item_id)
+      client.close_connection()
 
       return jsonify({"status": "success"}), 200
 
@@ -296,13 +323,19 @@ class InventoryServer:
         return jsonify({"error": "Unauthorized"}), 401
       # Load privilege level for this user
       info(f"Load privilege level for user {str(data.get('user'))}")
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
       try:
-        user_dict = self.db.get_inventory_user_as_dict(str(data.get("user")))
+        user_dict = client.get_inventory_user_as_dict(str(data.get("user")))
         info(
           f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
         )
+        client.close_connection()
         return jsonify({"privilege": user_dict["user_privileges"]})
-      except:
+      except Exception as e:
+        error(f"User {data.get('user')} not found: {e}")
+        client.close_connection()
         return jsonify({"error": f"User: {data.get('user')} not found"}), 404
 
     @self.app.route("/qr", methods=["POST"])

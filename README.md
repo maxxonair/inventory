@@ -17,6 +17,8 @@ Minimal inventory management system to track physical assets in a digital databa
 :raising_hand: Use build-in authentification management or hook up to your own.  
 :fire: Easy customer access via web app built with [svelte](https://svelte.dev/)  
 
+![alt text](https://github.com/maxxonair/inventory/blob/0.0.1/templates/inventory_sketch_light.drawio.png?raw=true)
+
 # SETUP
 
 Settings of different elements of the front and backend are configurable via their respective config file. The following gives a brief overview where to find these files and which parameters to adjust.
@@ -28,7 +30,7 @@ This application consists of several modules that run independently and can be r
 The core modules:
 - The database 
 - The inventory server
-- The inventory applicaation
+- The inventory application
 - Services:
     - Camera 
     - Printer
@@ -41,45 +43,13 @@ Inventory requires several packages to be set up on the host machine. The follow
 
 This setup has been tested on Ubuntu 24.04 LTS and macOS.
 
-#### 1.1 Database
-
-MariaDB will be run in a container. To be able to maintain the data on the host machine several packages are required to be installed on the host machine.
-
-**Ubuntu** install:
-
-```bash
-sudo apt install libmariadb3 libmariadb-dev
-```
-
-**macOS** install:
-
-```bash
-brew install mariadb-connector-c
-```
-
-#### 1.2 Podman
+#### 1.1 Podman
 
 - [Install podman](https://podman.io/docs/installation)
 
 - If working in a desktop environment it's recommended to [install Podman Desktop](https://podman-desktop.io/downloads) for easier container maintencance.
 
-
-#### 1.3 Python & uv
-
-This project requires Python to be installed on the host machine. Furhter [uv](https://docs.astral.sh/uv/) is used to manage dependencies and run the scripts in this proect. Install uv with the following
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Create the virtual environment:
-
-```bash
-cd inventory
-uv sync
-```
-
-#### 1.4 podman-compose
+##### 1.1.1 podman-compose
 
 Support scripts are using [podman-compose](https://pypi.org/project/podman-compose/), which can be installed with pip:
 
@@ -87,18 +57,30 @@ Support scripts are using [podman-compose](https://pypi.org/project/podman-compo
 pip3 install podman-compose
 ```
 
-#### 1.5 npm, bun, svelte, svelte-kit & vite
+#### 1.2 Python & uv
 
-The frontend application is run directly on the host machine. Hence svelte-kit and all depencies are required to be installed to build and run the frontend.
+This project requires Python to be installed on the host machine. Furthermore, [uv](https://docs.astral.sh/uv/) is used to manage dependencies and run the scripts in this project. Install uv with the following
 
-Note: This will be done manually if npm & bun are not found on the host machine.
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Create the virtual environment and load all required dependencies:
+
+```bash
+cd inventory
+uv sync
+```
+
+#### 1.3 (For Devlopment Only) npm, bun, svelte, svelte-kit & vite
+
+**Optional** Install web development tools. This is only required if building and running the frontend manually on the host machine for development.
 
 - Install [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 - Install [bun](https://bun.sh/) ```curl -fsSL https://bun.sh/install | bash```
 :warning: Ensure the follow the instructions at the end of the installation and update your ```PATH```
 - Install [svelte-kit](https://svelte.dev/docs/kit/introduction)
 - Install vite ```bun install -D vite```
-
 
 ## 2. First Time Setup
 
@@ -115,10 +97,9 @@ uv run install.py
 
 #### 2.2 Set up user accounts
 
-If you are setting up the project fresh from a clone and you are using the build in inventory authentification management, you will need to create a user first in order to access the database. 
+If you are setting up the project for the very first time and you are using the build in inventory authentification management, you will need to create an initial user first, in order to be able to access the database. 
 
-Authentification is currently managed via a set of CLI admin functions the can be
-called with the following script:
+User management is currently managed as part of a set of CLI admin functions that can be called with the following module:
 
 ```bash
 cd backend/src
@@ -166,7 +147,7 @@ At this point you can start the server manually with ```bun run build/index.js``
 
 #### Run frontend manually with bun
 
-Run or build the frontend application
+Build and run the frontend application in development mode:
 
 ```bash
 cd app
@@ -216,11 +197,13 @@ List services that use port 5000:
 sudo lsof -i -P -n | grep 5000
 ```
 
+Note: if using the installer, all ports used by the system will be mapped to ports found open on the host machine (within a sensible interval)
+
 ## Inventory Service Applications
 
 :construction: Under Construction :construction:
 
-This section will explain how to set up additional inventory services, such as the camera and printer server. Note that these services do not need to be set up on the same host machine as the database itself. They are intended to be set up on a terminal in the archive or warehouse.
+This section will explain how to set up additional inventory services, such as the camera and printer server. Note that these services do not need to be set up on the same host machine as the database itself. They are intended to be set up on a terminal in the archive or warehouse. Inventory services can be run on any machines with a network connection to the inventory server. They are able to dynamically register with the server and provide additional services, such as QR code scanning or label printing.
 
 ### 2.2 Configure Camera Server
 
@@ -240,10 +223,11 @@ for the short period the print command is sent.
 
 # Hardware Requirements
 
-Inventory is intended to run on any operating system and with any webcam connected to the system that hosts the front-end server. It is developped and tested with a mini PC but could also be hosted on a raspberry Pi in a minimal configuration.
-The current label printer interface only works with Niimbot printers (tested only with D110). Inventory was developped and tested with the following hardware:
+Inventory is fully containerised and hence can be run on any system able to run podman containers.
 
-- BMAX mini PC (to run UI server and database) running Ubuntu 24.04.1
+It was developped and tested with the following hardware:
+
+- BMAX mini PC (to run UI server and database) running Ubuntu Desktop 24.04.1
 - Logitec C270 webcam (item imaging and QR code detection)
 - Niimbot D110 label printer (to print item QR code labels)
 
