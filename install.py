@@ -256,13 +256,15 @@ def run_config_setup() -> bool:
       PROJECT_ROOT / "docker-compose.yml",
     )
 
+  # NOTE: This file won't be used by the frontend server and will only be
+  # created to allow running the frontend manually in development mode.
   if (PROJECT_ROOT / "app" / ".env").exists():
     warning("Skip regenerating app/.env. File already set up.")
   else:
     render_template(
       "frontend.env.jinja",
       {
-        "host_address": INVENTORY_SERVER_CONTAINER_NAME,
+        "host_address": host_ip_address,
         "inventory_server_port": 5000,
       },
       PROJECT_ROOT / "app" / ".env",

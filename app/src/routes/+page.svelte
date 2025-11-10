@@ -1810,17 +1810,16 @@
     </form>
   {:else if showScannerPanel}
 
-      <!-- TODO work in progress -->
-    <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+    <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
       <Label for="name" class="mb-2 block p-2">Camera</Label>
       <p class="text-red-600">{stream_error}</p>
       {#if !stream_error}
-        <div class="flex flex-col items-center">
+        <div class="flex items-center justify-center w-full h-full">
           <video
             bind:this={videoEl}
             autoplay
             playsinline
-            class="rounded-lg border border-gray-400 w-80"
+            class="rounded-lg w-full h-full max-h-[80vh] object-contain"
           >
             <track kind="captions" />
           </video>
