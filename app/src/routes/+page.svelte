@@ -3,7 +3,7 @@
   // @ts-nocheck
 
   import { page } from "$app/state";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import * as XLSX from "xlsx";
   import {
     CircleX,
@@ -58,6 +58,7 @@
     MinusOutline,
     PlusOutline,
   } from "flowbite-svelte-icons";
+  import jsQR from "jsqr";
 
   let { user } = $props();
 
@@ -115,7 +116,6 @@
 
       const data = await res.json();
       user_privilege = data.privilege;
-      console.log(user_privilege);
     } catch (err) {
       console.error("Failed to load user privilege level:", err);
     }
@@ -227,6 +227,12 @@
     showAddItemPanel = false;
     showScannerPanel = true;
 
+    if (showScannerPanel) {
+      startCamera();
+    } else {
+      stopQrScanner();
+    }
+
     console.log("Camera address:", cameraServerUrl);
   };
 
@@ -236,6 +242,8 @@
   let number_items = $state(1);
   let image = $state("");
   let tags = $state("");
+
+  let err = "";
 
   const media_url = `/api/media/`;
 
@@ -258,10 +266,13 @@
 
   let selectedFile = $state(null);
   
-  // TODO add back when ready 
-  // let videoEl = $state(null);
-  // let stream = null;
-  // let stream_error = $state(null);
+  // Variables for dynamic client side video stream
+  let videoEl = $state(null);
+  let stream = null;
+  let stream_error = $state(null);
+  let canvasEl = $state(null);
+  let scanning = $state(false);
+  let scanAnimationFrame = $state(null);
 
   function onDrop(event) {
     event.preventDefault();
@@ -696,82 +707,120 @@
     selectedItemId = selectedItemId === itemId ? null : itemId;
   }
 
-  // function capturePhoto() {
-  //   const canvas = document.createElement("canvas");
-  //   canvas.width = videoEl.videoWidth;
-  //   canvas.height = videoEl.videoHeight;
-  //   const ctx = canvas.getContext("2d");
-  //   ctx.drawImage(videoEl, 0, 0);
-  //   const dataUrl = canvas.toDataURL("image/png");
-  //   console.log("Captured photo:", dataUrl);
-  //   // TODO Here `dataUrl` will need to be sent the backend
-  // }
+  function parseQRCodeData(qrString) {
+    if (!qrString || typeof qrString !== "string") return null;
 
-  // onDestroy(() => {
-  //   // Stop the stream when the component is destroyed
-  //   if (stream) stream.getTracks().forEach((track) => track.stop());
-  // });
+    const parts = qrString.split(";").map(p => p.trim());
 
-  onMount(async () => {
-    // Ask for permission to use the device camera
-    // try {
-    //   stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    //   videoEl.srcObject = stream;
-    // } catch (err) {
-    //   console.error("Failed to access camera:", err);
-    //   stream_error = "Unable to access camera — check permissions.";
-    // }
-    // --- Update the camera server URL ---
-    try {
-      const res = await fetch("/api/camera_url");
-      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-      const data = await res.json();
+    // Expect exactly 3 parts: [ "bigml2", "id", "9" ]
+    if (parts.length !== 3) return null;
 
-      if (data.url) {
-        cameraServerUrl = "http://" + data.url;
-        console.log("📷 Camera URL:", cameraServerUrl);
-      } else {
-        error = "No camera registered";
-      }
-    } catch (err) {
-      console.error("Error fetching camera URL:", err);
-      error = "Failed to connect to inventory server";
+    const [prefix, key, id] = parts;
+
+    // Validate structure
+    if (prefix !== "bigml2" || key !== "id" || isNaN(Number(id))) {
+      console.warn("Invalid QR structure:", parts);
+      return null;
     }
 
+    return Number(id); // return numeric ID
+  }
 
-    // Set up event listener to update frontend whenever a QR code is
-    // scanned.
-    const eventSource = new EventSource(`/api/qr_events`);
+  async function startQrScanner() {
+    if (!videoEl) return;
 
-    // Mark the callback as async to allow await
-    eventSource.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
+    // Prepare canvas for frame capture
+    if (!canvasEl) {
+      canvasEl = document.createElement("canvas");
+    }
 
-      if (data.itemId) {
-        let itemId = data.itemId;
+    const ctx = canvasEl.getContext("2d");
 
-        // Fetch the inventory item data from the database
-        const ret = await fetch(`/api/get_item`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ itemId }),
-        });
+    scanning = true;
+    stream_error = null;
 
-        if (!ret.ok) {
-          error_msg = "Retrieving inventory item failed";
-        } else {
-          error_msg = "";
-          let item = await ret.json();
-          selectedItemId = item.id;
-          hide = true;
+    const scan = () => {
+      if (!scanning || !showScannerPanel) return; // stop if drawer is closed
+
+      // Match canvas size to video
+      canvasEl.width = videoEl.videoWidth;
+      canvasEl.height = videoEl.videoHeight;
+
+      // Draw current frame
+      ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+      const imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+
+      const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+      if (qrCode) {
+        const itemId = parseQRCodeData(qrCode.data);
+        if (!itemId) {
+          console.warn("QR code format invalid — ignoring.");
+          requestAnimationFrame(scan);
+          return;
         }
+        console.log("✅ Valid QR Code found, item with ID ", itemId);
+        
+        // Stop scanning
+        scanning = false;
+
+        // Automatically close drawer
+        showScannerPanel = false;
+
+        // Find matching item
+        const matchedItem = items.find(item => item.id === itemId);
+        if (matchedItem) {
+          selectedItemId = matchedItem.id;
+          console.log("📦 Opening item card:", matchedItem.id);
+
+          // Hide drawer
+          showLeftDrawer = false;
+          // Show extended item card
+          const index = items.findIndex((i) => i.id === itemId);
+          item = items[index];
+        } else {
+          console.warn("QR code valid but no matching item found.");
+          stream_error = "Item not found in inventory. ID: " + itemId;
+        }
+
+        return;
       }
+
+      scanAnimationFrame = requestAnimationFrame(scan);
     };
 
-    eventSource.onerror = (err) => {
-      console.error("SSE error:", err);
-    };
+    scanAnimationFrame = requestAnimationFrame(scan);
+  }
+
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      videoEl.srcObject = stream;
+      await videoEl.play();
+      startQrScanner(); // start scanning after camera starts
+    } catch (err) {
+      console.error("Failed to access camera:", err);
+      stream_error = "Unable to access camera — check camera connection and permissions.";
+    }
+  }
+
+  function stopQrScanner() {
+    scanning = false;
+    cancelAnimationFrame(scanAnimationFrame);
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+  }
+
+  onDestroy(() => {
+    stopQrScanner();
+  });
+
+  onMount(async () => {
+    // Do nothing
   });
 </script>
 
@@ -1071,15 +1120,15 @@
                             <Select
                               class="mt-2"
                               items={categories}
-                              bind:value={item.material}
+                              bind:value={item.item_type}
                             />
                           </Label>
                         {:else}
                           <Label
                             class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
                           >
-                            <span class="text-red-500">Material: </span>
-                            {item.material}</Label
+                            <span class="text-red-500">Product Type: </span>
+                            {item.item_type}</Label
                           >
                         {/if}
                       </div>
@@ -1105,6 +1154,26 @@
                         {/if}
                       </div>
 
+                      <div>
+                        <!-- svelte-ignore attribute_quoted -->
+                        {#if enableEdit}
+                          <FloatingLabelInput
+                            clearable
+                            variant="outlined"
+                            bind:value={item.material}
+                            class="bg-white dark:bg-slate-900 rounded-lg"
+                            >Material</FloatingLabelInput
+                          >
+                        {:else}
+                          <Label
+                            for="name"
+                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                          >
+                            <span class="text-red-500">Material: </span>
+                            {item.material}
+                          </Label>
+                        {/if}
+                      </div>
 
                       <div>
                         <!-- svelte-ignore attribute_quoted -->
@@ -1740,31 +1809,12 @@
       {/if}
     </form>
   {:else if showScannerPanel}
-    <div class="flex items-center justify-between">
-      <h5
-        id="drawer-label"
-        class="mb-6 inline-flex items-center text-base font-semibold text-gray-500 uppercase dark:text-gray-400"
-      >
-        Scanner
-      </h5>
-    </div>
-    <div class="page-container">
-      <label
-        for="id"
-        class="mb-6 inline-flex items-center text-base text-gray-500 dark:text-gray-400"
-      >
-        Place QR code in front of the scanner camera!
-      </label>
-      <img
-        src={cameraServerUrl}
-        alt="Starting Camera Stream ... "
-        class="text-slate-200"
-      />
-      <!-- // TODO work in progress get access and embed device camera createReadStream
-      // Most likely will require hosting over https first
-      {#if stream_error}
-        <p class="text-red-600">{stream_error}</p>
-      {:else}
+
+      <!-- TODO work in progress -->
+    <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+      <Label for="name" class="mb-2 block p-2">Camera</Label>
+      <p class="text-red-600">{stream_error}</p>
+      {#if !stream_error}
         <div class="flex flex-col items-center">
           <video
             bind:this={videoEl}
@@ -1774,14 +1824,8 @@
           >
             <track kind="captions" />
           </video>
-          <button
-            class="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
-            onclick={capturePhoto}
-          >
-            📸 Capture
-          </button>
         </div>
-      {/if} -->
+      {/if}
     </div>
   {/if}
 </Drawer>
