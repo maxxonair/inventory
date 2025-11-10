@@ -955,7 +955,7 @@
                             variant="outlined"
                             bind:value={item.manufacturer}
                             class="bg-white dark:bg-slate-900 rounded-lg"
-                            >manufacturer</FloatingLabelInput
+                            >Manufacturer</FloatingLabelInput
                           >
                         {:else}
                           <Label
@@ -976,16 +976,26 @@
                             variant="outlined"
                             bind:value={item.manufacturer_link}
                             class="bg-white dark:bg-slate-900 rounded-lg"
-                            >manufacturer link</FloatingLabelInput
+                            >Manufacturer Link</FloatingLabelInput
                           >
                         {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Manufacturer Link: </span>
-                            {item.manufacturer_link}
-                          </Label>
+                          {#if item.manufacturer_link}
+                            <a class="font-medium hover:underline justify-center" href={item.manufacturer_link} target="_blank" rel="noopener noreferrer">
+                              <Label
+                                for="name"
+                                class="mb-2 p-2 flex justify-center text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                              >
+                                <span class="text-orange-300">{item.name} Product Page </span>
+                              </Label>
+                            </a>
+                          {:else}
+                            <Label
+                              for="name"
+                              class="mb-2 p-2 flex justify-center text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                            >
+                              <span class="text-gray-500">Product Page N/A</span>
+                            </Label>
+                          {/if}
                         {/if}
                       </div>
 
@@ -997,7 +1007,7 @@
                             variant="outlined"
                             bind:value={item.manufacturer_location}
                             class="bg-white dark:bg-slate-900 rounded-lg"
-                            >manufacturer location</FloatingLabelInput
+                            >Manufacturer Location</FloatingLabelInput
                           >
                         {:else}
                           <Label
@@ -1082,14 +1092,14 @@
                             variant="outlined"
                             bind:value={item.product_use}
                             class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Product use</FloatingLabelInput
+                            >Product Use</FloatingLabelInput
                           >
                         {:else}
                           <Label
                             for="name"
                             class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
                           >
-                            <span class="text-red-500">Product use: </span>
+                            <span class="text-red-500">Product Use: </span>
                             {item.product_use}
                           </Label>
                         {/if}
@@ -1104,14 +1114,14 @@
                             variant="outlined"
                             bind:value={item.color}
                             class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Product color</FloatingLabelInput
+                            >Product Color</FloatingLabelInput
                           >
                         {:else}
                           <Label
                             for="name"
                             class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
                           >
-                            <span class="text-red-500">Product color: </span>
+                            <span class="text-red-500">Product Color: </span>
                             {item.color}
                           </Label>
                         {/if}
@@ -1146,7 +1156,7 @@
                             variant="outlined"
                             bind:value={item.location}
                             class="bg-white dark:bg-slate-900 rounded-lg"
-                            >storage location</FloatingLabelInput
+                            >Storage Location</FloatingLabelInput
                           >
                         </div>
                       {:else}
@@ -1155,7 +1165,7 @@
                             for="storage"
                             class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
                           >
-                            <span class="text-red-500">Storage location: </span>
+                            <span class="text-red-500">Storage Location: </span>
                             {item.location}</Label
                           >
                         </div>
@@ -1169,7 +1179,7 @@
                             variant="outlined"
                             bind:value={item.tags}
                             class="bg-white dark:bg-slate-900 rounded-lg"
-                            >tags</FloatingLabelInput
+                            >Tags</FloatingLabelInput
                           >
                         {:else}
                           <Label
