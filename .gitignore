@@ -36,6 +36,9 @@ app/.svelte-kit
 app/build
 node_modules
 
+# --- [KUMA]
+uptime-kuma
+
 # --- [FLASK]
 # Don't commit any session data
 **/flask_session/*

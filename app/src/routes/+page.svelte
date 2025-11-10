@@ -1259,9 +1259,11 @@
                       {#if enableEdit}
                         <Button
                           onclick={() => updateItem(selectedItemId, item)}
+                          color="green"
                         >
                           <CheckCircleOutline
                             type="print-button"
+                            color="green"
                             class="me-2 h-5 w-5"
                           /> confirm edit
                         </Button>
@@ -1696,7 +1698,7 @@
         </div>
 
         <div class="sticky bottom-0 left-0 flex w-full justify-center space-x-4 p-4 bg-white dark:bg-gray-800 border-t">
-          <Button type="submit" class="w-full" onclick={addItem}
+          <Button type="submit" color="green" class="w-full" onclick={addItem}
             >add item</Button
           >
           <Button type="camera" class="w-full" onclick={toggleCameraVisibility}

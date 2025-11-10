@@ -117,6 +117,17 @@ This allows to:
 Note: This functionality is not protected and should hence be accessible only to
 system administrators on the backend server.
 
+#### 2.3 (Optional) Set up kuma uptime
+
+If there is no service monitoring already in place it is recommended to use [kuma uptime](https://github.com/louislam/uptime-kuma) to monitor the health status of the application. Kuma as well runs as a podman container and can be installed running the scripts/setup_kuma_uptime.sh script. Note kuma by default is set to use docker instead of podman so you will need to replace the image link in the uptime-kuma docker-compose file before running the container:
+
+```
+services:
+  uptime-kuma:
+    image: docker.io/louislam/uptime-kuma:2
+```
+
+
 ### User Privileges
 
 Users must be created with a privelege level defined.
