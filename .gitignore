@@ -45,4 +45,7 @@ uptime-kuma
 
 # --- [MISC]
 **.code-workspace
-**.vscode
+**.vscod
+
+# --- [TRAEFIK]
+traefik/certs

@@ -1,0 +1,21 @@
+# traefik/dynamic_conf.yml
+tls:
+  certificates:
+    - certFile: "/certs/devmachine.crt"
+      keyFile: "/certs/devmachine.key"
+
+http:
+  routers:
+    inventory_app:
+      rule: "Host(`devmachine.lan`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: selfsigned
+      service: inventory_service
+
+  services:
+    inventory_service:
+      loadBalancer:
+        servers:
+          - url: "http://inventory-app:3000"

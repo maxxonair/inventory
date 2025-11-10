@@ -44,72 +44,25 @@ services:
       - "traefik.http.routers.inventory_app.rule=Host(`{{ host_ip_address }}`)"
       - "traefik.http.routers.inventory_app.entrypoints=websecure"
       - "traefik.http.routers.inventory_app.tls=true"
+          - "traefik.http.routers.inventory_app.tls.certresolver=selfsigned"
       - "traefik.http.services.inventory_app.loadbalancer.server.port=3000"
     ports:
       - "{{ inventoryapp_port }}:3000"
 
   traefik:
-    image: docker.io/traefik:v3.1
+    image: docker.io/traefik:v3.6
     command:
-      - "--api.dashboard=true"
-      - "--api.insecure=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--providers.podman=true"
-      - "--providers.podman.endpoint=unix:///run/podman/podman.sock"
-      - "--providers.podman.exposedbydefault=false"
-      - "--providers.podman.watch=true"
-      - "--certificatesresolvers.selfsigned.acme.tlschallenge=true"
-      - "--certificatesresolvers.selfsigned.acme.email=admin@devm.lan"
-      - "--certificatesresolvers.selfsigned.acme.storage=/acme.json"
-      - "--log.level=DEBUG"
+      - "--configFile=/etc/traefik/traefik.yml"
     ports:
-      - "8081:80"
-      - "8443:443"
+      - "8081:80"  # -> http
+      - "8443:443" # -> https
     volumes:
-      - "/run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro"  # allow Traefik to detect containers
-      - "./letsencrypt:/letsencrypt"
-      # - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
-      # - "./traefik/acme.json:/acme.json"
-      # - "./traefik/certs:/certs"
+      - "/run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro" 
+      - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
+      - "./traefik/dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro"
+      - "./traefik/acme.json:/acme.json"
+      - "./traefik/certs:/certs"
     restart: always
-
-  inventory_camera:
-    image: inventorycamera:latest
-    container_name: inventory-camera
-    restart: unless-stopped
-    ports:
-      - "5050:5050"
-    devices:
-      - "/dev/video0:/dev/video0"   
-    environment:
-      - PULSE_SERVER=unix:/tmp/pulseaudio.socket
-    volumes:
-      - ${HOME}/.config/pulse/cookie:/root/.config/pulse/cookie
-      - /run/user/${UID}/pulse/native:/tmp/pulseaudio.socket
-    group_add:
-      - audio
-      - video
-    privileged: true 
-    networks:
-      - invnet
-
-  inventory_printer:
-    image: inventoryprinter:latest
-    container_name: inventory-printer
-    restart: unless-stopped
-    ports:
-      - "5100:5100" 
-    volumes:
-      - /var/run/dbus:/var/run/dbus
-    devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0 
-      - /dev/hci0:/dev/hci0 
-    environment:
-      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
-    privileged: true 
-    networks:
-      - invnet
 
 networks:
   invnet:
