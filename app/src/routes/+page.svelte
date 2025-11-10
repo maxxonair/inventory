@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	// import { createReadStream } from 'node:fs';
   // @ts-nocheck
 
@@ -228,7 +228,7 @@
     showScannerPanel = true;
 
     if (showScannerPanel) {
-      startCamera();
+      startQrCamera();
     } else {
       stopQrScanner();
     }
@@ -434,23 +434,51 @@
   }
 
   async function captureImage() {
-    const res = await fetch(`/api/capture_image`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
-    });
+    if (!videoEl) {
+      camera_error = "Video element not ready!";
+      return;
+    }
 
-    if (!res.ok) {
-      camera_error = "Image capture failed!";
-    } else {
-      image = await res.json();
-      imageUpdated = true;
-      imageUrl = `${media_url}/${image}.png`;
-      showCameraStream = false;
-      showStaticImg = true;
+    try {
+      // 1. Create a canvas to draw the video frame
+      const canvas = document.createElement("canvas");
+      canvas.width = videoEl.videoWidth;
+      canvas.height = videoEl.videoHeight;
+
+      console.log("Canvas created with size:", canvas.width, canvas.height);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Failed to get canvas context");
+
+      // 2. Draw current video frame onto the canvas
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+      // 3. Convert canvas to blob
+      const blob: Blob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
+
+      // 4. Send blob to backend
+      const formData = new FormData();
+      formData.append("file", blob, "capture.png"); 
+
+      const res = await fetch("/api/store_media_image", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        camera_error = "Image capture failed!";
+      } else {
+        const data = await res.json();
+        imageUrl = `${media_url}/${data.hash}.png`; 
+        imageUpdated = true;
+        showCameraStream = false;
+        showStaticImg = true;
+      }
+    } catch (err) {
+      console.error(err);
+      camera_error = "Failed to capture image!";
     }
   }
 
@@ -458,9 +486,11 @@
     if (showCameraStream == true) {
       showCameraStream = false;
       showStaticImg = false;
+      stopCamera();
     } else {
       showCameraStream = true;
       showStaticImg = false;
+      startCamera();
     }
   }
 
@@ -733,7 +763,7 @@
     if (!canvasEl) {
       canvasEl = document.createElement("canvas");
     }
-
+    console.log('Enable QR scanning')
     const ctx = canvasEl.getContext("2d");
 
     scanning = true;
@@ -799,7 +829,20 @@
       });
       videoEl.srcObject = stream;
       await videoEl.play();
-      startQrScanner(); // start scanning after camera starts
+    } catch (err) {
+      console.error("Failed to access camera:", err);
+      stream_error = "Unable to access camera — check camera connection and permissions.";
+    }
+  }
+
+  async function startQrCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      videoEl.srcObject = stream;
+      await videoEl.play();
+      startQrScanner();
     } catch (err) {
       console.error("Failed to access camera:", err);
       stream_error = "Unable to access camera — check camera connection and permissions.";
@@ -808,6 +851,15 @@
 
   function stopQrScanner() {
     scanning = false;
+    cancelAnimationFrame(scanAnimationFrame);
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    console.log('Disable QR scanning')
+  }
+
+  function stopCamera() {
     cancelAnimationFrame(scanAnimationFrame);
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
@@ -1550,15 +1602,26 @@
     <form action="#" class="mb-2">
       {#if showCameraStream}
         <div class="mb-6 flex flex-col items-center p-2 col-span-1">
-          <Label for="name" class="mb-2 block p-2">Record item image</Label>
-          <Button class="w-full border mb-2 " onclick={captureImage}
+          <Label for="name" class="mb-2 block p-2">Capture Product Image</Label>
+          <!-- TODO : bug fix image capture routine and enable button -->
+          <Button class="w-full border mb-2 " onclick={captureImage} disabled
             >capture image</Button
           >
-          <img
-            src={`${cameraServerUrl}`}
-            alt="Opening camera stream ..."
-            class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2"
-          />
+          <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
+            <p class="text-red-600">{stream_error}</p>
+            {#if !stream_error}
+              <div class="flex items-center justify-center w-full h-full">
+                <video
+                  bind:this={videoEl}
+                  autoplay
+                  playsinline
+                  class="rounded-lg w-full h-full max-h-[80vh] object-contain"
+                >
+                  <track kind="captions" />
+                </video>
+              </div>
+            {/if}
+          </div>
           <Button
             color="light"
             class="w-full mb-2"
@@ -1811,7 +1874,7 @@
   {:else if showScannerPanel}
 
     <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
-      <Label for="name" class="mb-2 block p-2">Camera</Label>
+      <Label for="name" class="mb-2 block p-2">Hold the QR label in front of the camera!</Label>
       <p class="text-red-600">{stream_error}</p>
       {#if !stream_error}
         <div class="flex items-center justify-center w-full h-full">

@@ -231,6 +231,8 @@ class InventoryServer:
 
     @self.app.route("/store_media_image", methods=["POST"])
     def store_media_image():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
       file = request.files.get("file")
       if file:
         # Read the file bytes into memory
@@ -252,12 +254,6 @@ class InventoryServer:
         }, 200
 
       return {"status": "error", "message": "No file provided"}, 400
-
-    @self.app.route("/capture_image", methods=["POST"])
-    def capture_image():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      # TODO missing action
 
     @self.app.route("/print_label", methods=["POST"])
     def print_label():
