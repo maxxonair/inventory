@@ -247,8 +247,6 @@
 
   const media_url = `/api/media/`;
 
-  let imageUrl = $state("/api/media/");
-
   let description = $state("");
   let item_type = $state("");
   let location = $state("");
@@ -301,7 +299,6 @@
         if (response.ok) {
           const result = await response.json();
           image = result.image;
-          imageUrl = `/api/media/${image}.png`;
           showStaticImg = true;
           console.log("Upload successful:", result);
         } else {
@@ -330,7 +327,6 @@
         if (response.ok) {
           const result = await response.json();
           image = result.image;
-          imageUrl = `${media_url}/${image}.png`;
           showStaticImg = true;
           console.log("Upload successful:", result);
         } else {
@@ -364,12 +360,14 @@
   }
 
   function toggleEdit() {
-    imageUrl = "";
-    if (!enableEdit) {
-      imageUpdated = false;
-    }
     enableEdit = !enableEdit;
     showCameraStream = false;
+  }
+
+
+  function cancelEdit() {
+    imageUpdated = false;
+    toggleEdit();
   }
 
   const closeErrorAlertAlert = () => {
@@ -445,7 +443,6 @@
       canvas.width = videoEl.videoWidth;
       canvas.height = videoEl.videoHeight;
 
-      console.log("Canvas created with size:", canvas.width, canvas.height);
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Failed to get canvas context");
 
@@ -459,19 +456,19 @@
 
       // 4. Send blob to backend
       const formData = new FormData();
-      formData.append("file", blob, "capture.png"); 
+      formData.append("avatar", blob, "capture.png");
 
-      const res = await fetch("/api/store_media_image", {
+      const response = await fetch(`/api/image_upload`, {
         method: "POST",
         body: formData,
-        credentials: "include",
       });
 
-      if (!res.ok) {
+
+      if (!response.ok) {
         camera_error = "Image capture failed!";
       } else {
-        const data = await res.json();
-        imageUrl = `${media_url}/${data.hash}.png`; 
+        const data = await response.json();
+        image = data.image;
         imageUpdated = true;
         showCameraStream = false;
         showStaticImg = true;
@@ -488,6 +485,8 @@
       showStaticImg = false;
       stopCamera();
     } else {
+      // Reset flag to track if a product image was updated
+      imageUpdated = false;
       showCameraStream = true;
       showStaticImg = false;
       startCamera();
@@ -1013,11 +1012,21 @@
                       <Button class="w-full border mb-2 " onclick={captureImage}
                         >capture image</Button
                       >
-                      <img
-                        src={`${cameraServerUrl}`}
-                        alt="Opening camera stream ..."
-                        class="text-slate-800 dark:text-slate-400 border rounded-lg mb-2"
-                      />
+                      <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
+                        <p class="text-red-600">{stream_error}</p>
+                        {#if !stream_error}
+                          <div class="flex items-center justify-center w-full h-full">
+                            <video
+                              bind:this={videoEl}
+                              autoplay
+                              playsinline
+                              class="rounded-lg w-full h-full max-h-[80vh] object-contain"
+                            >
+                              <track kind="captions" />
+                            </video>
+                          </div>
+                        {/if}
+                      </div>
                       <Button
                         color="light"
                         class="w-full mb-2"
@@ -1127,7 +1136,7 @@
                             >Number of Items</Label
                           >
                           <div
-                            class="relative flex max-w-[8rem] items-center mb-6"
+                            class="relative max-w-[12rem] min-w-[8rem] items-center mb-6"
                           >
                             <ButtonGroup>
                               <Button
@@ -1410,7 +1419,7 @@
                         <Button type="camera" onclick={toggleCameraVisibility}>
                           open camera
                         </Button>
-                        <Button color="light" onclick={() => toggleEdit()}>
+                        <Button color="light" onclick={() => cancelEdit()}>
                           <CloseOutline
                             type="print-button"
                             class="me-2 h-5 w-5"
@@ -1603,8 +1612,7 @@
       {#if showCameraStream}
         <div class="mb-6 flex flex-col items-center p-2 col-span-1">
           <Label for="name" class="mb-2 block p-2">Capture Product Image</Label>
-          <!-- TODO : bug fix image capture routine and enable button -->
-          <Button class="w-full border mb-2 " onclick={captureImage} disabled
+          <Button class="w-full border mb-2 " onclick={captureImage}
             >capture image</Button
           >
           <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
