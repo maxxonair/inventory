@@ -9,7 +9,7 @@ http:
         maxRequestBodyBytes: 10485760  # Increase upload limit to 10MB
   routers:
     inventory_app:
-      rule: "Host(`devmachine.lan`)"
+      rule: "Host(`{{ host_url }}`)"
       entryPoints:
         - websecure
       tls:
@@ -17,7 +17,7 @@ http:
       service: inventory_service
 
     inventory_api:
-      rule: "Host(`devmachine.lan`) && PathPrefix(`/api`)"
+      rule: "Host(`{{ host_url }}`) && PathPrefix(`/api`)"
       entryPoints:
         - websecure
       tls:

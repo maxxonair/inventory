@@ -299,6 +299,7 @@
         if (response.ok) {
           const result = await response.json();
           image = result.image;
+          imageUpdated = true;
           showStaticImg = true;
           console.log("Upload successful:", result);
         } else {
@@ -327,6 +328,7 @@
         if (response.ok) {
           const result = await response.json();
           image = result.image;
+          imageUpdated = true;
           showStaticImg = true;
           console.log("Upload successful:", result);
         } else {
@@ -658,6 +660,10 @@
     // If image not updated -> keep item.image
     if (!imageUpdated) {
       image = item.image;
+    } else {
+      // Otherwise change flag back to false
+      item.image = image;
+      imageUpdated = false;
     }
 
     if (!name) {
@@ -987,16 +993,16 @@
               <div class="mb-6 grid gap-6 md:grid-cols-2">
                 <div class="mb-6 flex flex-col items-center p-2 col-span-1">
                   <div class="flex items-center justify-center">
-                    {#if !imageUpdated}
+                    {#if imageUpdated}
                       <img
-                        src={`${media_url}${item.image}.png`}
-                        alt={item.image}
-                        class="w-full border rounded-lg border-slate-900"
+                      src={`${media_url}${image}.png`}
+                      alt={image}
+                      class="w-full border rounded-lg border-slate-900"
                       />
                     {:else}
                       <img
-                        src={`${media_url}${image}.png`}
-                        alt={image}
+                        src={`${media_url}${item.image}.png`}
+                        alt={item.image}
                         class="w-full border rounded-lg border-slate-900"
                       />
                     {/if}

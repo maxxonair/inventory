@@ -241,19 +241,19 @@ def run_config_setup() -> bool:
     host_ip_address = input("Enter host address :  ")
   info(f"    Host IP address: {host_ip_address}")
 
-  # -- Create docker-compose.yml for all containers --
-  if (PROJECT_ROOT / "docker-compose.yml").exists():
-    warning("Skip regenerating docker-compose.yml. File already set up.")
+  # -- Create compose.yml for all containers --
+  if (PROJECT_ROOT / "compose.yml").exists():
+    warning("Skip regenerating compose.yml. File already set up.")
   else:
     render_template(
-      "docker-compose.yml.jinja",
+      "compose.yml.jinja",
       {
         "database_port": database_server_port,
         "inventory_server_port": inventory_server_port,
         "host_ip_address": host_ip_address,
         "inventoryapp_port": inventoryapp_server_port,
       },
-      PROJECT_ROOT / "docker-compose.yml",
+      PROJECT_ROOT / "compose.yml",
     )
 
   # NOTE: This file won't be used by the frontend server and will only be
