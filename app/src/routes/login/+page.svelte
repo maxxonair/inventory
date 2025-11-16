@@ -1,11 +1,12 @@
 <script>
+	import { error } from '@sveltejs/kit';
   import { goto } from "$app/navigation";
   import { fetchUser } from "$lib/stores/auth.js";
   import {  FloatingLabelInput, Button} from 'flowbite-svelte';
 
   let username = "";
   let password = "";
-  let error = "";
+  let error_msg = $state("");
 
   async function login() {
     const res = await fetch(`api/login`, {
@@ -18,10 +19,11 @@
     });
 
     if (res.ok) {
+      error_msg = ""
       await fetchUser();
       goto("/");
     } else {
-      error = "Invalid credentials";
+      error_msg = res.statusText || "Login failed";
     }
   }
 </script>
@@ -64,5 +66,6 @@
             class=" w-full">
           Login
     </Button>
+    <p class="mt-4 w-full flex justify-center text-red-600">{error_msg}</p>
   </form>
 </div>

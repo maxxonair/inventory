@@ -59,7 +59,7 @@
     PlusOutline,
   } from "flowbite-svelte-icons";
   import jsQR from "jsqr";
-
+  import { printQR } from '$lib/niimbot';
   let { user } = $props();
 
   /* ------------------  Main Table function ----------------------- */
@@ -495,6 +495,11 @@
     }
   }
 
+  async function handlePrintQr(item_id) {
+    // Handle printing QR code for the given item ID
+    await printQR(item_id);
+  }
+
   async function downloadCSV() {
     const itemRes = await fetch(`/api/items`, {
       credentials: "include",
@@ -706,19 +711,6 @@
         showErrorAlert = false;
         toggleEdit();
       }
-    }
-  }
-
-  async function printLabel(itemId) {
-    const res = await fetch(`/api/print_label`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ itemId }),
-    });
-
-    if (!res.ok) {
-      error = "Printing Label failed";
     }
   }
 
@@ -1485,7 +1477,7 @@
                           </Button>
                         {/if}
                         <Button
-                          onclick={() => printLabel(selectedItemId)}
+                          onclick={() => handlePrintQr(selectedItemId)}
                           class="mb-4"
                         >
                           <PrinterOutline

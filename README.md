@@ -2,7 +2,7 @@
 inventory
 </h1>
 <p align="center">
-A physical asset management tool
+A minimal physical asset management tool
 </p>
 
 ### In Short
@@ -168,6 +168,29 @@ cd app
 bun run dev
 ```
 
+## Browser Requirements
+
+:warning: The printer connection requires Web Bluetooth which only works with the following browsers:
+
+| Platform                     | Supported?                  |
+| ---------------------------- | --------------------------- |
+| **Chrome (desktop)**         | ✅ Yes                       |
+| **Chrome on Android**        | ✅ Yes                       |
+| **Edge (Chromium)**          | ⚠️ Partial                  |
+| **Firefox**                  | ❌ No                        |
+| **Safari (Mac/iOS)**         | ❌ No                        |
+| **Any browser in an iframe** | ❌ No (unless special flags) |
+| **On http:// URLs**          | ❌ No                        |
+| **On localhost**             | ✅ Yes                       |
+
+### Enable Web-Bluetooth
+
+For the printer connection Web-Bluetooth needs to be enabled in Chrome:
+
+```bash
+chrome://flags/#enable-web-bluetooth
+```
+
 ## Details 
 
 ### Item Data
@@ -191,53 +214,11 @@ each item in the inventory.
 | **Date Added**           | Date when the item has been added to the database. Automatically handled in the background.                                                                |
 | **Tags**                 | Tags to identify item. Tags should be separated by a semicolon. This offers a flexible way to make an item easily searchable by customised tags.                                                                                             |
 | **Type**                 | Item Type                                                                                             |
+| **Details**     | Large text field to add misc. details  |
 | **Color**     | Product color  |
 | **Product Use**     | Product use  |
 | **Material**     | Product Material |
 | **Storage Location**     | Storage location of the item  |
-
-
-## Troubleshooting
-
-The inventory server container will use port 5000 which might conflict with
-running services on the host machine, leading to the following error
-when starting up the container:
-
-```bash
-Error response from daemon: driver failed programming external connectivity on endpoint inventory (307f628849c076718517dcaf96313d1df854eca239ef314272932975cd6f2396): Error starting userland proxy: listen tcp4 0.0.0.0:5000: bind: address already in use
-```
-
-In that case list services that use this port and shut them down
-
-List services that use port 5000:
-
-```bash
-sudo lsof -i -P -n | grep 5000
-```
-
-Note: if using the installer, all ports used by the system will be mapped to ports found open on the host machine (within a sensible interval)
-
-## Inventory Service Applications
-
-:construction: Under Construction :construction:
-
-This section will explain how to set up additional inventory services, such as the camera and printer server. Note that these services do not need to be set up on the same host machine as the database itself. They are intended to be set up on a terminal in the archive or warehouse. Inventory services can be run on any machines with a network connection to the inventory server. They are able to dynamically register with the server and provide additional services, such as QR code scanning or label printing.
-
-### 2.2 Configure Camera Server
-
-Configure the UI server via the backend/camera_config.py file. Default is to
-run the camera server on localhost. This requires to run the UI server and
-camera server on the same machine, but can be configured otherwise.
-
-### 2.3 Configure Printer Interface
-
-Configure the printer interface via the backend/printer_config.py file. Make sure
-the printers Mac address is configured correctly. Default settings can be
-kept when using the Niimbot D110, which is the only tested printer so far.
-
-Note: The printer needs to be on, bluetooth enabled on the machine that runs
-the UI server. The printer will not connect permanently, but only
-for the short period the print command is sent.
 
 # Hardware Requirements
 
@@ -249,84 +230,3 @@ It was developped and tested with the following hardware:
 - Logitec C270 webcam (item imaging and QR code detection)
 - Niimbot D110 label printer (to print item QR code labels)
 
-## Label Printer Setup
-
-To set up a new printer, the printer MAC address needs to be updated in
-backend/src/printer/printer_config.py
-
-```bash
-# Mac address of the Niimbot D110 printer used to print inventory labels
-niimbot_d110_inventory_mac_address = '04:08:04:01:31:04'
-
-```
-
-#### Set up Label Printer as a Service
-
-Create inventory_printer systemd unit
-
-```bash
-sudo vi /etc/systemd/system/inventory_printer.service
-```
-
-```
-[Unit]
-Description=Inventory Label Printer Application
-After=network.target
-
-[Service]
-User=<USER>
-WorkingDirectory=<PATH TO INVENTORY>/inventory/backend/src
-ExecStart=/home/<USER>/Documents/env/bin/uv run -m printer.PrinterServer
-Restart=always
-Environment=NODE_ENV=production PORT=5100
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start service:
-
-```bash
-sudo systemctl enable inventory_printer
-sudo systemctl start inventory_printer
-sudo systemctl status inventory_printer
-```
-
-## Audio 
-
-Required package on Ubuntu. Ensure the following package is installed. This is 
-required to be able to install the simpleaudio python package.
-
-Ubuntu
-
-```bash
-sudo apt install libasound2-dev
-```
-
-## zbar
-
-Required pacakges to run the camera server locally on the host machine outside 
-the container.
-
-Mac
-```bash
-brew install zbar
-```
-
-Ubuntu
-
-```bash
-sudo apt-get install libzbar0
-```
-
-CentOS/RHEL
-
-```bash
-sudo yum install zbar
-```
-
-Set environment variable 
-
-```bash
-export DYLD_LIBRARY_PATH=$(brew --prefix zbar)/lib:$DYLD_LIBRARY_PATH
-```
