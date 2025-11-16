@@ -59,8 +59,12 @@ class DataBaseClient:
     self.host = host
     self.port = port
 
-  def connect(self):
-    """Connect to the database server and ensure that the inventory database"""
+  def connect(self) -> bool:
+    """Connect to the database server and ensure that the inventory database
+
+    Returns:
+        bool: True if connection was successful, False otherwise
+    """
     try:
       # Establishing the connection with the database server
       self.connection = mysql.connector.connect(

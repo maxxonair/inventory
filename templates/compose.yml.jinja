@@ -31,7 +31,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - inventory-db
+      - inventory_db
 
   inventory_app:
     image: inventoryapp:latest
@@ -44,7 +44,7 @@ services:
       - "traefik.http.routers.inventory_app.rule=Host(`{{ host_ip_address }}`)"
       - "traefik.http.routers.inventory_app.entrypoints=websecure"
       - "traefik.http.routers.inventory_app.tls=true"
-          - "traefik.http.routers.inventory_app.tls.certresolver=selfsigned"
+      - "traefik.http.routers.inventory_app.tls.certresolver=selfsigned"
       - "traefik.http.services.inventory_app.loadbalancer.server.port=3000"
     ports:
       - "{{ inventoryapp_port }}:3000"

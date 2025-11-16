@@ -265,7 +265,7 @@ def run_config_setup() -> bool:
       "frontend.env.jinja",
       {
         "host_address": host_ip_address,
-        "inventory_server_port": 5000,
+        "inventory_server_port": inventory_server_port,
       },
       PROJECT_ROOT / "app" / ".env",
     )
@@ -305,9 +305,9 @@ def build_podman_images():
     "-t",
     "inventoryapp:latest",
     ".",
-    _out=sys.stdout.write,
-    _err=sys.stderr.write,
-    _tty_out=True,
+    # _out=sys.stdout.write,
+    # _err=sys.stderr.write,
+    # _tty_out=True,
   )
 
 
@@ -322,6 +322,25 @@ def compose_containers():
   info("[ COMPOSE INVENTORY APP CONTAINER ]")
 
   call("./scripts/compose_containers.sh", shell=True)
+
+
+def clean_config_files():
+  """Clean up generated configuration files."""
+  files_to_remove = [
+    PROJECT_ROOT / ".env",
+    PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py",
+    PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py",
+    PROJECT_ROOT / "backend" / "src" / "server" / "admin.py",
+    PROJECT_ROOT / "compose.yml",
+    PROJECT_ROOT / "app" / ".env",
+  ]
+
+  for file_path in files_to_remove:
+    if file_path.exists():
+      file_path.unlink()
+      info(f"Removed: {file_path}")
+    else:
+      warning(f"File not found, skipping: {file_path}")
 
 
 if __name__ == "__main__":
@@ -356,7 +375,28 @@ if __name__ == "__main__":
     action="store_true",
   )
 
+  parser.add_argument(
+    "-p",
+    "--purge-config",
+    help=(
+      "Clean up generated configuration files. Use with caution! This will "
+      "remove all generated config files and render the database unusable."
+    ),
+    action="store_true",
+  )
+
   args = parser.parse_args()
+
+  if args.purge_config:
+    confirm = input(
+      "Are you sure you want to delete all generated configuration files? (y/n): "
+    )
+    if confirm.lower() == "y":
+      clean_config_files()
+      print("Configuration files cleaned up successfully.")
+    else:
+      print("Purge operation cancelled.")
+    exit(0)
 
   if not args.compose_only and not args.build_only:
     # --- SETUP ---
