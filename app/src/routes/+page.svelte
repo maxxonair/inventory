@@ -58,6 +58,7 @@
   } from "flowbite-svelte-icons";
   import jsQR from "jsqr";
   import { printQR } from '$lib/niimbot';
+    import { logout } from "$lib/stores/auth";
   let { user } = $props();
 
   /* ------------------  Main Table function ----------------------- */
@@ -88,6 +89,7 @@
   let endPage = $state(10);
 
   let items = $state([]);
+  let item = $state({});
   let loading = $state(true);
 
   let cameraServerUrl = $state("");
@@ -893,25 +895,26 @@
 <!-- --------------------------- PAGE CONTENT ------------------------------- -->
 <svelte:head>
   <title>Inventory</title>
-  <meta name="description" content="Page to add new item" />
+  <meta name="description" content="Home Page" />
 </svelte:head>
 
+{#if !selectedItemId}
 <Section
   name="advancedTable"
   sectionClass="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5"
 >
-  <TableSearch
-    placeholder="Search"
-    hoverable={true}
-    bind:inputValue={searchTerm}
-    {divClass}
-    {innerDivClass}
-    {searchClass}
+  <div
+    class="flex flex-wrap w-full gap-2 md:flex-nowrap md:gap-3"
   >
+    <TableSearch
+      placeholder="Search"
+      hoverable={true}
+      bind:inputValue={searchTerm}
+      {divClass}
+      {innerDivClass}
+      {searchClass}
+    >
     {#snippet header()}
-      <div
-        class="flex w-full flex-shrink-0 flex-col items-stretch justify-end space-y-2 md:w-auto md:flex-row md:items-center md:space-y-0 md:space-x-3"
-      >
         {#if user_privilege > PRIVILEGE_REPORTER}
           <Button onclick={toggleAddItemPanel}>
             <PlusOutline class="mr-2 h-3.5 w-3.5" />Add item
@@ -953,583 +956,16 @@
             {/each}
           </List>
         </Dropdown>
-      </div>
     {/snippet}
     <!-- ------------------------------------------------------------------------- -->
 
-    <div class="product-grid p-2">
+    <div class="  grid gap-4 p-2
+                  grid-cols-1
+                  sm:grid-cols-2
+                  md:grid-cols-3
+                  lg:grid-cols-4
+                  xl:grid-cols-5">
       {#each currentPageItems as item}
-        {#if selectedItemId === item.id}
-          <!-- --------------------------- EXTENDED CARD END --------------------- -->
-
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div type="overlay" class="w-full">
-            <div
-              class="rounded-lg expanded w-full centered mb-6 p-4 dark:bg-slate-800 bg-slate-200 border dark:border-slate-400 border-slate-800"
-            >
-              <div class="relative flex items-center justify-between w-full">
-                <div class="flex justify-center">
-                  <h2
-                    class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-cyan-950 dark:border-cyan-400 rounded-lg"
-                  >
-                    {item.name}
-                  </h2>
-                </div>
-
-                <div class="flex justify-center mt-auto">
-                  {#if item.is_checked_out}
-                    <label
-                      for="borrowed"
-                      class="mb-2 p-2 bg-red-500 text-slate-900 font-semibold border border-red-900 rounded-lg"
-                      >Checked out by {item.check_out_poc} since {item.check_out_date}</label
-                    >
-                  {:else}
-                    <label
-                      for="available"
-                      class="mb-2 p-2 bg-green-500 text-slate-800 font-semibold border border-slate-900 rounded-lg"
-                      >Available</label
-                    >
-                  {/if}
-                </div>
-
-                <CloseButton
-                  onclick={() => (selectedItemId = null)}
-                  class="mb-4 dark:text-white"
-                />
-              </div>
-
-              <div class="mb-6 grid gap-6 md:grid-cols-2">
-                <div class="mb-6 flex flex-col items-center p-2 col-span-1">
-                  <div class="flex items-center justify-center">
-                    {#if imageUpdated}
-                      <img
-                      src={`${media_url}${image}.png`}
-                      alt={image}
-                      class="w-full border rounded-lg border-slate-900"
-                      />
-                    {:else}
-                      <img
-                        src={`${media_url}${item.image}.png`}
-                        alt={item.image}
-                        class="w-full border rounded-lg border-slate-900"
-                      />
-                    {/if}
-                  </div>
-                </div>
-
-                <form class="p-2">
-                  {#if showCameraStream}
-                    <div class="mb-6 flex flex-col items-center p-2 col-span-1">
-                      <Label for="name" class="mb-2 block p-2"
-                        >Record item image</Label
-                      >
-                      <Button class="w-full border mb-2 " onclick={captureImage}
-                        >capture image</Button
-                      >
-                      <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
-                        <p class="text-red-600">{stream_error}</p>
-                        {#if !stream_error}
-                          <div class="flex items-center justify-center w-full h-full">
-                            <video
-                              bind:this={videoEl}
-                              autoplay
-                              playsinline
-                              class="rounded-lg w-full h-full max-h-[80vh] object-contain"
-                            >
-                              <track kind="captions" />
-                            </video>
-                          </div>
-                        {/if}
-                      </div>
-                      <Button
-                        color="light"
-                        class="w-full mb-2"
-                        onclick={toggleCameraVisibility}>close camera</Button
-                      >
-                      <Label class="b-2 block">{camera_error}</Label>
-                    </div>
-                  {:else}
-                    <div class="mb-2 grid gap-2 md:grid-cols-2">
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.name}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >name</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Name: </span>
-                            {item.name}</Label
-                          >
-                        {/if}
-                      </div>
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.manufacturer}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Manufacturer</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Manufacturer: </span>
-                            {item.manufacturer}
-                          </Label>
-                        {/if}
-                      </div>
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.manufacturer_link}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Manufacturer Link</FloatingLabelInput
-                          >
-                        {:else}
-                          {#if item.manufacturer_link}
-                            <a class="font-medium hover:underline justify-center" href={item.manufacturer_link} target="_blank" rel="noopener noreferrer">
-                              <Label
-                                for="name"
-                                class="mb-2 p-2 flex justify-center text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                              >
-                                <span class="text-orange-300">{item.name} Product Page </span>
-                              </Label>
-                            </a>
-                          {:else}
-                            <Label
-                              for="name"
-                              class="mb-2 p-2 flex justify-center text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                            >
-                              <span class="text-gray-500">Product Page N/A</span>
-                            </Label>
-                          {/if}
-                        {/if}
-                      </div>
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.manufacturer_location}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Manufacturer Location</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Manufacturer Location: </span>
-                            {item.manufacturer_location}
-                          </Label>
-                        {/if}
-                      </div>
-
-                      <div class="mb-4">
-                        {#if enableEdit}
-                          <Label for="number_items" class="mb-2 block"
-                            >Number of Items</Label
-                          >
-                          <div
-                            class="relative max-w-[12rem] min-w-[8rem] items-center mb-6"
-                          >
-                            <ButtonGroup>
-                              <Button
-                                type="button"
-                                id="decrement-button"
-                                onclick={() => (item.number_items -= 1)}
-                              >
-                                <MinusOutline />
-                              </Button>
-                              <Input
-                                bind:value={item.number_items}
-                                type="number"
-                                id="quantity-input"
-                                aria-describedby="helper-text-explanation"
-                                placeholder="{item.number_items} "
-                                required
-                                class="w-20"
-                              />
-                              <Button
-                                type="button"
-                                id="increment-button"
-                                onclick={() => (item.number_items += 1)}
-                              >
-                                <PlusOutline />
-                              </Button>
-                            </ButtonGroup>
-                          </div>
-                        {:else}
-                          <Label
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Count: </span>
-                            {item.number_items}</Label
-                          >
-                        {/if}
-                      </div>
-
-                      <div>
-                        {#if enableEdit}
-                          <Label
-                            >Product Type
-                            <Select
-                              class="mt-2"
-                              items={categories}
-                              bind:value={item.item_type}
-                            />
-                          </Label>
-                        {:else}
-                          <Label
-                            class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Product Type: </span>
-                            {item.item_type}</Label
-                          >
-                        {/if}
-                      </div>
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.product_use}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Product Use</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Product Use: </span>
-                            {item.product_use}
-                          </Label>
-                        {/if}
-                      </div>
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.material}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Material</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Material: </span>
-                            {item.material}
-                          </Label>
-                        {/if}
-                      </div>
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.color}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Product Color</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Product Color: </span>
-                            {item.color}
-                          </Label>
-                        {/if}
-                      </div>
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.project}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Project</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="name"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Project: </span>
-                            {item.project}
-                          </Label>
-                        {/if}
-                      </div>
-
-                      <!-- svelte-ignore attribute_quoted -->
-                      {#if enableEdit}
-                        <div>
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.location}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Storage Location</FloatingLabelInput
-                          >
-                        </div>
-                      {:else}
-                        <div>
-                          <Label
-                            for="storage"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Storage Location: </span>
-                            {item.location}</Label
-                          >
-                        </div>
-                      {/if}
-
-                      <div>
-                        <!-- svelte-ignore attribute_quoted -->
-                        {#if enableEdit}
-                          <FloatingLabelInput
-                            clearable
-                            variant="outlined"
-                            bind:value={item.tags}
-                            class="bg-white dark:bg-slate-900 rounded-lg"
-                            >Tags</FloatingLabelInput
-                          >
-                        {:else}
-                          <Label
-                            for="storage"
-                            class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
-                          >
-                            <span class="text-red-500">Tags: </span>
-                            {item.tags}</Label
-                          >
-                        {/if}
-                      </div>
-
-                      <div>
-                        {#if !enableEdit}
-                          {#if item.details}
-                            <Label
-                              class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
-                            >
-                              <span class="text-red-500">Details: </span>
-                              {item.details}</Label
-                            >
-                          {:else}
-                            <Label
-                              class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
-                            >
-                              <span class="text-red-500">Details: </span> N/A</Label
-                            >
-                          {/if}
-                        {/if}
-                      </div>
-                    </div>
-
-                    <div>
-                      {#if enableEdit}
-                        <div class="mb-2 justify-center w-full">
-                          <Label for="description" class="mb-2">Details</Label>
-                          <Textarea
-                            id="message"
-                            class="w-full"
-                            placeholder={item.detials}
-                            rows={1}
-                            name="message"
-                            bind:value={item.details}
-                          />
-                        </div>
-
-                        <div
-                          class="items-center justify-center w-full mb-4"
-                          role="region"
-                          ondrop={onDrop}
-                          ondragover={onDragOver}
-                        >
-                          <label
-                            for="dropzone-file"
-                            class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600"
-                          >
-                            <div
-                              class="flex flex-col items-center justify-center pt-5 pb-6"
-                            >
-                              <p
-                                class="mb-2 text-xs text-gray-500 dark:text-gray-400"
-                              >
-                                <span class="font-semibold"
-                                  >Click to upload</span
-                                > or drag and drop
-                              </p>
-                              <p
-                                class="text-xs text-gray-500 dark:text-gray-400"
-                              >
-                                SVG, PNG, JPG
-                              </p>
-                            </div>
-                            <input
-                              id="dropzone-file"
-                              type="file"
-                              class="hidden"
-                              onchange={handleFileUpload}
-                            />
-                          </label>
-                        </div>
-                      {/if}
-                    </div>
-
-                    <div
-                      class="bottom-0 left-0 flex w-full justify-start space-x-4 pb-4 md:px-4"
-                    >
-                      {#if enableEdit}
-                        <Button
-                          onclick={() => updateItem(selectedItemId, item)}
-                          color="green"
-                        >
-                          <CheckCircleOutline
-                            type="print-button"
-                            color="green"
-                            class="me-2 h-5 w-5"
-                          /> confirm edit
-                        </Button>
-                        <!-- Delete Items only for users of maintainer privilege and above -->
-                        {#if user_privilege >= PRIVILEGE_MAINTAINER}
-                          <Button color="red" onclick={() => requestDelete()}>
-                            <FolderArrowRightOutline
-                              type="return-button"
-                              class="me-2 h-5 w-5"
-                            /> delete item
-                          </Button>
-                        {/if}
-                        <Button type="camera" onclick={toggleCameraVisibility}>
-                          open camera
-                        </Button>
-                        <Button color="light" onclick={() => cancelEdit()}>
-                          <CloseOutline
-                            type="print-button"
-                            class="me-2 h-5 w-5"
-                          /> cancel edit
-                        </Button>
-                      {:else if showConfirm}
-                        <div
-                          class="mb-2 p-2 border border-red-900 bg-red-500 rounded-lg"
-                        >
-                          <Label class="mb-2 p-2 text-slate-950"
-                            >Are you sure you want to delete this item?</Label
-                          >
-                          <div class="row-span-3 md:row-span-4">
-                            <Button
-                              color="red"
-                              onclick={confirmDelete}
-                              class="mb-4 border border-slate-900"
-                            >
-                              <ExclamationCircleOutline
-                                type="delete-button"
-                                class="me-2 h-5 w-5"
-                              /> yes, delete
-                            </Button>
-                            <Button
-                              color="light"
-                              onclick={cancelDelete}
-                              class="mb-4 dark:text-white"
-                            >
-                              <CloseOutline
-                                type="confirm-button"
-                                class="me-2 h-5 w-5"
-                              /> cancel
-                            </Button>
-                          </div>
-                        </div>
-                      {:else}
-                        {#if item.is_checked_out}
-                          <Button
-                            color="green"
-                            onclick={() => returnItem(selectedItemId)}
-                            class="mb-4"
-                          >
-                            <FolderArrowRightOutline
-                              type="return-button"
-                              class="me-2 h-5 w-5"
-                            /> return item
-                          </Button>
-                        {:else}
-                          <Button
-                            onclick={() => checkoutItem(selectedItemId)}
-                            class="mb-4"
-                          >
-                            <CartPlusAltOutline
-                              type="return-button"
-                              class="me-2 h-5 w-5"
-                            /> borrow
-                          </Button>
-                        {/if}
-                        <Button
-                          onclick={() => handlePrintQr(selectedItemId)}
-                          class="mb-4"
-                        >
-                          <PrinterOutline
-                            type="print-button"
-                            class="me-2 h-5 w-5"
-                          /> print label
-                        </Button>
-                        {#if user_privilege > PRIVILEGE_REPORTER}
-                          <Button onclick={() => toggleEdit()} class="mb-4">
-                            <PenOutline
-                              type="print-button"
-                              class="me-2 h-5 w-5"
-                            /> edit
-                          </Button>
-                        {/if}
-                        <Button
-                          color="light"
-                          onclick={() => (selectedItemId = null)}
-                          class="mb-4 dark:text-white"
-                        >
-                          <CloseOutline
-                            type="print-button"
-                            class="me-2 h-5 w-5"
-                          /> close
-                        </Button>
-                      {/if}
-                    </div>
-                  {/if}
-                </form>
-              </div>
-            </div>
-          </div>
-
-          <!-- --------------------------- EXTENDED CARD END --------------------- -->
-        {:else if !selectedItemId}
           <!-- Normal grid card display -->
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1573,7 +1009,6 @@
               </div>
             {/if}
           </div>
-        {/if}
       {/each}
     </div>
 
@@ -1607,7 +1042,583 @@
       </div>
     {/snippet}
   </TableSearch>
+  </div>
 </Section>
+
+{:else if selectedItemId}
+    {#each currentPageItems as item (item.id)}
+      {#if selectedItemId === item.id}
+      <!-- --------------------------- EXTENDED CARD START --------------------- -->
+
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div type="overlay" class="w-full">
+        <div class="rounded-lg expanded w-full max-w-full mx-auto mb-6 p-4
+                    dark:bg-slate-800 bg-slate-200 border dark:border-slate-400 border-slate-800">
+
+          <div class="relative flex items-center justify-between w-full flex-wrap">
+            <div class="flex justify-center">
+              <h2
+                class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-cyan-950 dark:border-cyan-400 rounded-lg"
+              >
+                {item.name}
+              </h2>
+            </div>
+
+            <div class="flex justify-center mt-auto">
+              {#if item.is_checked_out}
+                <label
+                  for="borrowed"
+                  class="mb-2 p-2 bg-red-500 text-slate-900 font-semibold border border-red-900 rounded-lg"
+                  >Checked out by {item.check_out_poc} since {item.check_out_date}</label
+                >
+              {:else}
+                <label
+                  for="available"
+                  class="mb-2 p-2 bg-green-500 text-slate-800 font-semibold border border-slate-900 rounded-lg"
+                  >Available</label
+                >
+              {/if}
+            </div>
+
+            <CloseButton
+              onclick={() => (selectedItemId = null)}
+              class="mb-4 dark:text-white"
+            />
+          </div>
+
+          <div class="mb-6 grid gap-4 grid-cols-1 md:grid-cols-2">
+            <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+              <div class="flex items-center justify-center">
+                {#if imageUpdated}
+                  <img
+                  src={`${media_url}${image}.png`}
+                  alt={image}
+                  class="w-full border rounded-lg border-slate-900"
+                  />
+                {:else}
+                  <img
+                    src={`${media_url}${item.image}.png`}
+                    alt={item.image}
+                    class="w-full border rounded-lg border-slate-900"
+                  />
+                {/if}
+              </div>
+            </div>
+
+            <form class="p-2">
+              {#if showCameraStream}
+                <div class="mb-6 flex flex-col items-center p-2 col-span-1">
+                  <Label for="name" class="mb-2 block p-2"
+                    >Record item image</Label
+                  >
+                  <Button class="w-auto border mb-2 " onclick={captureImage}
+                    >capture image</Button
+                  >
+                  <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
+                    <p class="text-red-600">{stream_error}</p>
+                    {#if !stream_error}
+                      <div class="flex items-center justify-center w-full h-full">
+                        <video
+                          bind:this={videoEl}
+                          autoplay
+                          playsinline
+                          class="w-full h-full max-h-[80vh] object-contain rounded-lg"
+                        >
+                          <track kind="captions" />
+                        </video>
+                      </div>
+                    {/if}
+                  </div>
+                  <Button
+                    color="light"
+                    class="w-auto mb-2"
+                    onclick={toggleCameraVisibility}>close camera</Button
+                  >
+                  <Label class="b-2 block">{camera_error}</Label>
+                </div>
+              {:else}
+                <div class="mb-2 grid gap-2 md:grid-cols-2">
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.name}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >name</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="name"
+                        class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Name: </span>
+                        {item.name}</Label
+                      >
+                    {/if}
+                  </div>
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.manufacturer}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Manufacturer</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="name"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Manufacturer: </span>
+                        {item.manufacturer}
+                      </Label>
+                    {/if}
+                  </div>
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.manufacturer_link}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Manufacturer Link</FloatingLabelInput
+                      >
+                    {:else}
+                      {#if item.manufacturer_link}
+                        <a class="font-medium hover:underline justify-center" href={item.manufacturer_link} target="_blank" rel="noopener noreferrer">
+                          <Label
+                            for="name"
+                            class="mb-2 p-2 flex justify-center text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                          >
+                            <span class="text-orange-300">{item.name} Product Page </span>
+                          </Label>
+                        </a>
+                      {:else}
+                        <Label
+                          for="name"
+                          class="mb-2 p-2 flex justify-center text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                        >
+                          <span class="text-gray-500">Product Page N/A</span>
+                        </Label>
+                      {/if}
+                    {/if}
+                  </div>
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.manufacturer_location}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Manufacturer Location</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="name"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Manufacturer Location: </span>
+                        {item.manufacturer_location}
+                      </Label>
+                    {/if}
+                  </div>
+
+                  <div class="mb-4">
+                    {#if enableEdit}
+                      <Label for="number_items" class="mb-2 block"
+                        >Number of Items</Label
+                      >
+                      <div
+                        class="relative max-w-[12rem] min-w-[8rem] items-center mb-6"
+                      >
+                        <ButtonGroup>
+                          <Button
+                            type="button"
+                            id="decrement-button"
+                            onclick={() => (item.number_items -= 1)}
+                          >
+                            <MinusOutline />
+                          </Button>
+                          <Input
+                            bind:value={item.number_items}
+                            type="number"
+                            id="quantity-input"
+                            aria-describedby="helper-text-explanation"
+                            placeholder="{item.number_items} "
+                            required
+                            class="w-20"
+                          />
+                          <Button
+                            type="button"
+                            id="increment-button"
+                            onclick={() => (item.number_items += 1)}
+                          >
+                            <PlusOutline />
+                          </Button>
+                        </ButtonGroup>
+                      </div>
+                    {:else}
+                      <Label
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Count: </span>
+                        {item.number_items}</Label
+                      >
+                    {/if}
+                  </div>
+
+                  <div>
+                    {#if enableEdit}
+                      <Label
+                        >Product Type
+                        <Select
+                          class="mt-2"
+                          items={categories}
+                          bind:value={item.item_type}
+                        />
+                      </Label>
+                    {:else}
+                      <Label
+                        class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Product Type: </span>
+                        {item.item_type}</Label
+                      >
+                    {/if}
+                  </div>
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.product_use}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Product Use</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="name"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Product Use: </span>
+                        {item.product_use}
+                      </Label>
+                    {/if}
+                  </div>
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.material}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Material</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="name"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Material: </span>
+                        {item.material}
+                      </Label>
+                    {/if}
+                  </div>
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.color}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Product Color</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="name"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Product Color: </span>
+                        {item.color}
+                      </Label>
+                    {/if}
+                  </div>
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.project}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Project</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="name"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Project: </span>
+                        {item.project}
+                      </Label>
+                    {/if}
+                  </div>
+
+                  <!-- svelte-ignore attribute_quoted -->
+                  {#if enableEdit}
+                    <div>
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.location}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Storage Location</FloatingLabelInput
+                      >
+                    </div>
+                  {:else}
+                    <div>
+                      <Label
+                        for="storage"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Storage Location: </span>
+                        {item.location}</Label
+                      >
+                    </div>
+                  {/if}
+
+                  <div>
+                    <!-- svelte-ignore attribute_quoted -->
+                    {#if enableEdit}
+                      <FloatingLabelInput
+                        clearable
+                        variant="outlined"
+                        bind:value={item.tags}
+                        class="bg-white dark:bg-slate-900 rounded-lg"
+                        >Tags</FloatingLabelInput
+                      >
+                    {:else}
+                      <Label
+                        for="storage"
+                        class="mb-2 p-2 text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
+                      >
+                        <span class="text-red-500">Tags: </span>
+                        {item.tags}</Label
+                      >
+                    {/if}
+                  </div>
+
+                  <div>
+                    {#if !enableEdit}
+                      {#if item.details}
+                        <Label
+                          class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
+                        >
+                          <span class="text-red-500">Details: </span>
+                          {item.details}</Label
+                        >
+                      {:else}
+                        <Label
+                          class="mb-2 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
+                        >
+                          <span class="text-red-500">Details: </span> N/A</Label
+                        >
+                      {/if}
+                    {/if}
+                  </div>
+                </div>
+
+                <div>
+                  {#if enableEdit}
+                    <div class="mb-2 justify-center w-full">
+                      <Label for="description" class="mb-2">Details</Label>
+                      <Textarea
+                        id="message"
+                        class="w-full"
+                        placeholder={item.detials}
+                        rows={1}
+                        name="message"
+                        bind:value={item.details}
+                      />
+                    </div>
+
+                    <div
+                      class="items-center justify-center w-full mb-4"
+                      role="region"
+                      ondrop={onDrop}
+                      ondragover={onDragOver}
+                    >
+                      <label
+                        for="dropzone-file"
+                        class="flex flex-col items-center justify-center w-full h-16 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:bg-gray-600"
+                      >
+                        <div
+                          class="flex flex-col items-center justify-center pt-5 pb-6"
+                        >
+                          <p
+                            class="mb-2 text-xs text-gray-500 dark:text-gray-400"
+                          >
+                            <span class="font-semibold"
+                              >Click to upload</span
+                            > or drag and drop
+                          </p>
+                          <p
+                            class="text-xs text-gray-500 dark:text-gray-400"
+                          >
+                            SVG, PNG, JPG
+                          </p>
+                        </div>
+                        <input
+                          id="dropzone-file"
+                          type="file"
+                          class="hidden"
+                          onchange={handleFileUpload}
+                        />
+                      </label>
+                    </div>
+                  {/if}
+                </div>
+
+                <!-- Button bar -->
+                <div class="bottom-0 left-0 flex flex-wrap md:flex-nowrap w-full justify-start gap-4 pb-4 md:px-4">
+                  {#if enableEdit}
+                    <Button
+                      onclick={() => updateItem(selectedItemId, item)}
+                      color="green"
+                      class="w-auto"
+                    >
+                      <CheckCircleOutline
+                        type="print-button"
+                        color="green"
+                        class="me-2 h-5 w-5"
+                      /> confirm edit
+                    </Button>
+                    <!-- Delete Items only for users of maintainer privilege and above -->
+                    {#if user_privilege >= PRIVILEGE_MAINTAINER}
+                      <Button color="red" class="w-auto" onclick={() => requestDelete()}>
+                        <FolderArrowRightOutline
+                          type="return-button"
+                          class="me-2 h-5 w-5"
+                        /> delete item
+                      </Button>
+                    {/if}
+                    <Button type="camera" class="w-auto" onclick={toggleCameraVisibility}>
+                      open camera
+                    </Button>
+                    <Button color="light" class="w-auto" onclick={() => cancelEdit()}>
+                      <CloseOutline
+                        type="print-button"
+                        class="me-2 h-5 w-5"
+                      /> cancel edit
+                    </Button>
+                  {:else if showConfirm}
+                    <div
+                      class="mb-2 p-2 border border-red-900 bg-red-500 rounded-lg"
+                    >
+                      <Label class="mb-2 p-2 text-slate-950"
+                        >Are you sure you want to delete this item?</Label
+                      >
+                      <div class="row-span-3 md:row-span-4">
+                        <Button
+                          color="red"
+                          onclick={confirmDelete}
+                          class="mb-4 w-auto border border-slate-900"
+                        >
+                          <ExclamationCircleOutline
+                            type="delete-button"
+                            class="me-2 h-5 w-5"
+                          /> yes, delete
+                        </Button>
+                        <Button
+                          color="light"
+                          onclick={cancelDelete}
+                          class="mb-4 dark:text-white"
+                        >
+                          <CloseOutline
+                            type="confirm-button"
+                            class="me-2 h-5 w-5"
+                          /> cancel
+                        </Button>
+                      </div>
+                    </div>
+                  {:else}
+                    {#if item.is_checked_out}
+                      <Button
+                        color="green"
+                        onclick={() => returnItem(selectedItemId)}
+                        class="mb-4 w-auto"
+                      >
+                        <FolderArrowRightOutline
+                          type="return-button"
+                          class="me-2 h-5 w-5"
+                        /> return item
+                      </Button>
+                    {:else}
+                      <Button
+                        onclick={() => checkoutItem(selectedItemId)}
+                        class="mb-4 w-auto"
+                      >
+                        <CartPlusAltOutline
+                          type="return-button"
+                          class="me-2 h-5 w-5"
+                        /> borrow
+                      </Button>
+                    {/if}
+                    <Button
+                      onclick={() => handlePrintQr(selectedItemId)}
+                      class="mb-4"
+                    >
+                      <PrinterOutline
+                        type="print-button"
+                        class="me-2 h-5 w-5 w-auto"
+                      /> print label
+                    </Button>
+                    {#if user_privilege > PRIVILEGE_REPORTER}
+                      <Button onclick={() => toggleEdit()} class="mb-4">
+                        <PenOutline
+                          type="print-button"
+                          class="me-2 h-5  w-auto"
+                        /> edit
+                      </Button>
+                    {/if}
+                    <Button
+                      color="light"
+                      onclick={() => (selectedItemId = null)}
+                      class="mb-4 dark:text-white w-auto"
+                    >
+                      <CloseOutline
+                        type="print-button"
+                        class="me-2 h-5 w-5"
+                      /> close
+                    </Button>
+                  {/if}
+                </div>
+              {/if}
+            </form>
+          </div>
+        </div>
+      </div>
+      {/if}
+    {/each}
+  {/if}
+  <!-- --------------------------- EXTENDED CARD END --------------------- -->
 
 <!-- ---------------------   ADD ITEM SIDE PANEL --------------------------- -->
 
@@ -1917,10 +1928,3 @@
 
 <!-- </Section> -->
 
-<style>
-  .product-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-  }
-</style>

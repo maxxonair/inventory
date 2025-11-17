@@ -8,12 +8,11 @@ let { children } = $props();
 onMount(fetchUser);
 </script>
 
-<div class="flex flex-col min-h-screen">
+<div class="flex flex-col min-h-screen overflow-x-hidden">
   <Header></Header>
 
-  <main class="flex bg-gray-50 dark:bg-gray-900 p-4">
+  <main class="flex flex-col bg-gray-50 dark:bg-gray-900 px-2 sm:px-4 md:px-6 lg:px-8">
     {@render children()}
   </main>
-
 </div>
 
