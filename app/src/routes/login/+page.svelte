@@ -4,8 +4,8 @@
   import { fetchUser } from "$lib/stores/auth.js";
   import {  FloatingLabelInput, Button} from 'flowbite-svelte';
 
-  let username = "";
-  let password = "";
+  let username = $state("");
+  let password = $state("");
   let error_msg = $state("");
 
   async function login() {
@@ -23,7 +23,8 @@
       await fetchUser();
       goto("/");
     } else {
-      error_msg = res.statusText || "Login failed";
+      const data = await res.json();
+      error_msg = data.error || "Login failed";
     }
   }
 </script>

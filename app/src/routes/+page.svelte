@@ -425,6 +425,17 @@
       } else {
         error_msg = "";
         showErrorAlert = false;
+
+        const data = await res.json();
+        const item_id = data.message;
+        console.log('Print QR for new item ID:', item_id);
+        // Attempt to print a QR label for any new item
+        try {
+          await handleAddItemPrintQr(item_id);
+        } catch (err) {
+          console.error('Failed to print QR for new item:', err);
+        }
+
         toggleAddItemPanel();
         window.location.reload();
       }
@@ -494,8 +505,16 @@
   }
 
   async function handlePrintQr(item_id) {
-    // Handle printing QR code for the given item ID
     await printQR(item_id);
+  }
+
+  async function handleAddItemPrintQr(item_id) {
+    try {
+      await printQR(item_id);
+    } catch (err) {
+      console.error("Printer error:", err);
+      throw err;
+    }
   }
 
   async function downloadCSV() {
