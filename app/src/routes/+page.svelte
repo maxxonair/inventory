@@ -899,6 +899,8 @@
 </svelte:head>
 
 {#if !selectedItemId}
+<!-- ------------------------------------------------------------------------- -->
+<!-- TABLE SEARCH BAR -->
 <Section
   name="advancedTable"
   sectionClass="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5"
@@ -958,7 +960,7 @@
         </Dropdown>
     {/snippet}
     <!-- ------------------------------------------------------------------------- -->
-
+    <!-- PRODUCT GRID CARD -->
     <div class="  grid gap-4 p-2
                   grid-cols-1
                   sm:grid-cols-2
@@ -989,7 +991,7 @@
               {/if}
             </div>
             <img
-              src={`${media_url}${item.image}.png`}
+              src={`${media_url}thumbnail_${item.image}.png`}
               alt={item.name}
               class="mb-6 w-full max-w-96 border rounded-lg border-slate-900"
             />
@@ -1013,6 +1015,7 @@
     </div>
 
     <!-- ------------------------------------------------------------------------- -->
+    <!-- FOOTER -->
     {#snippet footer()}
       <div
         class="flex flex-col items-start justify-between space-y-3 p-4 md:flex-row md:items-center md:space-y-0"

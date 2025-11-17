@@ -34,6 +34,9 @@ from server.inventory_server_config import (
   DEFAULT_DB_PORT,
 )
 
+# Max size for thumbnail images in pixels
+MAX_THUMB_SIZE_PX = 200
+
 
 class InventoryServer:
   def __init__(
@@ -190,6 +193,19 @@ class InventoryServer:
 
       if not success:
         return {"error": "Failed to save image"}, 500
+
+      # --- Generate thumbnail ---
+      h, w = img_np.shape[:2]
+      scale = min(MAX_THUMB_SIZE_PX / w, MAX_THUMB_SIZE_PX / h, 1)  # Never upscale
+      thumb_np = cv.resize(
+        img_np, (int(w * scale), int(h * scale)), interpolation=cv.INTER_AREA
+      )
+
+      thumb_path = Path(MEDIA_DEFAULT_PATH) / f"thumbnail_{hash_hex}.png"
+      thumb_success = cv.imwrite(str(thumb_path), thumb_np)
+
+      if not thumb_success:
+        return {"error": "Failed to save thumbnail"}, 500
 
       return {"message": "Image saved", "image": f"{hash_hex}"}
 
