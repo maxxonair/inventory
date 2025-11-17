@@ -429,7 +429,7 @@ if __name__ == "__main__":
   parser.add_argument(
     "-t",
     "--use-traefik",
-    help=("Flag to use Treafik as a reverse proxy for the inventory application. "),
+    help=("Flag to use Traefik as a reverse proxy for the inventory application. "),
     action="store_true",
   )
 
@@ -457,11 +457,11 @@ if __name__ == "__main__":
 
   # --- BUILD ---
   if not args.compose_only:
-    build_podman_images(args.use_traefik)
+    build_podman_images()
 
   if args.config_only:
     exit(0)
 
   # --- DEPLOY ---
   time.sleep(2.0)
-  compose_containers()
+  compose_containers(args.use_traefik)

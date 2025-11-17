@@ -16,6 +16,7 @@ backend/media/*
 
 # --- [AUTO-GENERATED FILES]
 docker-compose.yml
+compose.yml
 backend/.env
 backend/src/server/mysql.py
 app/.env
