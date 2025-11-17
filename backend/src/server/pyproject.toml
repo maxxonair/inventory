@@ -13,7 +13,6 @@ dependencies = [
   "flask_session",
   "requests",
   "opencv-python",
-  "pillow",
   "pyserial",
   "rich"
 ]

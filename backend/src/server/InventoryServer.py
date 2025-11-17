@@ -5,19 +5,20 @@ Run this module manually from the projects backend directory with:
 
 $ uv run -m src.InventoryServer
 
+NOTE: This server is intended to be run as a containerized service
+within a Docker or Podman environment and is auto-configured via the
+install.py script to run containerized. Configure the server settings
+in the inventory_server_config.py file before running standalone.
+
 """
 
-from flask import Flask, request, jsonify, send_from_directory, session, Response
+from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
 from flask_session import Session
 from logging import info, error
 from datetime import timedelta
-from PIL import Image
 import asyncio
 import cv2 as cv
-import json
-import io
-import requests
 import numpy as np
 import queue
 import hashlib
@@ -75,20 +76,23 @@ class InventoryServer:
     self.db_host = db_host
     self.db_port = db_port
 
-    # Store the printer server URL
-    self.printer_registry = {"url": None}
-
     # Routes
     self.configure_routes()
 
   def configure_routes(self):
     """Configure Http routes for this server"""
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /media/<filename>
+    # --------------------------------------------------------------------------
     @self.app.route("/media/<filename>")
     def serve_image(filename):
       """Serve requested image from the media directory"""
       return send_from_directory(self.media_path, filename)
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /checkout_item
+    # --------------------------------------------------------------------------
     @self.app.route("/checkout_item", methods=["POST"])
     def checkout_item():
       if "user" not in session:
@@ -103,6 +107,9 @@ class InventoryServer:
       client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /return_item
+    # --------------------------------------------------------------------------
     @self.app.route("/return_item", methods=["POST"])
     def return_item():
       if "user" not in session:
@@ -117,6 +124,9 @@ class InventoryServer:
       client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /items
+    # --------------------------------------------------------------------------
     @self.app.route("/items")
     def get_items():
       if "user" not in session:
@@ -128,6 +138,9 @@ class InventoryServer:
       client.close_connection()
       return jsonify(data_dict)
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /get_item
+    # --------------------------------------------------------------------------
     @self.app.route("/get_item", methods=["POST"])
     def get_item():
       if "user" not in session:
@@ -144,6 +157,9 @@ class InventoryServer:
         return jsonify({"error": "Item not found!"}), 401
       return jsonify(data_dict)
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /image_upload
+    # --------------------------------------------------------------------------
     @self.app.route("/image_upload", methods=["POST"])
     def upload_file():
       if "avatar" not in request.files:
@@ -177,6 +193,9 @@ class InventoryServer:
 
       return {"message": "Image saved", "image": f"{hash_hex}"}
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /login
+    # --------------------------------------------------------------------------
     @self.app.route("/login", methods=["POST"])
     def login():
       data = request.json
@@ -197,6 +216,9 @@ class InventoryServer:
       session["user"] = data["username"]
       return jsonify({"message": "Login successful"})
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /add_item
+    # --------------------------------------------------------------------------
     @self.app.route("/add_item", methods=["POST"])
     def add_item():
       if "user" not in session:
@@ -209,6 +231,9 @@ class InventoryServer:
       client.close_connection()
       return jsonify({"message": f"{new_id}"}), 200
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /update_item
+    # --------------------------------------------------------------------------
     @self.app.route("/update_item", methods=["POST"])
     def update_item():
       if "user" not in session:
@@ -223,70 +248,18 @@ class InventoryServer:
       client.close_connection()
       return jsonify({"status": "item updated"}), 200
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /logout
+    # --------------------------------------------------------------------------
     @self.app.route("/logout", methods=["POST"])
     def logout():
       info("Log out user")
       session.clear()
       return jsonify({"message": "Logged out"})
 
-    @self.app.route("/store_media_image", methods=["POST"])
-    def store_media_image():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      file = request.files.get("file")
-      if file:
-        # Read the file bytes into memory
-        file_bytes = file.read()
-
-        # Compute SHA-256 hash
-        hash_hex = hashlib.sha256(file_bytes).hexdigest()
-
-        # Save the file to the media storage
-        save_path = MEDIA_DEFAULT_PATH / f"{hash_hex}.png"
-        # Convert binary data back to PIL image
-        image = Image.open(io.BytesIO(file_bytes))
-        image.save(save_path)
-
-        return {
-          "status": "success",
-          "hash": hash_hex,
-          "message": f"Saved to {save_path}",
-        }, 200
-
-      return {"status": "error", "message": "No file provided"}, 400
-
-    @self.app.route("/print_label", methods=["POST"])
-    def print_label():
-      """Print item label"""
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
-      if self.printer_registry["url"] is None:
-        error("Failed to print label, no printer registered")
-        return {"error": "Failed to print label, no printer registered"}, 500
-
-      data = request.get_json()
-      item_id = int(data.get("itemId"))
-      printer_url = f"{self.printer_registry['url']}"
-      info(f"Issue label for item with ID {item_id}")
-
-      url = f"{printer_url}/print_label"
-      data = {"itemId": item_id}
-
-      response = requests.post(url, json=data)
-
-      if response.status_code == 200:
-        resp_json = response.json()
-        if resp_json.get("status") == "success":
-          info(f"Print command for item {item_id} succeeded.")
-          return jsonify({"status": "success"}), 200
-        else:
-          info(f"Print command failed: {resp_json}")
-          return {"error": "Failed to print label"}, 500
-      else:
-        info(f"Request failed with status code {response.status_code}: {response.text}")
-        return {"error": "Failed to print label"}, 500
-
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /delete_item
+    # --------------------------------------------------------------------------
     @self.app.route("/delete_item", methods=["POST"])
     def delete_item():
       """Remove item from inventory database"""
@@ -304,6 +277,9 @@ class InventoryServer:
 
       return jsonify({"status": "success"}), 200
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /me
+    # --------------------------------------------------------------------------
     @self.app.route("/me")
     def me():
       if "user" in session:
@@ -311,6 +287,9 @@ class InventoryServer:
         return jsonify({"user": session["user"]})
       return jsonify({"error": "Not logged in"}), 401
 
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /user_privilege
+    # --------------------------------------------------------------------------
     @self.app.route("/user_privilege", methods=["POST"])
     def user_privilege():
       """Return privilege level for a given user"""
@@ -333,85 +312,6 @@ class InventoryServer:
         error(f"User {data.get('user')} not found: {e}")
         client.close_connection()
         return jsonify({"error": f"User: {data.get('user')} not found"}), 404
-
-    @self.app.route("/qr", methods=["POST"])
-    def qr():
-      """Update the QR in the state
-
-      Interface function to allow the CameraServer to update the item ID after
-      a successful QR scan
-
-      """
-      data = request.get_json()
-      # Save scanned ID in state
-      self.scanned_qr_id = int(data.get("id"))
-      info(f"QR with ID {self.scanned_qr_id} scanned")
-
-      # Notify the frontend of the successful scan via the QR event message
-      # stream
-      self.event_queue.put(self.scanned_qr_id)
-
-      return jsonify({"status": "success"}), 200
-
-    @self.app.route("/qr_events")
-    def qr_events():
-      """SSE endpoint for QR scan events"""
-
-      def event_stream():
-        while True:
-          qr_id = self.event_queue.get()
-          data = {"event": "update", "itemId": qr_id}
-          info(f"Send event: {data}")
-          yield f"data: {json.dumps(data)}\n\n"
-
-      return Response(event_stream(), content_type="text/event-stream")
-
-    @self.app.route("/register_camera", methods=["POST"])
-    def register_camera():
-      data = request.get_json()
-      camera_url = data.get("url")
-
-      if not camera_url:
-        return jsonify({"error": "Missing 'url'"}), 400
-
-      self.camera_registry["url"] = camera_url
-      info(f"📷 Camera registered at: {camera_url}")
-
-      return jsonify({"message": "Camera registered successfully"})
-
-    @self.app.route("/register_printer", methods=["POST"])
-    def register_printer():
-      data = request.get_json()
-      printer_url = data.get("url")
-
-      if not printer_url:
-        return jsonify({"error": "Missing 'url'"}), 400
-
-      self.printer_registry["url"] = printer_url
-      info(f"Printer registered at: {printer_url}")
-
-      return jsonify({"message": "Printer registered successfully"})
-
-    @self.app.route("/camera_url")
-    def camera_url():
-      return jsonify({"url": self.camera_registry.get("url")})
-
-    @self.app.route("/printer_url")
-    def printer_url():
-      return jsonify({"url": self.printer_registry.get("url")})
-
-  def send_qr_event(self, id):
-    """Compile and send a QR scanned event message
-
-    Args:
-        id (int): ID of the scanned QR code
-
-    Yields:
-        _type_: _description_
-    """
-    data = {"event": "update", "id": f"{id}"}
-
-    yield f"data: {json.dumps(data)}\n\n"
 
   async def run(
     self, host: str = inventory_server_ip, port: int = inventory_server_port

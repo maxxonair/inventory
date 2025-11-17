@@ -38,7 +38,7 @@ services:
     container_name: inventory-app
     restart: unless-stopped
     environment:
-      INVENTORY_SERVER_URL: https://devmachine.lan
+      INVENTORY_SERVER_URL: {{ inventory_server_url  }}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.inventory_app.rule=Host(`{{ host_ip_address }}`)"

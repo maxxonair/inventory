@@ -21,19 +21,6 @@ inventory_server_ip = "0.0.0.0"
 inventory_server_port = 5000
 
 
-# ---- PRINTER SERVER CONFIG ----
-
-# Printer Server host IP, select one of the following options
-# CONTAINER OPTION: inventory_printer (container)
-# PRINTER_SERVER_IP = "host.docker.internal"
-# OPTION: Local service on host machine
-PRINTER_SERVER_IP = "0.0.0.0"
-
-
-# Printer Server port
-# Default: 5100
-PRINTER_SERVER_PORT = 5100
-
 # --- CONSTANTS ---
 
 # Path to where media files are saved

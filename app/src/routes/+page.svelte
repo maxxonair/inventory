@@ -1,7 +1,5 @@
 <script lang="ts">
-	// import { createReadStream } from 'node:fs';
   // @ts-nocheck
-
   import { page } from "$app/state";
   import { onMount, onDestroy } from "svelte";
   import * as XLSX from "xlsx";

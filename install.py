@@ -22,6 +22,7 @@ import argparse
 from shutil import which
 import time
 from subprocess import call
+import requests
 
 # Define project root directory path
 PROJECT_ROOT = Path(__file__).parent.resolve()
@@ -33,6 +34,8 @@ USER_DATABASE_NAME = "inventory_user"
 
 INVENTORY_SERVER_CONTAINER_NAME = "inventory_server"
 INVENTORY_APP_CONTAINER_NAME = "inventory_app"
+
+PODMAN_DEFAULT_SOCKET_PATH = "/run/user/1000/podman/podman.sock"
 
 # Create template environment
 environment = Environment(loader=FileSystemLoader("templates/"))
@@ -77,6 +80,34 @@ def scan_ports(start_port, end_port) -> int | None:
       debug(f"Port {port} is open")
       return port
 
+  return None
+
+
+def get_container_port(container_name: str = "inventory-server") -> int | None:
+  """Get the inventory server container port
+
+  Args:
+      container_name (str, optional): Inventory server container name.
+          Defaults to "inventory-server".
+
+  Returns:
+      int | None: Port number if found, None otherwise
+  """
+  url = f"http+unix://{PODMAN_DEFAULT_SOCKET_PATH.replace('/', '%2F')}/v4.5.1/containers/json"
+
+  session = requests.Session()
+  session.mount("http+unix://", requests.adapters.HTTPAdapter())
+
+  resp = session.get(url)
+  resp.raise_for_status()
+  containers = resp.json()
+
+  for c in containers:
+    if container_name in (c.get("Names") or []):
+      ports = c.get("Ports", [])
+      if ports:
+        # Return host → container mapping
+        return int(ports[0].get("PublicPort"))
   return None
 
 
@@ -133,7 +164,7 @@ def rand_id_generator(size: int = 12) -> str:
   return str("inv" + "".join(random.choice(chars) for _ in range(size)))
 
 
-def run_config_setup() -> bool:
+def run_config_setup(use_traefik: bool = False) -> bool:
   """Run installation and setup process for the inventory application.
 
   Returns:
@@ -208,16 +239,13 @@ def run_config_setup() -> bool:
     return False
   info(f"[!] Selected inventory server port: {inventory_server_port}")
 
-  if (PROJECT_ROOT / "backend" / "src" / "server" / "admin.py").exists():
-    warning("Skip regenerating admin.py. File already set up.")
-  else:
-    render_template(
-      "admin.py.jinja",
-      {
-        "database_port": database_server_port,
-      },
-      PROJECT_ROOT / "backend" / "src" / "server" / "admin.py",
-    )
+  render_template(
+    "admin.py.jinja",
+    {
+      "database_port": database_server_port,
+    },
+    PROJECT_ROOT / "backend" / "src" / "server" / "admin.py",
+  )
 
   # ---------------------------------------------------------------------------#
   #                        > FRONTEND SETUP <
@@ -242,19 +270,26 @@ def run_config_setup() -> bool:
   info(f"    Host IP address: {host_ip_address}")
 
   # -- Create compose.yml for all containers --
-  if (PROJECT_ROOT / "compose.yml").exists():
-    warning("Skip regenerating compose.yml. File already set up.")
-  else:
-    render_template(
-      "compose.yml.jinja",
-      {
-        "database_port": database_server_port,
-        "inventory_server_port": inventory_server_port,
-        "host_ip_address": host_ip_address,
-        "inventoryapp_port": inventoryapp_server_port,
-      },
-      PROJECT_ROOT / "compose.yml",
+  if use_traefik:
+    info(
+      "Configure compose.yml to using Traefik reverse proxy for inventory application."
     )
+    inventory_server_url = "https://devmachine.lan"
+  else:
+    info("Configure compose.yml without reverse proxy for inventory application.")
+    inventory_server_url = "http://inventory-server:5000"
+
+  render_template(
+    "compose.yml.jinja",
+    {
+      "database_port": database_server_port,
+      "inventory_server_port": inventory_server_port,
+      "host_ip_address": host_ip_address,
+      "inventoryapp_port": inventoryapp_server_port,
+      "inventory_server_url": inventory_server_url,
+    },
+    PROJECT_ROOT / "compose.yml",
+  )
 
   # NOTE: This file won't be used by the frontend server and will only be
   # created to allow running the frontend manually in development mode.
@@ -283,6 +318,8 @@ def build_podman_images():
 
   os.chdir(PROJECT_ROOT / "backend" / "src" / "server")
 
+  # TODO check if user is logged in to dockerhub registry
+
   sh.podman(
     "build",
     "--no-cache",
@@ -305,13 +342,13 @@ def build_podman_images():
     "-t",
     "inventoryapp:latest",
     ".",
-    # _out=sys.stdout.write,
-    # _err=sys.stderr.write,
-    # _tty_out=True,
+    _out=sys.stdout.write,
+    _err=sys.stderr.write,
+    _tty_out=True,
   )
 
 
-def compose_containers():
+def compose_containers(use_traefik: bool = False):
   """Compose and run the podman containers for backend and frontend services."""
   print(Rule(title="DEPLOY CONTAINERS", style="bold blue"))
 
@@ -322,6 +359,10 @@ def compose_containers():
   info("[ COMPOSE INVENTORY APP CONTAINER ]")
 
   call("./scripts/compose_containers.sh", shell=True)
+
+  if use_traefik:
+    info("[ COMPOSE TRAEFIK REVERSE PROXY CONTAINER ]")
+    call("./scripts/start_traefik.sh", shell=True)
 
 
 def clean_config_files():
@@ -385,6 +426,13 @@ if __name__ == "__main__":
     action="store_true",
   )
 
+  parser.add_argument(
+    "-t",
+    "--use-traefik",
+    help=("Flag to use Treafik as a reverse proxy for the inventory application. "),
+    action="store_true",
+  )
+
   args = parser.parse_args()
 
   if args.purge_config:
@@ -400,7 +448,7 @@ if __name__ == "__main__":
 
   if not args.compose_only and not args.build_only:
     # --- SETUP ---
-    if not run_config_setup():
+    if not run_config_setup(args.use_traefik):
       error("Installation process failed at the configuration stage.")
       exit(1)
 
@@ -409,7 +457,7 @@ if __name__ == "__main__":
 
   # --- BUILD ---
   if not args.compose_only:
-    build_podman_images()
+    build_podman_images(args.use_traefik)
 
   if args.config_only:
     exit(0)
