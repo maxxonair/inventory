@@ -227,6 +227,11 @@ Inventory is fully containerised and hence can be run on any system able to run 
 It was developped and tested with the following hardware:
 
 - BMAX mini PC (to run UI server and database) running Ubuntu Desktop 24.04.1
-- Logitec C270 webcam (item imaging and QR code detection)
+- (OPTIONAL) USB webcam. Any device camera (smartphone, tabled, laptop) can be used as well.
 - Niimbot D110 label printer (to print item QR code labels)
+
+## Client Side Requirements
+
+Inventory can be run on any device that has a web browser installed. To be able 
+to use full functionality (camera and printer access), you need to use Google Chrome on any desktop device with linux or windows (untested) installed or any android device. Apple devices currently do not give access to Web-Bluetooth, hence the label printer cannot be accessed from there, all other functions work normally.
 
