@@ -6,7 +6,8 @@ import QRCode from "qrcode";
 // -----------------------------
 // Constants
 // -----------------------------
-export const NIIMBOT_D110_MAX_HEIGHT_PX = 100;
+const NIIMBOT_D110_MAX_WIDTH_PX = 120;
+const NIIMBOT_D110_MAX_HEIGHT_PX = 100; 
 
 export const SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
 export const CHAR_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
@@ -62,17 +63,80 @@ export const CHAR_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
     return new Promise((res) => setTimeout(res, ms));
   }
 
-  export function padToFullWidth(src: HTMLCanvasElement, fullWidth = NIIMBOT_D110_MAX_HEIGHT_PX) {
+  // Helper: add top padding (which becomes LEFT after Niimbot rotates)
+  function addTopPadding(src: HTMLCanvasElement, padding = 30, bg = "white") {
     const dst = document.createElement("canvas");
-    dst.width = fullWidth;
+    dst.width = src.width;
+    dst.height = src.height + padding;
+    const ctx = dst.getContext("2d")!;
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, dst.width, dst.height);
+    ctx.drawImage(src, 0, padding);
+    return dst;
+  }
+
+  // Fit for Niimbot: user supplies the printer's printed max width/height in PX (printed units)
+  // Niimbot rotates 90° clockwise at print time, so:
+  // printedWidthPx  <-- preRotationHeight
+  // printedHeightPx <-- preRotationWidth
+  export function fitCanvasForNiimbot(
+    src: HTMLCanvasElement,
+    printedMaxWidthPx: number,   // how many px the printer can print across (final printed width)
+    printedMaxHeightPx: number,  // how many px the printer can print down (final printed height)
+    drawDebugBox = true
+  ) {
+    // compute pre-rotation constraints
+    const preRotMaxWidth = printedMaxHeightPx; // pre-rotation width must be <= printedHeight
+    const preRotMaxHeight = printedMaxWidthPx; // pre-rotation height must be <= printedWidth
+
+    // compute scale that keeps aspect and doesn't enlarge
+    const scale = Math.min(preRotMaxWidth / src.width, preRotMaxHeight / src.height, 1);
+
+    const w = Math.floor(src.width * scale);
+    const h = Math.floor(src.height * scale);
+
+    const dst = document.createElement("canvas");
+    dst.width = w;
+    dst.height = h;
+
+    const ctx = dst.getContext("2d")!;
+    // White background - matches most label printers; change if you need transparent
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, w, h);
+
+    // draw the scaled image crisply (use imageSmoothing for safety)
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, 0, 0, w, h);
+
+    // optional debug overlay: draw the printable area in red (pre-rotation bounds)
+    if (drawDebugBox) {
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 2;
+      // printable area (should be the full dst area if scale < 1)
+      ctx.strokeRect(0, 0, w - 1, h - 1);
+      // also print helpful info to console
+      console.info("fitCanvasForNiimbot debug:",
+        { srcWidth: src.width, srcHeight: src.height, scale, preRotMaxWidth, preRotMaxHeight, outW: w, outH: h });
+    }
+
+    return dst;
+  }
+
+  function padCanvasWidthToByteBoundary(src: HTMLCanvasElement) {
+    const remainder = src.width % 8;
+    if (remainder === 0) return src;
+
+    const newWidth = src.width + (8 - remainder);
+
+    const dst = document.createElement("canvas");
+    dst.width = newWidth;
     dst.height = src.height;
 
     const ctx = dst.getContext("2d")!;
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, dst.width, dst.height);
+    ctx.fillStyle = "white"; // fill padding
+    ctx.fillRect(0, 0, newWidth, src.height);
 
-    const offset = Math.floor((fullWidth - src.width) / 2);
-    ctx.drawImage(src, offset, 0);
+    ctx.drawImage(src, 0, 0);
 
     return dst;
   }
@@ -176,10 +240,16 @@ export const CHAR_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
     const qrString = `bigml2;id;${itemId}`;
 
     // 1) Generate QR
-    let canvas = await generateQrCanvas(qrString, 120);
+    let canvas = await generateQrCanvas(qrString, NIIMBOT_D110_MAX_HEIGHT_PX);
     
-    // 2) Resize to maximum allowable label width/height
-    canvas = resizeCanvasToFit(canvas, NIIMBOT_D110_MAX_HEIGHT_PX, NIIMBOT_D110_MAX_HEIGHT_PX);
+    // 2) add top padding (becomes left when printed)
+    canvas = addTopPadding(canvas, 2);
+
+    // 3) fit for Niimbot using the printer's printed limits (in px).
+    canvas = fitCanvasForNiimbot(canvas, NIIMBOT_D110_MAX_WIDTH_PX, NIIMBOT_D110_MAX_HEIGHT_PX, true);
+    canvas = padCanvasWidthToByteBoundary(canvas);
+
+    // canvas = rotateForNiimbot(canvas);
 
     // 3) Convert to monochrome pixels
     const { width, height, pixels } = canvasToMono(canvas);

@@ -217,10 +217,29 @@
   ];
 
   const toggleAddItemPanel = () => {
+    // Always make sure th close any open camera stream if when closing the drawer
+    if (showAddItemPanel) {
+      showCameraStream = false;
+    }
     showLeftDrawer = !showLeftDrawer;
     showAddItemPanel = true;
     showScannerPanel = false;
   };
+
+  // Make sure the camera stream is stopped when drawer is closed
+  $effect(() => {
+    if (!showLeftDrawer) {
+      showCameraStream = false;
+    }
+  });
+
+  // Make sure the camera stream is stopped whenever the extended item card is 
+  // closed
+  $effect(() => {
+    if (!selectedItemId) {
+      showCameraStream = false;
+    }
+  });
 
   const toggleScannerPanel = () => {
     showLeftDrawer = !showLeftDrawer;
@@ -369,6 +388,7 @@
 
   function cancelEdit() {
     imageUpdated = false;
+    showCameraStream = false;
     toggleEdit();
   }
 
@@ -1201,7 +1221,7 @@
                             for="name"
                             class="mb-2 p-2 flex justify-center text-inherit bg-slate-50 dark:bg-slate-700 rounded-lg"
                           >
-                            <span class="text-orange-300">{item.name} Product Page </span>
+                            <span class="text-indigo-600 dark:text-blue-600 font-semibold">{item.name} Product Page </span>
                           </Label>
                         </a>
                       {:else}
