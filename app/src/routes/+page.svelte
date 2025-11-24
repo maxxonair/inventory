@@ -1077,15 +1077,15 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div type="overlay" class="w-full">
         <div class="rounded-lg expanded w-full max-w-full mx-auto mb-6 p-4
-                    dark:bg-slate-800 bg-slate-200 border dark:border-slate-400 border-slate-800">
+                    dark:bg-slate-800 bg-slate-200 ">
 
           <div class="relative flex items-center justify-between w-full flex-wrap">
             <div class="flex justify-center">
-              <h2
-                class="mb-4 text-xl inline-flex font-bold items-center px-8 text-gray-800 dark:text-slate-300 border border-cyan-950 dark:border-cyan-400 rounded-lg"
-              >
-                {item.name}
-              </h2>
+              <a class="font-medium hover:underline justify-center mb-4 text-xl inline-flex font-bold items-center px-8 text-stone-950 dark:text-amber-900 rounded-lg" href={item.manufacturer_link} target="_blank" rel="noopener noreferrer">
+                <h2>
+                  {item.name}
+                </h2>
+              </a>
             </div>
 
             <div class="flex justify-center mt-auto">
