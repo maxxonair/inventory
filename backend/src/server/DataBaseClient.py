@@ -442,7 +442,7 @@ class DataBaseClient:
     self.exec_sql_cmd(sql, values)
 
   def update_inventory_item_checkout_status(
-    self, item_id: int, poc: str, checkout_status: int = 1
+    self, item_id: int, poc: str, checkout_type: CheckoutType
   ):
     """Modify the  item checkout status of an inventory item identified by ID
     with the parameters provided
@@ -455,22 +455,25 @@ class DataBaseClient:
     """
     date_time_now = datetime.now()
     check_out_date = date_time_now.strftime("%m/%d/%Y, %H:%M:%S")
-    if checkout_status == CheckoutType.BORROW.value:
+    if checkout_type.value == CheckoutType.BORROW.value:
       # CASE: Item is being checked out
       sql = f"UPDATE {
         INVENTORY_TABLE_NAME
       } SET is_checked_out = %s, check_out_date = %s, check_out_poc = %s WHERE id = %s"
-      values = [int(checkout_status)] + [check_out_date] + [poc] + [item_id]
-    else:
+      values = [1] + [check_out_date] + [poc] + [item_id]
+      self.exec_sql_cmd(sql, values)
+
+    elif checkout_type.value == CheckoutType.RETURN.value:
       # CASE: Item is being returned
       sql = f"UPDATE {INVENTORY_TABLE_NAME} SET is_checked_out = %s WHERE id = %s"
-      values = [int(checkout_status)] + [item_id]
+      values = [0] + [item_id]
+      self.exec_sql_cmd(sql, values)
 
-    # Execute the UPDATE statement
-    self.exec_sql_cmd(sql, values)
-
-    log_sql = f"INSERT INTO {INVENTORY_CHECKOUT_TABLE_NAME} ( user, item_id, checkout, date ) VALUES ( %s, %s, %s )"
-    log_values = [poc] + [item_id] + [checkout_status] + [check_out_date]
+    log_sql = (
+      f"INSERT INTO {INVENTORY_CHECKOUT_TABLE_NAME} ( user, item_id, "
+      "checkout, date ) VALUES ( %s, %s, %s, %s )"
+    )
+    log_values = [poc] + [item_id] + [int(checkout_type.value)] + [check_out_date]
     self.exec_sql_cmd(log_sql, log_values)
 
   def log_user_login(self, user_name: str, status: LoginStatus):

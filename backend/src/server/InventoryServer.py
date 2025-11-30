@@ -106,8 +106,9 @@ class InventoryServer:
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
+
       client.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], CheckoutType.BORROW.value
+        int(data["itemId"]), session["user"], CheckoutType.BORROW
       )
       client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})
@@ -123,8 +124,9 @@ class InventoryServer:
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
+
       client.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], CheckoutType.RETURN.value
+        int(data["itemId"]), session["user"], CheckoutType.RETURN
       )
       client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})

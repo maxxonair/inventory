@@ -17,6 +17,7 @@ from getpass import getpass
 import logging
 from logging import error, info
 from rich.prompt import Prompt
+from tabulate import tabulate
 
 from server.DataBaseClient import DataBaseClient
 from server.InventoryUser import InventoryUser, UserPrivileges
@@ -40,8 +41,8 @@ def main():
   info("4 - Change user password\n")
   info("--- Log Functions ---")
   info("5 - List inventory")
-  info("5 - List login history")
-  info("6 - List checkout history")
+  info("6 - List login history")
+  info("7 - List checkout history")
   answer = Prompt.ask(
     "Enter action to perform", choices=["1", "2", "3", "4", "5", "6", "7"], default="1"
   )
