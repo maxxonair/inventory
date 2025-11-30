@@ -992,7 +992,7 @@
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="mb-6 h-full flex-col items-center justify-start rounded-lg border-inherit bg-slate-100 dark:bg-slate-700 p-2"
+            class="mb-6 h-full flex-col items-center justify-start rounded-lg border-inherit dark:hover:bg-sky-700 hover:bg-sky-300 bg-slate-100 dark:bg-slate-700 p-2"
             onclick={() => toggleItem(item.id)}
           >
             <div class="flex justify-center mt-auto">
