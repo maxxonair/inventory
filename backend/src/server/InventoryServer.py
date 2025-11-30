@@ -26,6 +26,8 @@ from pathlib import Path
 
 from server.DataBaseClient import DataBaseClient
 
+from server.database_config import CheckoutType, LoginStatus
+
 from server.inventory_server_config import (
   inventory_server_ip,
   inventory_server_port,
@@ -105,7 +107,7 @@ class InventoryServer:
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
       client.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], 1
+        int(data["itemId"]), session["user"], CheckoutType.BORROW.value
       )
       client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})
@@ -122,7 +124,7 @@ class InventoryServer:
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
       client.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], 0
+        int(data["itemId"]), session["user"], CheckoutType.RETURN.value
       )
       client.close_connection()
       return jsonify({"message": f"Item {data['itemId']} checked out"})
@@ -221,12 +223,19 @@ class InventoryServer:
       is_user_exists, inventoryUser = client.get_inventory_user_as_object(
         str(data["username"])
       )
-      client.close_connection()
+
       info(f"Log in attempt: {data['username']} -> {is_user_exists}")
       if not is_user_exists:
+        client.log_user_login(data["username"], LoginStatus.USER_NOT_FOUND)
+        client.close_connection()
         return jsonify({"error": "User not found"}), 401
       if not inventoryUser.is_password(str(data["password"])):
+        client.log_user_login(data["username"], LoginStatus.PASSWORD_INVALID)
+        client.close_connection()
         return jsonify({"error": "Invalid credentials"}), 401
+      else:
+        client.log_user_login(data["username"], LoginStatus.SUCCESS)
+        client.close_connection()
 
       # Login valid -> Create a session cookie for this user
       session["user"] = data["username"]

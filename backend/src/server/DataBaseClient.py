@@ -37,8 +37,12 @@ import cv2 as cv
 
 from server.database_config import (
   INVENTORY_TABLE_NAME,
+  INVENTORY_LOGIN_TABLE_NAME,
+  INVENTORY_CHECKOUT_TABLE_NAME,
   INVENTORY_DB_NAME,
   INVENTORY_USER_TABLE_NAME,
+  LoginStatus,
+  CheckoutType,
 )
 from server.inventory_server_config import (
   DEFAULT_DB_HOST,
@@ -46,6 +50,53 @@ from server.inventory_server_config import (
 )
 from server.mysql import MYSQL_PASSWORD, MYSQL_USER
 from server.InventoryUser import InventoryUser
+
+# --- CONSTANTS ---
+
+# Compile query to create inventory table
+INVENTORY_MAIN_TABLE_QUERY = f"CREATE TABLE IF NOT EXISTS {
+  INVENTORY_TABLE_NAME
+} ( id INT PRIMARY KEY AUTO_INCREMENT,"
+INVENTORY_MAIN_TABLE_QUERY += "name VARCHAR(255) NOT NULL,"
+INVENTORY_MAIN_TABLE_QUERY += "image VARCHAR(1055),"
+INVENTORY_MAIN_TABLE_QUERY += "description VARCHAR(1055) ,"
+INVENTORY_MAIN_TABLE_QUERY += "manufacturer VARCHAR(255),"
+INVENTORY_MAIN_TABLE_QUERY += "details VARCHAR(1055),"
+INVENTORY_MAIN_TABLE_QUERY += "is_checked_out BOOLEAN,"
+INVENTORY_MAIN_TABLE_QUERY += "check_out_date VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "check_out_poc VARCHAR(1055) ,"
+INVENTORY_MAIN_TABLE_QUERY += "date_added VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "tags VARCHAR(1055) ,"
+INVENTORY_MAIN_TABLE_QUERY += "location VARCHAR(1055) ,"
+INVENTORY_MAIN_TABLE_QUERY += "item_type VARCHAR(1055) ,"
+INVENTORY_MAIN_TABLE_QUERY += "manufacturer_link VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "project VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "manufacturer_location VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "color VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "material VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "product_use VARCHAR(255) ,"
+INVENTORY_MAIN_TABLE_QUERY += "number_items INT(32) )"
+
+
+# Compile query to create inventory table to store login events
+INVENTORY_LOGIN_TABLE_QUERY = f"CREATE TABLE IF NOT EXISTS {
+  INVENTORY_LOGIN_TABLE_NAME
+} ( id INT PRIMARY KEY AUTO_INCREMENT,"
+INVENTORY_LOGIN_TABLE_QUERY += "user VARCHAR(255) NOT NULL,"
+INVENTORY_LOGIN_TABLE_QUERY += "status INT(32) ,"
+INVENTORY_LOGIN_TABLE_QUERY += "date VARCHAR(255) )"
+
+# Compile query to create inventory table to store checkout events
+# checkout - Status (direction) of the checkout.
+#            checkout = 1 means item was checked out,
+#            checkout = 0 means item was returned
+INVENTORY_CHECKOUT_TABLE_QUERY = f"CREATE TABLE IF NOT EXISTS {
+  INVENTORY_CHECKOUT_TABLE_NAME
+} ( id INT PRIMARY KEY AUTO_INCREMENT,"
+INVENTORY_CHECKOUT_TABLE_QUERY += "user VARCHAR(255) NOT NULL,"
+INVENTORY_CHECKOUT_TABLE_QUERY += "item_id INT(32) ,"
+INVENTORY_CHECKOUT_TABLE_QUERY += "checkout INT(32) ,"
+INVENTORY_CHECKOUT_TABLE_QUERY += "date VARCHAR(255) )"
 
 
 class DataBaseClient:
@@ -139,25 +190,35 @@ class DataBaseClient:
     # Use inventory database from here onwards
     self.cursor.execute(f"USE {INVENTORY_DB_NAME}")
 
-    # -- Ensure that inventory table exists --
-    if not self.is_table(INVENTORY_TABLE_NAME):
-      warning(f" {INVENTORY_TABLE_NAME} table not found.")
-      self.create_inventory_table()
-      info(f"|-> Created table: {INVENTORY_TABLE_NAME}")
-    else:
-      info(f"[x] {INVENTORY_TABLE_NAME} does already exist.")
+    # -- Ensure that inventory tables exists --
+    self._init_table(INVENTORY_TABLE_NAME, INVENTORY_MAIN_TABLE_QUERY)
+    self._init_table(INVENTORY_LOGIN_TABLE_NAME, INVENTORY_LOGIN_TABLE_QUERY)
+    self._init_table(INVENTORY_CHECKOUT_TABLE_NAME, INVENTORY_CHECKOUT_TABLE_QUERY)
 
-    # -- Ensure that inventory user table exists --
-    if not self.is_table(INVENTORY_USER_TABLE_NAME):
-      warning(f" {INVENTORY_USER_TABLE_NAME} table not found.")
-      self.create_inventory_user_table()
-      info(f"|-> Created table: {INVENTORY_USER_TABLE_NAME}")
-    else:
-      info(f"[x] {INVENTORY_USER_TABLE_NAME} does already exist.")
+    user = InventoryUser("", "")
+    self._init_table(INVENTORY_USER_TABLE_NAME, user.get_sql_query_table_for_user())
 
   # -----------------------------------------------------------------------
   #                        [LIST & SEARCH]
   # -----------------------------------------------------------------------
+  def _init_table(self, table_name: str, query: str):
+    """
+    Initialise table
+
+    Args:
+        table_name (str): Name of the table to initialise
+
+    Returns:
+        bool: True if table was created, False if table already existed.
+    """
+    if not self.is_table(table_name):
+      warning(f" {table_name} table not found.")
+      self.create_inventory_table(query)
+      info(f"|-> Created table: {table_name}")
+      return True
+    else:
+      info(f"[x] {table_name} does already exist.")
+      return False
 
   def list_tables(self):
     """
@@ -292,48 +353,13 @@ class DataBaseClient:
     query = f"CREATE DATABASE `{database_name}`;"
     self.cursor.execute(query)
 
-  def create_inventory_table(self):
+  def create_inventory_table(self, query: str):
     """
     Create inventory table
+
+    Args:
+        query (str): SQL query to create the inventory table
     """
-    # Compile query to create inventory table
-    create_table_query = f"CREATE TABLE IF NOT EXISTS {
-      INVENTORY_TABLE_NAME
-    } ( id INT PRIMARY KEY AUTO_INCREMENT,"
-    create_table_query += "name VARCHAR(255) NOT NULL,"
-    create_table_query += "image VARCHAR(1055),"
-    create_table_query += "description VARCHAR(1055) ,"
-    create_table_query += "manufacturer VARCHAR(255),"
-    create_table_query += "details VARCHAR(1055),"
-    create_table_query += "is_checked_out BOOLEAN,"
-    create_table_query += "check_out_date VARCHAR(255) ,"
-    create_table_query += "check_out_poc VARCHAR(1055) ,"
-    create_table_query += "date_added VARCHAR(255) ,"
-    create_table_query += "tags VARCHAR(1055) ,"
-    create_table_query += "location VARCHAR(1055) ,"
-    create_table_query += "item_type VARCHAR(1055) ,"
-    create_table_query += "manufacturer_link VARCHAR(255) ,"
-    create_table_query += "project VARCHAR(255) ,"
-    create_table_query += "manufacturer_location VARCHAR(255) ,"
-    create_table_query += "color VARCHAR(255) ,"
-    create_table_query += "material VARCHAR(255) ,"
-    create_table_query += "product_use VARCHAR(255) ,"
-    create_table_query += "number_items INT(32) )"
-
-    # Execute query
-    self.cursor.execute(create_table_query)
-
-    # Commit the transaction
-    self.connection.commit()
-
-  def create_inventory_user_table(self):
-    """
-    Create inventory user table
-    """
-    # Create InventoryUser instance and compile query to create the user table
-    user = InventoryUser("", "")
-    query = user.get_sql_query_table_for_user()
-
     # Execute query
     self.cursor.execute(query)
 
@@ -429,17 +455,36 @@ class DataBaseClient:
     """
     date_time_now = datetime.now()
     check_out_date = date_time_now.strftime("%m/%d/%Y, %H:%M:%S")
-    if checkout_status == 1:
+    if checkout_status == CheckoutType.BORROW.value:
+      # CASE: Item is being checked out
       sql = f"UPDATE {
         INVENTORY_TABLE_NAME
       } SET is_checked_out = %s, check_out_date = %s, check_out_poc = %s WHERE id = %s"
       values = [int(checkout_status)] + [check_out_date] + [poc] + [item_id]
     else:
+      # CASE: Item is being returned
       sql = f"UPDATE {INVENTORY_TABLE_NAME} SET is_checked_out = %s WHERE id = %s"
       values = [int(checkout_status)] + [item_id]
 
     # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
+
+    log_sql = f"INSERT INTO {INVENTORY_CHECKOUT_TABLE_NAME} ( user, item_id, checkout, date ) VALUES ( %s, %s, %s )"
+    log_values = [poc] + [item_id] + [checkout_status] + [check_out_date]
+    self.exec_sql_cmd(log_sql, log_values)
+
+  def log_user_login(self, user_name: str, status: LoginStatus):
+    """Log user login attempt in the inventory login table
+
+    Args:
+        user_name (str): User name
+        status (LoginStatus): Login status
+    """
+    log_sql = f"INSERT INTO {INVENTORY_LOGIN_TABLE_NAME} ( user, status, date ) VALUES ( %s, %s, %s )"
+    date_time_now = datetime.now()
+    log_date = date_time_now.strftime("%Y/%m/%d %H:%M:%S")
+    log_values = [user_name] + [status.value] + [log_date]
+    self.exec_sql_cmd(log_sql, log_values)
 
   def get_all_inventory_items_as_dict_list(self) -> list:
     """
@@ -467,6 +512,65 @@ class DataBaseClient:
     debug(f"Inventory data {df}")
 
     return data_list_out
+
+  def get_all_inventory_as_df(self) -> pd.DataFrame:
+    """
+    Return all content from a database in a pandas dataframe
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    return pd.DataFrame(rows, columns=columns)
+
+  def get_login_log_as_df(self) -> pd.DataFrame:
+    """Return all login log entries as a list of dictionaries"""
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_LOGIN_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    return pd.DataFrame(rows, columns=columns)
+
+  def get_checkout_log_as_df(self) -> pd.DataFrame:
+    """Return item borrow/return log entries as a pandas dataframe"""
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_CHECKOUT_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    return pd.DataFrame(rows, columns=columns)
 
   def delete_inventory_item(self, id: int):
     """

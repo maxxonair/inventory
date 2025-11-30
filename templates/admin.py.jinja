@@ -24,7 +24,6 @@ from server.InventoryUser import InventoryUser, UserPrivileges
 database_host = "127.0.0.1"
 database_port = {{ database_port }}
 
-
 def main():
   """Admin CLI functions to handle inventory users"""
 
@@ -33,13 +32,18 @@ def main():
   )
   client = DataBaseClient(host=database_host, port=database_port)
 
-  info("Possible admin actions:")
+  info("Possible admin actions:\n")
+  info("--- Admin Functions ---")
   info("1 - Create user")
   info("2 - Delete User")
   info("3 - Change user privileges")
-  info("4 - Change user password")
+  info("4 - Change user password\n")
+  info("--- Log Functions ---")
+  info("5 - List inventory")
+  info("5 - List login history")
+  info("6 - List checkout history")
   answer = Prompt.ask(
-    "Enter action to perform", choices=["1", "2", "3", "4"], default="1"
+    "Enter action to perform", choices=["1", "2", "3", "4", "5", "6", "7"], default="1"
   )
 
   if answer == "1":
@@ -50,6 +54,12 @@ def main():
     update_privileges(client)
   elif answer == "4":
     update_password(client)
+  elif answer == "5":
+    list_inventory(client)
+  elif answer == "6":
+    list_login_history(client)
+  elif answer == "7":
+    list_checkout_history(client)
 
 
 # ------------------------------------------------------------------------------
@@ -252,6 +262,24 @@ def update_password(client: DataBaseClient = None):
   client.close_connection()
 
   info(f"Password for user {user_instance.user_name} updated!")
+
+
+def list_inventory(client: DataBaseClient = None):
+  client.connect()
+  print(tabulate(client.get_all_inventory_as_df(), headers="keys", tablefmt="psql"))
+  client.close_connection()
+
+
+def list_login_history(client: DataBaseClient = None):
+  client.connect()
+  print(tabulate(client.get_login_log_as_df(), headers="keys", tablefmt="psql"))
+  client.close_connection()
+
+
+def list_checkout_history(client: DataBaseClient = None):
+  client.connect()
+  print(tabulate(client.get_checkout_log_as_df(), headers="keys", tablefmt="psql"))
+  client.close_connection()
 
 
 # ------------------------------------------------------------------------------
