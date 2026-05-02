@@ -16,7 +16,7 @@ class UserPrivileges(Enum):
 
 class InventoryUser:
   # Salt for password hashing
-  # TDOO to be changed and moved out of here
+  # TODO to be changed and moved out of here
   SALT = "sda8DF7d13e3F2"
 
   def __init__(

@@ -202,6 +202,7 @@
 
   let showLeftDrawer = $state(false);
   let showAddItemPanel = $state(false);
+  let showAddStoragePanel = $state(false);
   let showScannerPanel = $state(false);
   let showErrorAlert = $state(false);
   let imageUpdated = $state(false);
@@ -223,7 +224,30 @@
     }
     showLeftDrawer = !showLeftDrawer;
     showAddItemPanel = true;
+    showAddStoragePanel = false;
     showScannerPanel = false;
+  };
+
+  const toggleAddStoragePanel = () => {
+    showLeftDrawer = !showLeftDrawer;
+    showAddItemPanel = false;
+    showAddStoragePanel = true;
+    showScannerPanel = false;
+  };
+
+  const toggleScannerPanel = () => {
+    showLeftDrawer = !showLeftDrawer;
+    showAddItemPanel = false;
+    showAddStoragePanel = false;
+    showScannerPanel = true;
+
+    if (showScannerPanel) {
+      startQrCamera();
+    } else {
+      stopQrScanner();
+    }
+
+    console.log("Camera address:", cameraServerUrl);
   };
 
   // Make sure the camera stream is stopped when drawer is closed
@@ -241,19 +265,6 @@
     }
   });
 
-  const toggleScannerPanel = () => {
-    showLeftDrawer = !showLeftDrawer;
-    showAddItemPanel = false;
-    showScannerPanel = true;
-
-    if (showScannerPanel) {
-      startQrCamera();
-    } else {
-      stopQrScanner();
-    }
-
-    console.log("Camera address:", cameraServerUrl);
-  };
 
   let name = $state("");
   let manufacturer = $state("");
@@ -290,6 +301,10 @@
   let canvasEl = $state(null);
   let scanning = $state(false);
   let scanAnimationFrame = $state(null);
+
+  let storageName = $state("");
+  let storageDescription = $state("");
+  let storageTags = $state("");
 
   function onDrop(event) {
     event.preventDefault();
@@ -940,6 +955,11 @@
         {#if user_privilege > PRIVILEGE_REPORTER}
           <Button onclick={toggleAddItemPanel}>
             <PlusOutline class="mr-2 h-3.5 w-3.5" />Add item
+          </Button>
+        {/if}
+        {#if user_privilege > PRIVILEGE_REPORTER}
+          <Button onclick={toggleAddStoragePanel}>
+            <PlusOutline class="mr-2 h-3.5 w-3.5" />Add storage location
           </Button>
         {/if}
         <Button onclick={toggleScannerPanel}>
@@ -1945,6 +1965,41 @@
           </video>
         </div>
       {/if}
+    </div>
+  {:else if showAddStoragePanel}
+     <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
+      <Label for="name" class="mb-2 block">Storage Location Name</Label>
+      <Input
+        id="name"
+        name="name"
+        placeholder="Enter storage location name"
+        bind:value={storageName}
+      />
+    </div>
+    <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
+      <Label for="description" class="mb-2 block">Storage Location Description</Label>
+      <Textarea
+        id="message"
+        class="w-full"
+        placeholder="Enter a detailed description for this storage location"
+        rows={1}
+        name="message"
+        bind:value={storageDescription}
+      />
+    </div>
+    <div class="mb-6 flex flex-col items-center p-2 col-span-1 w-full h-full">
+      <Label for="tags" class="mb-2 block">Storage Location Tags</Label>
+      <Input
+        id="tags"
+        name="tags"
+        placeholder="Enter tags for this storage location"
+        bind:value={storageTags}
+      />
+    </div>
+    <div class="sticky bottom-0 left-0 flex w-full justify-center space-x-4 p-4 bg-white dark:bg-gray-800 border-t">
+      <Button type="submit" color="green" class="w-full" onclick={addStorageLocation}
+        >add storage location
+      </Button>
     </div>
   {/if}
 </Drawer>

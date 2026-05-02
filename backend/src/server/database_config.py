@@ -14,19 +14,23 @@ INVENTORY_DB_NAME = "inventory"
 
 # [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
 #            Inventory
-INVENTORY_TABLE_NAME = "inventory"
+INVENTORY_REGISTRY_TABLE_NAME = "registry"
 
-# [CONSTANT] Name of the table in INVENTORY_DB_NAME to store the inventory
-#           log-in history
-INVENTORY_LOGIN_TABLE_NAME = "inventory_login"
+# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
+#            Inventory
+INVENTORY_STORAGE_LOCATIONS_TABLE_NAME = "storage_locations"
 
 # [CONSTANT] Name of the table in INVENTORY_DB_NAME to store the inventory
 #           item checkout history
-INVENTORY_CHECKOUT_TABLE_NAME = "inventory_checkout"
+INVENTORY_CHECKOUT_TABLE_NAME = "checkout_history"
 
 # [!SENSITIVE!] Name of the table in INVENTORY_DB_NAME database to store the
 #               Inventory users
-INVENTORY_USER_TABLE_NAME = "inventory_user"
+INVENTORY_USER_TABLE_NAME = "users"
+
+# [CONSTANT] Name of the table in INVENTORY_DB_NAME to store the inventory
+#            log-in history
+INVENTORY_LOGIN_TABLE_NAME = "login_history"
 
 
 # [ENUM] defining thw two possible checkout types: borrow and return
