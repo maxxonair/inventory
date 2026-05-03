@@ -214,36 +214,6 @@ class InventoryServer:
       return {"message": "Image saved", "image": f"{hash_hex}"}
 
     # --------------------------------------------------------------------------
-    #       ROUTE --> /login
-    # --------------------------------------------------------------------------
-    @self.app.route("/login", methods=["POST"])
-    def login():
-      data = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
-      is_user_exists, inventoryUser = client.get_inventory_user_as_object(
-        str(data["username"])
-      )
-
-      info(f"Log in attempt: {data['username']} -> {is_user_exists}")
-      if not is_user_exists:
-        client.log_user_login(data["username"], LoginStatus.USER_NOT_FOUND)
-        client.close_connection()
-        return jsonify({"error": "User not found"}), 401
-      if not inventoryUser.is_password(str(data["password"])):
-        client.log_user_login(data["username"], LoginStatus.PASSWORD_INVALID)
-        client.close_connection()
-        return jsonify({"error": "Invalid credentials"}), 401
-      else:
-        client.log_user_login(data["username"], LoginStatus.SUCCESS)
-        client.close_connection()
-
-      # Login valid -> Create a session cookie for this user
-      session["user"] = data["username"]
-      return jsonify({"message": "Login successful"})
-
-    # --------------------------------------------------------------------------
     #       ROUTE --> /add_item
     # --------------------------------------------------------------------------
     @self.app.route("/add_item", methods=["POST"])
@@ -276,15 +246,6 @@ class InventoryServer:
       return jsonify({"status": "item updated"}), 200
 
     # --------------------------------------------------------------------------
-    #       ROUTE --> /logout
-    # --------------------------------------------------------------------------
-    @self.app.route("/logout", methods=["POST"])
-    def logout():
-      info("Log out user")
-      session.clear()
-      return jsonify({"message": "Logged out"})
-
-    # --------------------------------------------------------------------------
     #       ROUTE --> /delete_item
     # --------------------------------------------------------------------------
     @self.app.route("/delete_item", methods=["POST"])
@@ -298,11 +259,114 @@ class InventoryServer:
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
-      # Issue label print job
       client.delete_inventory_item(item_id)
       client.close_connection()
 
       return jsonify({"status": "success"}), 200
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /add_storage
+    # --------------------------------------------------------------------------
+    @self.app.route("/add_storage", methods=["POST"])
+    def add_storage():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      data_dict = request.json
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      new_id = client.add_storage_location(data_dict)
+      client.close_connection()
+      return jsonify({"message": f"{new_id}"}), 200
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /update_storage
+    # --------------------------------------------------------------------------
+    @self.app.route("/update_storage", methods=["POST"])
+    def update_storage():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      data_dict = request.json
+      item_id = int(data_dict["id"])
+      data_dict.pop("id")
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      client.update_storage_location(data_dict, item_id)
+      client.close_connection()
+      return jsonify({"status": "storage location updated"}), 200
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /delete_storage
+    # --------------------------------------------------------------------------
+    @self.app.route("/delete_storage", methods=["POST"])
+    def delete_storage():
+      """Remove storage location from database"""
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      data = request.get_json()
+      storage_id = int(data.get("id"))
+      info(f"Delete storage location with ID {storage_id}")
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      client.delete_storage_location(storage_id)
+      client.close_connection()
+
+      return jsonify({"status": "success"}), 200
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /storage_locations
+    # --------------------------------------------------------------------------
+    @self.app.route("/storage_locations")
+    def get_storage_locations():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      data_dict = client.get_all_storage_locations_as_dict_list()
+      client.close_connection()
+      return jsonify(data_dict)
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /login
+    # --------------------------------------------------------------------------
+    @self.app.route("/login", methods=["POST"])
+    def login():
+      data = request.json
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      is_user_exists, inventoryUser = client.get_inventory_user_as_object(
+        str(data["username"])
+      )
+
+      info(f"Log in attempt: {data['username']} -> {is_user_exists}")
+      if not is_user_exists:
+        client.log_user_login(data["username"], LoginStatus.USER_NOT_FOUND)
+        client.close_connection()
+        return jsonify({"error": "User not found"}), 401
+      if not inventoryUser.is_password(str(data["password"])):
+        client.log_user_login(data["username"], LoginStatus.PASSWORD_INVALID)
+        client.close_connection()
+        return jsonify({"error": "Invalid credentials"}), 401
+      else:
+        client.log_user_login(data["username"], LoginStatus.SUCCESS)
+        client.close_connection()
+
+      # Login valid -> Create a session cookie for this user
+      session["user"] = data["username"]
+      return jsonify({"message": "Login successful"})
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /logout
+    # --------------------------------------------------------------------------
+    @self.app.route("/logout", methods=["POST"])
+    def logout():
+      info("Log out user")
+      session.clear()
+      return jsonify({"message": "Logged out"})
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /me

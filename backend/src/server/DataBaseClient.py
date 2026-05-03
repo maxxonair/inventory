@@ -437,7 +437,6 @@ class DataBaseClient:
     )
 
     # Create series of %s that matches the number of values in
-    # list(storage_location_dict.values())
     value_clause = ", ".join(["%s" for column in list(storage_location_dict.values())])
 
     sql = f"INSERT INTO {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} ( {set_clause} ) VALUES ( {value_clause} )"
@@ -448,6 +447,64 @@ class DataBaseClient:
     self.exec_sql_cmd(sql, values)
 
     return self._get_last_inserted_id()
+
+  def update_storage_location(self, storage_location_dict: dict, id: int):
+    """
+    Modify a storage location identified by ID with given values
+    """
+    # --- Construct the SQL UPDATE statement
+
+    # Pre-construct set each value statement
+    set_clause = ", ".join(
+      [f"{column} = %s" for column in list(storage_location_dict.keys())]
+    )
+
+    sql = (
+      f"UPDATE {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} SET {set_clause} WHERE id = %s"
+    )
+
+    # Prepare the data to update
+    values = list(storage_location_dict.values()) + [id]
+
+    # Execute the UPDATE statement
+    self.exec_sql_cmd(sql, values)
+
+  def delete_storage_location(self, id: int):
+    """
+    Delete Storage location
+    """
+    sql = f"DELETE FROM {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} WHERE id = %s"
+    values = list([id])
+
+    # Execute the DELETE statement
+    self.exec_sql_cmd(sql, values)
+
+  def get_all_storage_locations_as_dict_list(self) -> list:
+    """
+    Return all content from storage locations table in a list of dictionaries
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    df = pd.DataFrame(rows, columns=columns)
+
+    data_list_out = df.to_dict("records")
+
+    debug(f"Storage location data {df}")
+
+    return data_list_out
 
   def update_inventory_item(self, inventory_item_dict: dict, id: int):
     """

@@ -3,7 +3,7 @@
   import { page } from "$app/state";
   import { DarkMode, Button} from "flowbite-svelte";
   import { Tooltip } from 'flowbite-svelte';
-  import {  ArchiveSolid, ArrowLeftToBracketOutline, OpenDoorOutline, HomeSolid } from "flowbite-svelte-icons";
+  import {   CogOutline, ArchiveSolid, ArrowLeftToBracketOutline, OpenDoorOutline, HomeSolid } from "flowbite-svelte-icons";
   import { goto } from '$app/navigation';
   import { user, logout } from '$lib/stores/auth.js';
 
@@ -16,6 +16,9 @@
   //   goto('/login');
   // }
 
+
+  let activePage = $state("");
+
   goto('/inventory'); // Redirect to inventory page on load, adjust as needed
 
   function reloadPage() {
@@ -24,10 +27,17 @@
 
   function gotoInventory() {
     goto('/inventory');
+    activePage = 'Inventory';
   }
 
   function gotoStorage() {
     goto('/storage');
+    activePage = 'Storage Locations';
+  }
+
+  function gotoSettings() {
+    goto('/settings');
+    activePage = 'Settings';
   }
 
   function login() {
@@ -45,18 +55,21 @@
 <header class="dark:bg-slate-900 bg-slate-100">
   <div class="corner">
     <DarkMode />
+    <div class="py2 text-slate-900 dark:text-slate-200 text-lg">
+      {activePage || "Inventory Management System"}
+    </div>
   </div>
 
   <nav>
     {#if user}
-      <button aria-current={page.url.pathname === "/inventory" ? "page" : undefined} class="py2 bg-slate-600 dark:bg-slate-800 text-red-500 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-red-600 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
-        <HomeSolid class="h-6 w-6" onclick={gotoInventory}/>
+      <button class="py2 bg-slate-600 dark:bg-slate-800 text-red-500 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-red-600 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
+        <HomeSolid class="p-2! md-2" onclick={gotoInventory}/>
         <Tooltip placement="bottom" transitionParams={{ duration: 100 }}>
           View Inventory
         </Tooltip>
       </button>
-      <button aria-current={page.url.pathname === "/storage" ? "page" : undefined} class="py2 bg-slate-600 dark:bg-slate-800 text-red-500 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-red-600 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
-        <ArchiveSolid class="h-6 w-6" onclick={gotoStorage}/>
+      <button class="py2 bg-slate-600 dark:bg-slate-800 text-red-500 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-red-600 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
+        <ArchiveSolid class="p-2! md-2" onclick={gotoStorage}/>
         <Tooltip placement="bottom" transitionParams={{ duration: 100 }}>
           View Storage Locations
         </Tooltip>
@@ -65,21 +78,26 @@
   </nav>
 
   <div class="corner">
-    <Button class="p-2! md-2" onclick={user ? logout : login} 
-            aria-label={user ? 'Logout' : 'Login'}
-            title={user ? 'Log out' : 'Log in'}>
+    <button aria-current={page.url.pathname === "/settings" ? "page" : undefined} 
+      class="py2 bg-slate-600 dark:bg-slate-800 text-red-500 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-slate-100 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
+      <CogOutline class="p-2! md-2" onclick={gotoSettings}/>
+      <Tooltip placement="bottom" transitionParams={{ duration: 100 }}>
+        Settings
+      </Tooltip>
+    </button>
+    <button class="py2 bg-sky-600 dark:bg-sky-800 text-sky-100 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center me-2 mb-2 dark:border-gray-600 dark:text-sky-100 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
       {#if user}
-        <OpenDoorOutline class="h-6 w-6" />
+        <OpenDoorOutline class="p-2! md-2" onclick={logout}/>
         <Tooltip placement="bottom" transitionParams={{ duration: 100 }}>
             Log out
         </Tooltip>
       {:else}
-        <ArrowLeftToBracketOutline class="h-6 w-6" />
+        <ArrowLeftToBracketOutline class="p-2! md-2" onclick={login}/>
         <Tooltip placement="bottom" transitionParams={{ duration: 100 }}>
             Log in
         </Tooltip>
       {/if}
-    </Button>
+    </button>
   </div>
 </header>
 
@@ -99,6 +117,8 @@
   nav {
     display: flex;
     justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
     --background: rgba(162, 162, 162, 0.7);
   }
 </style>

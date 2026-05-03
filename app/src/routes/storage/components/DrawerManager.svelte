@@ -1,8 +1,7 @@
 <script lang="ts">
   import { Drawer, CloseButton } from "flowbite-svelte";
-  import { sineIn } from "svelte/easing";
-  import AddItemPanel from "./AddItemPanel.svelte";
-  import ScanQrPanel from "./ScanQrPanel.svelte";
+  import AddStoragePanel from "./AddStoragePanel.svelte";
+  import ScanQrPanel from "./ScanStorageQrPanel.svelte";
 
   let { activeDrawer, isOpen = $bindable(), onAdd, onScanSuccess } = $props();
 
@@ -21,8 +20,8 @@
 <Drawer bind:open={isOpen} placement="left" id="sidebar4" class="w-3/4">
   <div class="flex items-center justify-between">
     <h5 class="text-base font-semibold uppercase">
-      {#if activeDrawer === 'add_item'}
-        Add New Item
+      {#if activeDrawer === 'add_storage'}
+        Add Storage Location
       {:else if activeDrawer === 'scan_qr'}
         Scan QR Code
       {/if}
@@ -30,8 +29,8 @@
   </div>
 
   <div class="mt-6">
-    {#if activeDrawer === 'add_item'}
-      <AddItemPanel 
+    {#if activeDrawer === 'add_storage'}
+      <AddStoragePanel 
         {onAdd} 
         onCancel={() => (isOpen = false)} 
       />
