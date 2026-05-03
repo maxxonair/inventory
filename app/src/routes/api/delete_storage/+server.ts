@@ -6,7 +6,7 @@ export const POST: RequestHandler = async ({ request, fetch, cookies }) => {
   const body = await request.text();
   const cookieHeader = cookies.getAll().map(c => `${c.name}=${c.value}`).join('; ');
 
-  const res = await fetch(`${INVENTORY_SERVER_URL}/return_item`, {
+  const res = await fetch(`${INVENTORY_SERVER_URL}/delete_storage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
     body
