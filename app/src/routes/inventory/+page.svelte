@@ -44,7 +44,6 @@
     bind:searchTerm={inventory.searchTerm}
     bind:currentPosition={currentPosition}
     onSelect={handleSelect}
-    onToggleDrawer={handleToggleDrawer}
   />
 {:else}
   <ExtendedItemCard 

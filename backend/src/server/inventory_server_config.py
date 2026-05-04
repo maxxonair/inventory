@@ -18,7 +18,7 @@ inventory_server_ip = "0.0.0.0"
 
 # InventorySever port
 # Default: 5000
-inventory_server_port = 5000
+inventory_server_port = 5001
 
 
 # --- CONSTANTS ---
@@ -30,13 +30,14 @@ MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
 # IP address of the database server
 # Default: inventory_db (container)
 DEFAULT_DB_HOST = "inventory_db"
+DEFAULT_DB_HOST = "localhost"  # --- IGNORE ---
 
 
 # Port of the database server
 # Default: 3306 (mapped container port)
 # Note: This is not necessarily the port on the host machine. The host port
 #       might be mapped to a different value in the docker-compose.yml file.
-DEFAULT_DB_PORT = 3306
+DEFAULT_DB_PORT = 3307
 
 
 # [CONSTANT] Name of the main database to store the Inventor

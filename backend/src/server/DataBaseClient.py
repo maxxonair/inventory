@@ -824,3 +824,30 @@ class DataBaseClient:
     df = pd.DataFrame(rows, columns=columns)
 
     return df
+
+  def get_all_inventory_users_as_dict_list(self) -> list:
+    """
+    Return all inventory users as a list of dictionaries
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    df = pd.DataFrame(rows, columns=columns)
+
+    data_list_out = df.to_dict("records")
+
+    debug(f"Inventory users {df}")
+
+    return data_list_out

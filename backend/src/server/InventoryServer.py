@@ -24,6 +24,7 @@ import queue
 import hashlib
 from pathlib import Path
 
+from backend.src.server.InventoryUser import InventoryUser
 from server.DataBaseClient import DataBaseClient
 
 from server.database_config import CheckoutType, LoginStatus
@@ -403,6 +404,82 @@ class InventoryServer:
         error(f"User {data.get('user')} not found: {e}")
         client.close_connection()
         return jsonify({"error": f"User: {data.get('user')} not found"}), 404
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /users
+    # --------------------------------------------------------------------------
+    @self.app.route("/users")
+    def get_users():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      data_dict = client.get_all_inventory_users_as_dict_list()
+      client.close_connection()
+      return jsonify(data_dict)
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /add_user
+    # --------------------------------------------------------------------------
+    @self.app.route("/add_user", methods=["POST"])
+    def add_user():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+      # TODO add check if user has sufficient privileges to add new user
+      data_dict = request.json
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      new_user = InventoryUser(
+        user_name=data_dict["username"],
+        password=data_dict["password"],
+        user_privileges=data_dict["privilege"],
+      )
+      new_id = client.add_inventory_user(new_user)
+      client.close_connection()
+      return jsonify({"message": f"{new_id}"}), 200
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /delete_user
+    # --------------------------------------------------------------------------
+    @self.app.route("/delete_user", methods=["POST"])
+    def delete_user():
+      """Remove user from database"""
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      data = request.get_json()
+      user_name = int(data.get("username"))
+      info(f"Delete user: {user_name}")
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      client.delete_inventory_user(user_name)
+      client.close_connection()
+
+      return jsonify({"status": "success"}), 200
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /set_user_privilege
+    # --------------------------------------------------------------------------
+    @self.app.route("/update_user", methods=["POST"])
+    def update_user():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      data_dict = request.json
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      updated_user = InventoryUser(
+        user_name=data_dict["username"],
+        password=data_dict["password"],
+        user_privileges=data_dict["privilege"],
+      )
+      client.update_inventory_user_privileges(updated_user)
+      client.update_inventory_user_password(updated_user)
+      client.close_connection()
+      return jsonify({"message": "Success"})
 
   async def run(
     self, host: str = inventory_server_ip, port: int = inventory_server_port

@@ -3,127 +3,127 @@
   import { onMount } from "svelte";
   import { fetchUser } from "$lib/stores/auth.js";
   import "../app.css";
-  
-  import { Sidebar, SidebarGroup, SidebarItem, SidebarDropdownWrapper } from 'flowbite-svelte';
-  import { HomeSolid, ArchiveSolid, CogSolid } from 'flowbite-svelte-icons';
-  import { goto } from "$app/navigation";
+  import { page } from '$app/stores';
+
+  import { SidebarDropdownWrapper } from 'flowbite-svelte';
+  import {
+    HomeSolid, ArchiveSolid, CogSolid,
+    ListOutline, PlusOutline,
+    ArchiveArrowDownSolid, UserSettingsSolid
+  } from 'flowbite-svelte-icons';
 
   let { children } = $props();
   let isMinimized = $state(false);
 
-  const spanClass = "flex-1 ms-3 whitespace-nowrap";
+  const itemClass = "flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-slate-100 w-full";
 
   function toggleSidebar() {
     isMinimized = !isMinimized;
   }
 
+  const isLoginPage = $derived($page.url.pathname === '/login');
+
   onMount(fetchUser);
 </script>
 
-<!-- Outer container: Horizontal Flex -->
-<div class="flex h-screen w-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
-  
-  <!-- 1. Sidebar: Use a standard HTML 'aside' only -->
-  <aside 
-    class="flex flex-col h-full transition-all duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-40 flex-shrink-0 overflow-hidden"
-    style:width={isMinimized ? '64px' : '280px'}
-  >
-    <!-- Replacing SidebarWrapper with a plain div to avoid forced widths -->
-    <div class="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
-      <nav class="space-y-2">
+{#if isLoginPage}
+  {@render children()}
+{:else}
+  <div class="flex h-screen w-full bg-gray-50 dark:bg-gray-900 overflow-hidden">
 
-        <SidebarDropdownWrapper 
-          label={isMinimized ? "" : "Inventory"}
-          class="group"
-        >
-          {#snippet icon()}
-            <!-- Force the main icon size -->
-            <HomeSolid class="w-4 h-4 flex-shrink-0" />
-          {/snippet}
+    <!-- Sidebar -->
+    <aside
+      class="flex flex-col h-full transition-all duration-300 ease-in-out border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-40 flex-shrink-0 overflow-hidden"
+      style:width={isMinimized ? '64px' : '280px'}
+    >
+      <div class="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
+        <nav class="space-y-2">
 
-          {#snippet arrowdown()}
-            <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          {/snippet}
+          <!-- Inventory -->
+          <SidebarDropdownWrapper label={isMinimized ? "" : "Inventory"} class="group">
+            {#snippet icon()}<HomeSolid class="w-4 h-4 flex-shrink-0" />{/snippet}
+            {#snippet arrowdown()}
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            {/snippet}
+            {#snippet arrowup()}
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            {/snippet}
 
-          {#snippet arrowup()}
-            <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          {/snippet}
+            <div class="pl-2 space-y-1">
+              <a href="/inventory" class={itemClass}>
+                <ListOutline class="w-4 h-4 flex-shrink-0" />
+                {#if !isMinimized}<span>Inventory</span>{/if}
+              </a>
+              <a href="/inventory/add_item" class={itemClass}>
+                <PlusOutline class="w-4 h-4 flex-shrink-0" />
+                {#if !isMinimized}<span>Add Item</span>{/if}
+              </a>
+            </div>
+          </SidebarDropdownWrapper>
 
-          <!-- Dropdown Items -->
-          <div class="group">
-            <SidebarItem 
-              label={isMinimized ? "" : "Inventory"}
-              href="/inventory"
-              class="group text-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
-            ></SidebarItem>
+          <!-- Storage Locations -->
+          <SidebarDropdownWrapper label={isMinimized ? "" : "Storage Locations"} class="group">
+            {#snippet icon()}<ArchiveSolid class="w-4 h-4 flex-shrink-0" />{/snippet}
+            {#snippet arrowdown()}
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            {/snippet}
+            {#snippet arrowup()}
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            {/snippet}
 
-            <SidebarItem 
-              label={isMinimized ? "" : "Add Item"}
-              href="/inventory/add_item"
-              class="group text-slate-800 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-            ></SidebarItem>
-          </div>
-        </SidebarDropdownWrapper>
+            <div class="pl-2 space-y-1">
+              <a href="/storage" class={itemClass}>
+                <ArchiveSolid class="w-4 h-4 flex-shrink-0" />
+                {#if !isMinimized}<span>Storage Overview</span>{/if}
+              </a>
+              <a href="/storage/add_storage" class={itemClass}>
+                <PlusOutline class="w-4 h-4 flex-shrink-0" />
+                {#if !isMinimized}<span>Add Storage Location</span>{/if}
+              </a>
+            </div>
+          </SidebarDropdownWrapper>
 
-        <SidebarDropdownWrapper 
-          label={isMinimized ? "" : "Storage Locations"}
-          class="group"
-        >
-          {#snippet icon()}
-            <!-- Force the main icon size -->
-            <ArchiveSolid class="w-4 h-4 flex-shrink-0" />
-          {/snippet}
+          <!-- Settings -->
+          <SidebarDropdownWrapper label={isMinimized ? "" : "Settings"} class="group text-left">
+            {#snippet icon()}<CogSolid class="w-4 h-4 flex-shrink-0" />{/snippet}
+            {#snippet arrowdown()}
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            {/snippet}
+            {#snippet arrowup()}
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            {/snippet}
 
-          {#snippet arrowdown()}
-            <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          {/snippet}
+            <div class="pl-2 space-y-1">
+              <a href="/settings/user_management" class={itemClass}>
+                <UserSettingsSolid class="w-4 h-4 flex-shrink-0" />
+                {#if !isMinimized}<span>User Management</span>{/if}
+              </a>
+            </div>
+          </SidebarDropdownWrapper>
 
-          {#snippet arrowup()}
-            <svg class="w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          {/snippet}
+        </nav>
+      </div>
+    </aside>
 
-          <!-- Dropdown Items -->
-          <div class="group">
-            <SidebarItem  
-              label={isMinimized ? "" : "Storage Overview"}
-              href="/storage"
-              class="group text-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
-            ></SidebarItem>
-
-            <SidebarItem 
-              label={isMinimized ? "" : "Add Storage Location"}
-              href="/storage/add_storage"
-              class="group text-slate-800 dark:text-slate-300 hover:bg-sky-100 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-            ></SidebarItem>
-          </div>
-        </SidebarDropdownWrapper>
-
-        <SidebarItem 
-          href="/settings" 
-          label={isMinimized ? "" : "Settings"} class={spanClass}
-        >
-          <!-- {#snippet icon()}
-            <CogSolid class="w-4 h-4 flex-shrink-0" />
-          {/snippet} -->
-        </SidebarItem>
-
-      </nav>
+    <!-- Right side: Header + Content -->
+    <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <Header {toggleSidebar} />
+      <main class="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+        {@render children()}
+      </main>
     </div>
-  </aside>
 
-  <!-- 2. Right Side: Vertical Flex (Header + Content) -->
-  <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
-    <Header {toggleSidebar} />
-    <main class="flex-1 overflow-y-auto px-4 py-6 md:px-8">
-      {@render children()}
-    </main>
   </div>
-</div>
+{/if}

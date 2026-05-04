@@ -64,7 +64,7 @@
       </FloatingLabelInput>
     </div>
     <Button type="submit" 
-            class=" w-full">
+            class="w-full">
           Login
     </Button>
     <p class="mt-4 w-full flex justify-center text-red-600">{error_msg}</p>
