@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import InventoryTable from "./components/InventoryTable.svelte";
   import ExtendedItemCard from "./components/ExtendedItemCard.svelte";
-  import DrawerManager from "./components/DrawerManager.svelte";
   import { createInventoryStore } from "./services/inventory.svelte";
   
   // --- Constants ---
@@ -55,10 +54,3 @@
     onDelete={inventory.deleteItem}
   />
 {/if}
-
-<DrawerManager 
-  bind:isOpen={isOpen} 
-  activeDrawer={activeDrawer}
-  onAdd={inventory.addItem}
-  onScanSuccess={(id: number) => selectedItemId = id}
-/>

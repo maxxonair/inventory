@@ -18,15 +18,7 @@
 </script>
 
 <Section name="advancedTable" sectionClass="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
-  <TableSearch placeholder="Search" bind:inputValue={searchTerm}>
-    {#snippet header()}
-      <Button onclick={() => onToggleDrawer('add_item')}>
-        <PlusOutline class="mr-2 h-3.5 w-3.5" />Add item
-      </Button>
-      <Button onclick={() => onToggleDrawer('scan_qr')}>
-        <QrCodeOutline class="mr-2 h-3.5 w-3.5" /> Scan QR
-      </Button>
-    {/snippet}
+  <TableSearch placeholder="        Search" bind:inputValue={searchTerm}>
 
     <div class="grid gap-4 p-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
       {#each items as item (item.id)}

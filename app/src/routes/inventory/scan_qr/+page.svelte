@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import jsQR from "jsqr";
-
-  let { onScanMatch } = $props();
   
   let videoEl = $state<HTMLVideoElement | null>(null);
   let canvasEl = $state<HTMLCanvasElement | null>(null);
@@ -40,7 +38,8 @@
 
         if (code) {
           scanning = false;
-          onScanMatch(code.data); // Pass raw string back to parent
+          // TODO add action here
+          // onScanMatch(code.data); // Pass raw string back to parent
           return;
         }
       }
@@ -79,7 +78,7 @@
       
       <!-- Scanning Overlay -->
       <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div class="w-64 h-64 border-2 border-dashed border-primary-500 opacity-70"></div>
+        <div class="w-64 h-64 border-2 border-dashed border-red-500 opacity-70"></div>
       </div>
       
       <div class="absolute bottom-4 left-0 right-0 text-center pointer-events-none">

@@ -2,21 +2,25 @@ import { printQR } from "$lib/niimbot";
 
 export interface InventoryItem {
   id: number;
-  name: string;
-  image: string;
-  details: string;
-  manufacturer: string;
-  item_type: string;
-  is_checked_out: boolean;
-  check_out_poc?: string | null;
+  name?: string | null;
+  image?: string | null;
+  description?: string | null;
+  manufacturer?: string | null;
+  details?: string | null;
+  is_checked_out?: boolean | null;
   check_out_date?: string | null;
+  check_out_poc?: string | null;
+  date_added?: string | null;
   tags?: string | null;
-  location: number;
+  location?: number | null;
+  item_type?: string | null;
   manufacturer_link?: string | null;
+  project?: string | null;
+  manufacturer_location?: string | null;
   color?: string | null;
   material?: string | null;
   product_use?: string | null;
-  number_of_items?: number | null;
+  number_items?: number | null;
 }
 
 export function createInventoryStore() {
@@ -192,6 +196,8 @@ export function createInventoryStore() {
           date_added,
           // Ensure defaults if not provided by the form
           is_checked_out: false,
+          // TODO map location from dropdown.
+          location: null,
           check_out_poc: null,
           check_out_date: null
         }),

@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import StorageTable from "./components/StorageTable.svelte";
   import ExtendedStorageCard from "./components/ExtendedStorageCard.svelte";
-  import DrawerManager from "./components/DrawerManager.svelte";
   import { createStorageLocationStore } from "./services/storage.svelte";
   
   // --- Constants ---
@@ -55,10 +54,3 @@
     onDelete={storage.deleteStorageLocation}
   />
 {/if}
-
-<DrawerManager 
-  bind:isOpen={isOpen} 
-  activeDrawer={activeDrawer}
-  onAdd={storage.addStorageLocation}
-  onScanSuccess={(id: number) => selectedStorageId = id}
-/>

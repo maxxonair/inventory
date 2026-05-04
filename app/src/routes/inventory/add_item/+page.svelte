@@ -3,11 +3,6 @@
   import { MinusOutline, PlusOutline } from "flowbite-svelte-icons";
   import { onMount, onDestroy } from "svelte";
 
-  let { 
-    onAdd, 
-    onCancel = () => {}
-  } = $props();
-
   // --- Form State ---
   let name = $state("");
   let manufacturer = $state("");
@@ -83,12 +78,12 @@
   function onDragOver(e: DragEvent) { e.preventDefault(); }
 
   function handleSubmit(e: Event) {
-    e.preventDefault();
-    onAdd({
-      name, manufacturer, manufacturer_link, manufacturer_location,
-      number_items, item_type, location, tags, material, color,
-      project, product_use, details, image
-    });
+    // e.preventDefault();
+    // onAdd({
+    //   name, manufacturer, manufacturer_link, manufacturer_location,
+    //   number_items, item_type, location, tags, material, color,
+    //   project, product_use, details, image
+    // });
   }
 
   onDestroy(stopCamera);
@@ -192,7 +187,6 @@
     <div class="sticky bottom-0 left-0 flex w-full justify-center space-x-4 p-4 bg-white dark:bg-gray-800 border-t z-10">
       <Button type="submit" color="green" class="w-full">add item</Button>
       <Button color="alternative" class="w-full" onclick={toggleCameraVisibility}>open camera</Button>
-      <!-- <Button color="light" class="w-full" onclick={onCancel}>cancel</Button> -->
     </div>
   {/if}
 </form>

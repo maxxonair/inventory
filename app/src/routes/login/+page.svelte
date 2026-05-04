@@ -21,7 +21,7 @@
     if (res.ok) {
       error_msg = ""
       await fetchUser();
-      goto("/");
+      goto("/inventory");
     } else {
       const data = await res.json();
       error_msg = data.error || "Login failed";

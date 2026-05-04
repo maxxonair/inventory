@@ -1,10 +1,4 @@
 <script lang="ts">
-
-
-  let { 
-    onAdd, 
-    onCancel = () => {}
-  } = $props();
   
   // --- Form State ---
   let name = $state("");

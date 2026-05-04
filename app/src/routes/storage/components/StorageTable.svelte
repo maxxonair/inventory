@@ -1,6 +1,5 @@
 <script lang="ts">
   import { TableSearch, Button } from "flowbite-svelte";
-  import { PlusOutline, QrCodeOutline } from "flowbite-svelte-icons";
   import { Section } from "flowbite-svelte-blocks";
   import Pagination from "./Pagination.svelte";
 
@@ -18,14 +17,6 @@
 
 <Section name="advancedTable" sectionClass="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
   <TableSearch placeholder="Search" bind:inputValue={searchTerm}>
-    {#snippet header()}
-      <Button onclick={() => onToggleDrawer('add_storage')}>
-        <PlusOutline class="mr-2 h-3.5 w-3.5" /> Add storage location
-      </Button>
-      <Button onclick={() => onToggleDrawer('scan_qr')}>
-        <QrCodeOutline class="mr-2 h-3.5 w-3.5" /> Scan QR
-      </Button>
-    {/snippet}
 
     <div class="grid gap-4 p-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
       {#each storageLocations as item (item.id)}
