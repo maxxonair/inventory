@@ -4,12 +4,10 @@
   import type { StorageLocation } from "../services/storage.svelte";
 
   let { item, onClose, onUpdate, onDelete } = $props();
+
   let isEditing = $state(false);
-  // 1. Initialize with an empty-ish object or the initial item
   let editedStorage = $state<StorageLocation>({ ...item });
 
-  // 2. Sync editedStorage if the 'item' prop changes from the parent
-  // This satisfies Svelte 5's requirement for tracking local references.
   $effect(() => {
     editedStorage = { ...item };
   });
@@ -20,7 +18,8 @@
   }
 </script>
 
-<div class="w-full p-4 bg-slate-200 dark:bg-slate-800 rounded-lg">
+<div class="w-full p-6 bg-slate-200 dark:bg-slate-800 rounded-lg">
+  <!-- Header -->
   <div class="flex justify-between items-center mb-6">
     <Button color="alternative" onclick={onClose}>
       <Undo2 class="mr-2 h-4 w-4" /> Back to Storage Overview
@@ -28,17 +27,16 @@
     <CloseButton onclick={onClose} />
   </div>
 
+  <!-- Body -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-    <!-- Image Section -->
-    <div>
-      <div class="mt-4 flex gap-2">
-        <Button color="blue" onclick={() => (isEditing = !isEditing)}>
-          <SquarePen class="mr-2 h-4 w-4" /> Edit Details
-        </Button>
-        <Button color="red" onclick={onDelete}>
-          <Trash2 class="mr-2 h-4 w-4" /> Delete
-        </Button>
-      </div>
+    <!-- Actions Section -->
+    <div class="flex gap-2 mt-4">
+      <Button color="blue" onclick={() => (isEditing = !isEditing)}>
+        <SquarePen class="mr-2 h-4 w-4" /> Edit Details
+      </Button>
+      <Button color="red" onclick={onDelete}>
+        <Trash2 class="mr-2 h-4 w-4" /> Delete
+      </Button>
     </div>
 
     <!-- Info Section -->

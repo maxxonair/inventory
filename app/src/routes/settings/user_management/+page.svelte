@@ -155,7 +155,7 @@
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: deleteTarget.username }),
+        body: JSON.stringify({ username: deleteTarget.username }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to delete user');
       flash('success', `User "${deleteTarget.username}" deleted.`);
