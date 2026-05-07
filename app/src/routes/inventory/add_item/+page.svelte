@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { Label, Input, Textarea, Button, Select, ButtonGroup } from "flowbite-svelte";
+  import { Label, Input, Textarea, Button, Select, ButtonGroup, Badge } from "flowbite-svelte";
   import { MinusOutline, PlusOutline } from "flowbite-svelte-icons";
-  import { onMount, onDestroy } from "svelte";
+  import { onDestroy } from "svelte";
 
-  // --- Form State ---
   let name = $state("");
   let manufacturer = $state("");
   let manufacturer_link = $state("");
@@ -17,9 +16,8 @@
   let project = $state("");
   let product_use = $state("");
   let details = $state("");
-  let image = $state(""); // Stores the ID or filename of the uploaded/captured image
+  let image = $state("");
 
-  // --- UI/Camera State ---
   let showCameraStream = $state(false);
   let videoEl = $state<HTMLVideoElement | null>(null);
   let stream_error = $state("");
@@ -29,10 +27,9 @@
   const categories = [
     { value: "Fabric", name: "Fabric" },
     { value: "Flooring", name: "Flooring" },
-    { value: "Furniture", name: "Furniture" }
+    { value: "Furniture", name: "Furniture" },
   ];
 
-  // --- Camera Logic ---
   async function toggleCameraVisibility() {
     showCameraStream = !showCameraStream;
     if (showCameraStream) {
@@ -41,6 +38,8 @@
         if (videoEl) videoEl.srcObject = stream;
       } catch (err) {
         stream_error = "Could not access camera.";
+        camera_error = String(err);
+        showCameraStream = false;
       }
     } else {
       stopCamera();
@@ -49,144 +48,195 @@
 
   function stopCamera() {
     if (videoEl?.srcObject) {
-      const tracks = (videoEl.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+      (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop());
     }
   }
 
   async function captureImage() {
-    // Logic to capture frame from videoEl and upload to /api/upload
-    // Then set: image = response.id;
+    // capture frame from videoEl, upload to /api/upload, then set image = response.id
     showCameraStream = false;
     stopCamera();
   }
 
-  // --- File Logic ---
   function handleFileUpload(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) {
-      // Logic to upload file...
-    }
+    if (file) { /* upload logic */ }
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer?.files[0];
-    if (file) { /* Logic to upload file... */ }
+    if (file) { /* upload logic */ }
   }
 
   function onDragOver(e: DragEvent) { e.preventDefault(); }
 
   function handleSubmit(e: Event) {
-    // e.preventDefault();
-    // onAdd({
-    //   name, manufacturer, manufacturer_link, manufacturer_location,
-    //   number_items, item_type, location, tags, material, color,
-    //   project, product_use, details, image
-    // });
+    // onAdd({ name, manufacturer, ... });
   }
 
   onDestroy(stopCamera);
 </script>
 
-<form onsubmit={handleSubmit} class="mb-2">
+<div class="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+
+  <!-- Top bar -->
+  <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+    <div>
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Add inventory item</h2>
+      <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Fill in the details below to register a new item.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      {#if !showCameraStream}
+        <Button color="alternative" size="sm" onclick={toggleCameraVisibility}>Open camera</Button>
+        <Button color="green" size="sm" onclick={handleSubmit}>Add item</Button>
+      {/if}
+    </div>
+  </div>
+
   {#if showCameraStream}
-    <div class="mb-6 flex flex-col items-center p-2">
-      <Label class="mb-2 block p-2">Capture Product Image</Label>
-      <Button class="w-full border mb-2" onclick={captureImage}>capture image</Button>
-      
-      <div class="mb-6 flex flex-col items-center p-2 w-full h-full">
-        <p class="text-red-600">{stream_error}</p>
-        {#if !stream_error}
-          <div class="flex items-center justify-center w-full h-full">
-            <!-- svelte-ignore a11y_media_has_caption -->
-            <video bind:this={videoEl} autoplay playsinline class="rounded-lg w-full max-h-[80vh] object-contain"></video>
-          </div>
-        {/if}
+    <!-- Camera view -->
+    <div class="flex flex-col items-center gap-4 p-8">
+      <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Capture product image</p>
+      {#if stream_error}
+        <p class="text-sm text-red-500">{stream_error}</p>
+      {:else}
+        <!-- svelte-ignore a11y_media_has_caption -->
+        <video bind:this={videoEl} autoplay playsinline
+          class="w-full max-w-lg rounded-xl border border-gray-200 dark:border-gray-700"></video>
+      {/if}
+      {#if camera_error}
+        <p class="text-xs text-gray-400">{camera_error}</p>
+      {/if}
+      <div class="flex gap-3">
+        <Button size="sm" onclick={captureImage}>Capture image</Button>
+        <Button color="alternative" size="sm" onclick={toggleCameraVisibility}>Cancel</Button>
       </div>
-      
-      <Button color="light" class="w-full mb-2" onclick={toggleCameraVisibility}>close camera</Button>
-      <Label class="b-2 block">{camera_error}</Label>
     </div>
+
   {:else}
-    <div class="mb-4 p-2 gap-1">
-      <div class="mb-4 grid gap-4 md:grid-cols-2">
-        <!-- Image Preview -->
-        <div class="flex justify-center items-center bg-slate-900 rounded-lg min-h-[220px]">
-          {#if image}
-            <img src="{media_url}{image}.png" alt="Preview" class="max-w-[220px] max-h-[220px] object-contain" />
-          {:else}
-            <span class="text-gray-500">No Image</span>
-          {/if}
-        </div>
+    <form onsubmit={handleSubmit}>
+      <div class="flex flex-col md:flex-row">
 
-        <!-- Primary Fields -->
-        <div class="space-y-4">
-          <div>
-            <Label for="name" class="mb-2">Name</Label>
-            <Input id="name" bind:value={name} required placeholder="Item name" />
+        <!-- Left: image panel -->
+        <div class="md:w-64 lg:w-80 shrink-0 bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-start p-6 gap-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
+          <div class="w-full aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            {#if image}
+              <img src="{media_url}{image}.png" alt="Preview" class="w-full h-full object-contain" />
+            {:else}
+              <svg class="w-16 h-16 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            {/if}
           </div>
-          <div>
-            <Label for="manufacturer" class="mb-2">Manufacturer</Label>
-            <Input id="manufacturer" bind:value={manufacturer} placeholder="Item manufacturer" />
+
+          <!-- Drop zone -->
+          <label for="dropzone-file"
+            class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            ondrop={onDrop} ondragover={onDragOver}
+          >
+            <p class="text-xs text-gray-500 dark:text-gray-400 text-center px-2">
+              <span class="font-semibold">Click to upload</span> or drag & drop<br/>
+              <span class="text-gray-400">SVG, PNG, JPG</span>
+            </p>
+            <input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
+          </label>
+        </div>
+
+        <!-- Right: fields -->
+        <div class="flex-1 p-6 lg:p-8">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+
+            <!-- Name -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Name <span class="text-red-500">*</span></p>
+              <Input bind:value={name} placeholder="Item name" required />
+            </div>
+
+            <!-- Manufacturer -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer</p>
+              <Input bind:value={manufacturer} placeholder="Brand or maker" />
+            </div>
+
+            <!-- Manufacturer Link -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer Link</p>
+              <Input bind:value={manufacturer_link} placeholder="https://…" />
+            </div>
+
+            <!-- Manufacturer Location -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer Location</p>
+              <Input bind:value={manufacturer_location} placeholder="City, Country" />
+            </div>
+
+            <!-- Count -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Count</p>
+              <ButtonGroup>
+                <Button type="button" onclick={() => number_items = Math.max(0, number_items - 1)}>
+                  <MinusOutline class="h-4 w-4" />
+                </Button>
+                <Input type="number" bind:value={number_items} class="w-20 text-center" />
+                <Button type="button" onclick={() => number_items++}>
+                  <PlusOutline class="h-4 w-4" />
+                </Button>
+              </ButtonGroup>
+            </div>
+
+            <!-- Item Type -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Item Type</p>
+              <Select items={categories} bind:value={item_type} />
+            </div>
+
+            <!-- Storage Location -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Storage Location</p>
+              <Input bind:value={location} placeholder="Shelf, room, bin…" />
+            </div>
+
+            <!-- Tags -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Tags</p>
+              <Input bind:value={tags} placeholder="comma, separated" />
+            </div>
+
+            <!-- Material -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Material</p>
+              <Input bind:value={material} placeholder="e.g. Steel, Oak" />
+            </div>
+
+            <!-- Color -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Color</p>
+              <Input bind:value={color} placeholder="e.g. Charcoal grey" />
+            </div>
+
+            <!-- Project -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Project</p>
+              <Input bind:value={project} placeholder="Associated project" />
+            </div>
+
+            <!-- Product Use -->
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Product Use</p>
+              <Input bind:value={product_use} placeholder="Intended use" />
+            </div>
+
+            <!-- Details (full width) -->
+            <div class="sm:col-span-2">
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Details</p>
+              <Textarea bind:value={details} placeholder="Additional notes, specifications…" rows={3} class="w-full" />
+            </div>
+
           </div>
         </div>
       </div>
-
-      <!-- Links and Locations -->
-      <div class="grid gap-4 md:grid-cols-2 mt-4">
-        <div>
-          <Label for="m_link" class="mb-2">Manufacturer Link</Label>
-          <Input id="m_link" bind:value={manufacturer_link} placeholder="URL" />
-        </div>
-        <div>
-          <Label for="m_loc" class="mb-2">Manufacturer Location</Label>
-          <Input id="m_loc" bind:value={manufacturer_location} placeholder="Location" />
-        </div>
-      </div>
-
-      <!-- Dropzone -->
-      <div class="mt-6 w-full" role="region" ondrop={onDrop} ondragover={onDragOver}>
-        <label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 border-gray-300">
-          <div class="flex flex-col items-center justify-center pt-5 pb-6">
-            <p class="text-xs text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-          </div>
-          <input id="dropzone-file" type="file" class="hidden" onchange={handleFileUpload} />
-        </label>
-      </div>
-
-      <!-- Item Meta Grid -->
-      <div class="grid gap-4 md:grid-cols-2 mt-6">
-        <div>
-          <Label class="mb-2">Number of Items</Label>
-          <ButtonGroup>
-            <Button onclick={() => number_items--}><MinusOutline /></Button>
-            <Input type="number" bind:value={number_items} class="w-20 text-center" />
-            <Button onclick={() => number_items++}><PlusOutline /></Button>
-          </ButtonGroup>
-        </div>
-        <div>
-          <Label class="mb-2">Item Type</Label>
-          <Select items={categories} bind:value={item_type} />
-        </div>
-        <div><Label class="mb-2">Storage Location</Label><Input bind:value={location} /></div>
-        <div><Label class="mb-2">Tags</Label><Input bind:value={tags} /></div>
-        <div><Label class="mb-2">Material</Label><Input bind:value={material} /></div>
-        <div><Label class="mb-2">Color</Label><Input bind:value={color} /></div>
-        <div><Label class="mb-2">Project</Label><Input bind:value={project} /></div>
-        <div><Label class="mb-2">Product Use</Label><Input bind:value={product_use} /></div>
-      </div>
-
-      <div class="mt-6">
-        <Label class="mb-2">Description</Label>
-        <Textarea bind:value={details} placeholder="Detailed description..." rows={3} />
-      </div>
-    </div>
-
-    <!-- Sticky Footer Actions -->
-    <div class="sticky bottom-0 left-0 flex w-full justify-center space-x-4 p-4 bg-white dark:bg-gray-800 border-t z-10">
-      <Button type="submit" color="green" class="w-full">add item</Button>
-      <Button color="alternative" class="w-full" onclick={toggleCameraVisibility}>open camera</Button>
-    </div>
+    </form>
   {/if}
-</form>
+</div>

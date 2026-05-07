@@ -2,25 +2,25 @@ import { printQR } from "$lib/niimbot";
 
 export interface InventoryItem {
   id: number;
-  name?: string | null;
-  image?: string | null;
-  description?: string | null;
-  manufacturer?: string | null;
-  details?: string | null;
+  name?: string | '';
+  image?: string | '';
+  description?: string | '';
+  manufacturer?: string | '';
+  details?: string | '';
   is_checked_out?: boolean | null;
-  check_out_date?: string | null;
-  check_out_poc?: string | null;
-  date_added?: string | null;
-  tags?: string | null;
-  location?: number | null;
-  item_type?: string | null;
-  manufacturer_link?: string | null;
-  project?: string | null;
-  manufacturer_location?: string | null;
-  color?: string | null;
-  material?: string | null;
-  product_use?: string | null;
-  number_items?: number | null;
+  check_out_date?: string | '';
+  check_out_poc?: string | '';
+  date_added?: string | '';
+  tags?: string | '';
+  location?: number | 0;
+  item_type?: string | '';
+  manufacturer_link?: string | '';
+  project?: string | '';
+  manufacturer_location?: string | '';
+  color?: string | '';
+  material?: string | '';
+  product_use?: string | '';
+  number_items?: number | 0;
 }
 
 export function createInventoryStore() {

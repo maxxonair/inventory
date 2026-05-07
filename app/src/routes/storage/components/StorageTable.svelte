@@ -29,7 +29,7 @@
         class="flex flex-col items-center rounded-lg bg-slate-100 dark:bg-slate-700 p-2 hover:bg-sky-300 dark:hover:bg-sky-700"
         onclick={() => onSelect(item.id)}
       >
-        <div class="mt-2 font-bold text-orange-500">
+        <div class="mt-2 text-slate-700 dark:text-slate-100">
           {item.name}
         </div>
       </button>
