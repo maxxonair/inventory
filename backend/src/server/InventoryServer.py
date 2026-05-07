@@ -21,10 +21,11 @@ import asyncio
 import cv2 as cv
 import numpy as np
 import queue
+import math
 import hashlib
 from pathlib import Path
 
-from backend.src.server.InventoryUser import InventoryUser
+from server.InventoryUser import InventoryUser
 from server.DataBaseClient import DataBaseClient
 
 from server.database_config import CheckoutType, LoginStatus
@@ -323,12 +324,26 @@ class InventoryServer:
     def get_storage_locations():
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
+
       client = DataBaseClient(host=self.db_host, port=self.db_port)
+
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
-      data_dict = client.get_all_storage_locations_as_dict_list()
+
+      data_dict_list = client.get_all_storage_locations_as_dict_list()
+
       client.close_connection()
-      return jsonify(data_dict)
+
+      # Replace NaN with empty string
+      cleaned_data = []
+      for row in data_dict_list:
+        cleaned_row = {
+          k: ("" if isinstance(v, float) and math.isnan(v) else v)
+          for k, v in row.items()
+        }
+        cleaned_data.append(cleaned_row)
+
+      return jsonify(cleaned_data)
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /login

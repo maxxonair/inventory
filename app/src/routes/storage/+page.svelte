@@ -12,12 +12,10 @@
 
   // 2. Component State
   let selectedStorageId = $state<number | null>(null);
-  let isOpen = $state(false);
-  let activeDrawer = $state<'add' | 'qr'>('add');
   let currentPosition = $state(0);
 
   // 3. Derived State
-  let displayedItems = $derived(
+  let filteredStorageLocations = $derived(
     storage.filteredstorage_locations.slice(currentPosition, currentPosition + itemsPerPage)
   );
 
@@ -31,20 +29,15 @@
     selectedStorageId = id;
   }
 
-  function handleToggleDrawer(type: 'add' | 'qr') {
-    activeDrawer = type;
-    isOpen = true;
-  }
 </script>
 
 {#if !selectedStorageId}
   <StorageTable 
-    storageLocations={displayedItems} 
+    filteredStorageLocations={filteredStorageLocations} 
     totalStorageLocations={storage.filteredstorage_locations.length}
     bind:searchTerm={storage.searchTerm}
     bind:currentPosition={currentPosition}
     onSelect={handleSelect}
-    onToggleDrawer={handleToggleDrawer}
   />
 {:else}
   <ExtendedStorageCard 
