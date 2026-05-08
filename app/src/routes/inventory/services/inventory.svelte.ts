@@ -125,8 +125,8 @@ export function createInventoryStore() {
         items[index] = {
           ...items[index],
           is_checked_out: false,
-          check_out_poc: null,
-          check_out_date: null,
+          check_out_poc: '',
+          check_out_date: '',
         };
       }
     }

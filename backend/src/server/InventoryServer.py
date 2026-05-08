@@ -318,6 +318,35 @@ class InventoryServer:
       return jsonify({"status": "success"}), 200
 
     # --------------------------------------------------------------------------
+    #       ROUTE --> /storage
+    # --------------------------------------------------------------------------
+    @self.app.route("/storage")
+    def get_storage():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      
+      data = request.get_json()
+      storage_id = int(data.get("id"))
+      info(f"Serve storage info fors ID {storage_id}")
+
+      data_dict = client.get_storage_location(storage_id)
+
+      client.close_connection()
+
+      # Replace NaN with empty string
+      cleaned_data = {
+        k: ("" if isinstance(v, float) and math.isnan(v) else v)
+        for k, v in data_dict.items()
+      }
+
+      return jsonify(cleaned_data)
+
+    # --------------------------------------------------------------------------
     #       ROUTE --> /storage_locations
     # --------------------------------------------------------------------------
     @self.app.route("/storage_locations")

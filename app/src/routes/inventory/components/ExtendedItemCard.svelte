@@ -9,6 +9,7 @@
   } from 'flowbite-svelte-icons';
   import type { InventoryItem } from "../services/inventory.svelte";
   import FieldRow from './FieldRow.svelte';
+  import { onMount } from "svelte";
 
   let {
     item,
@@ -47,6 +48,8 @@
   let stream_error = $state('');
   let camera_error = $state('');
   let mediaStream = $state<MediaStream | null>(null);
+  let storageLocations = $state<{ value: number; name: string }[]>([]);
+  let storageLocationsError = $state("");
 
   $effect(() => {
     if (!isEditing) editedItem = freshCopy();
@@ -119,6 +122,10 @@
     showCameraStream = false;
   }
 
+  function getStorageLocationName(id: any) {
+    return storageLocations.find((sl) => sl.value === id)?.name ?? '—';
+  }
+
   function onDrop(e: DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer?.files?.[0];
@@ -126,6 +133,20 @@
   }
 
   function onDragOver(e: DragEvent) { e.preventDefault(); }
+
+  onMount(async () => {
+    try {
+      const res = await fetch("/api/storage_locations");
+      if (!res.ok) throw new Error("Failed to fetch storage locations");
+      const data = await res.json();
+      storageLocations = data.map((sl: { id: number; name: string }) => ({
+        value: sl.id,
+        name: sl.name,
+      }));
+    } catch (err) {
+      storageLocationsError = "Could not load storage locations.";
+    }
+  });
 
   function handleFileUpload(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
@@ -204,11 +225,12 @@
         <Button color="alternative" size="sm" onclick={() => onPrint(item.id)}>
           <PrinterOutline class="mr-1.5 h-4 w-4" /> Print label
         </Button>
-        {#if user_privilege > PRIVILEGE_REPORTER}
+        <!-- {#if user_privilege > PRIVILEGE_REPORTER} -->
+         <!-- TODO add back guardrails -->
           <Button color="alternative" size="sm" onclick={toggleEdit}>
             <PenOutline class="mr-1.5 h-4 w-4" /> Edit
           </Button>
-        {/if}
+        <!-- {/if} -->
       {/if}
       <CloseButton onclick={onClose} class="dark:text-white ml-1" />
     </div>
@@ -348,8 +370,23 @@
 
         <!-- Storage Location -->
         <FieldRow label="Storage Location" editing={isEditing}>
-          {#snippet editSlot()}<Input bind:value={editedItem.location} />{/snippet}
-          {#snippet viewSlot()}<span>{item.location || '—'}</span>{/snippet}
+          {#snippet editSlot()}
+            {#if storageLocationsError}
+              <p class="text-xs text-red-500">{storageLocationsError}</p>
+            {:else if storageLocations.length === 0}
+              <p class="text-xs text-gray-400 dark:text-gray-500 italic">
+                Loading locations…
+              </p>
+            {:else}
+              <Select
+                items={[...storageLocations]}
+                bind:value={editedItem.location}
+              />
+            {/if}
+          {/snippet}
+          {#snippet viewSlot()}
+            <span>{getStorageLocationName(editedItem.location)}</span>
+          {/snippet}
         </FieldRow>
 
         <!-- Tags -->

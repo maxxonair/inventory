@@ -1,7 +1,8 @@
 <script lang="ts">
   import { Label, Input, Textarea, Button, Select, ButtonGroup, Badge } from "flowbite-svelte";
   import { MinusOutline, PlusOutline } from "flowbite-svelte-icons";
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount } from "svelte";
+  import { goto } from "$app/navigation";
 
   let name = $state("");
   let manufacturer = $state("");
@@ -9,14 +10,16 @@
   let manufacturer_location = $state("");
   let number_items = $state(1);
   let item_type = $state("");
-  let location = $state("");
-  let tags = $state("");
+  let location = $state<number | "">("");
+  let tagList = $state<string[]>([]);
+  let tagInput = $state("");
   let material = $state("");
   let color = $state("");
   let project = $state("");
   let product_use = $state("");
   let details = $state("");
   let image = $state("");
+  let error_msg = $state("");
 
   let showCameraStream = $state(false);
   let videoEl = $state<HTMLVideoElement | null>(null);
@@ -24,11 +27,50 @@
   let camera_error = $state("");
   let media_url = "/api/media/";
 
+  let storageLocations = $state<{ value: number; name: string }[]>([]);
+  let storageLocationsError = $state("");
+
+  onMount(async () => {
+    try {
+      const res = await fetch("/api/storage_locations");
+      if (!res.ok) throw new Error("Failed to fetch storage locations");
+      const data = await res.json();
+      storageLocations = data.map((sl: { id: number; name: string }) => ({
+        value: sl.id,
+        name: sl.name,
+      }));
+    } catch (err) {
+      storageLocationsError = "Could not load storage locations.";
+    }
+  });
+
   const categories = [
     { value: "Fabric", name: "Fabric" },
     { value: "Flooring", name: "Flooring" },
     { value: "Furniture", name: "Furniture" },
   ];
+
+  // Tag helpers
+  function addTag() {
+    const val = tagInput.trim().replace(/,/g, "");
+    if (val && !tagList.includes(val) && tagList.length < 20) {
+      tagList = [...tagList, val];
+    }
+    tagInput = "";
+  }
+
+  function removeTag(i: number) {
+    tagList = tagList.filter((_, idx) => idx !== i);
+  }
+
+  function handleTagKeydown(e: KeyboardEvent) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag();
+    } else if (e.key === "Backspace" && tagInput === "" && tagList.length) {
+      tagList = tagList.slice(0, -1);
+    }
+  }
 
   async function toggleCameraVisibility() {
     showCameraStream = !showCameraStream;
@@ -53,7 +95,6 @@
   }
 
   async function captureImage() {
-    // capture frame from videoEl, upload to /api/upload, then set image = response.id
     showCameraStream = false;
     stopCamera();
   }
@@ -71,8 +112,32 @@
 
   function onDragOver(e: DragEvent) { e.preventDefault(); }
 
-  function handleSubmit(e: Event) {
-    // onAdd({ name, manufacturer, ... });
+  async function handleSubmit(e: Event) {
+    if (!name) return;
+    try {
+      const date_added = new Date().toISOString();
+      const res = await fetch(`/api/add_item`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name, manufacturer, manufacturer_link, manufacturer_location,
+          number_items, item_type, location, tags: tagList.join(","),
+          material, color, project, product_use, details, image, date_added,
+        }),
+      });
+      if (!res.ok) {
+        error_msg = "Adding Item Failed";
+      } else {
+        error_msg = "";
+        const data = await res.json();
+        const newId = data.message;
+      }
+    } catch (err) {
+      error_msg = "Network error while adding item.";
+    } finally {
+      goto('/inventory');
+    }
   }
 
   onDestroy(stopCamera);
@@ -94,8 +159,16 @@
     </div>
   </div>
 
+  {#if error_msg}
+    <div class="flex items-center gap-2 px-6 py-3 text-sm text-red-800 bg-red-50 dark:bg-gray-800 dark:text-red-400 border-b border-red-200 dark:border-red-800">
+      <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm1 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1-8a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V6.5a1 1 0 0 1 1-1Z"/>
+      </svg>
+      {error_msg}
+    </div>
+  {/if}
+
   {#if showCameraStream}
-    <!-- Camera view -->
     <div class="flex flex-col items-center gap-4 p-8">
       <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Capture product image</p>
       {#if stream_error}
@@ -131,7 +204,6 @@
             {/if}
           </div>
 
-          <!-- Drop zone -->
           <label for="dropzone-file"
             class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
             ondrop={onDrop} ondragover={onDragOver}
@@ -148,31 +220,26 @@
         <div class="flex-1 p-6 lg:p-8">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
 
-            <!-- Name -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Name <span class="text-red-500">*</span></p>
               <Input bind:value={name} placeholder="Item name" required />
             </div>
 
-            <!-- Manufacturer -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer</p>
               <Input bind:value={manufacturer} placeholder="Brand or maker" />
             </div>
 
-            <!-- Manufacturer Link -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer Link</p>
               <Input bind:value={manufacturer_link} placeholder="https://…" />
             </div>
 
-            <!-- Manufacturer Location -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer Location</p>
               <Input bind:value={manufacturer_location} placeholder="City, Country" />
             </div>
 
-            <!-- Count -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Count</p>
               <ButtonGroup>
@@ -186,7 +253,6 @@
               </ButtonGroup>
             </div>
 
-            <!-- Item Type -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Item Type</p>
               <Select items={categories} bind:value={item_type} />
@@ -195,40 +261,74 @@
             <!-- Storage Location -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Storage Location</p>
-              <Input bind:value={location} placeholder="Shelf, room, bin…" />
+              {#if storageLocationsError}
+                <p class="text-xs text-red-500">{storageLocationsError}</p>
+              {:else if storageLocations.length === 0}
+                <p class="text-xs text-gray-400 dark:text-gray-500 italic">Loading locations…</p>
+              {:else}
+                <Select items={[ ...storageLocations]} bind:value={location} />
+              {/if}
             </div>
 
-            <!-- Tags -->
+            <!-- Tags pill input -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Tags</p>
-              <Input bind:value={tags} placeholder="comma, separated" />
+              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+              <div
+                class="flex flex-wrap gap-1.5 items-center min-h-[42px] w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 cursor-text"
+                onclick={() => document.getElementById('tag-input')?.focus()}
+              >
+                {#each tagList as tag, i}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                    {tag}
+                    <button
+                      type="button"
+                      onclick={() => removeTag(i)}
+                      class="inline-flex items-center p-0.5 text-blue-400 hover:bg-blue-200 hover:text-blue-900 dark:hover:bg-blue-800 dark:hover:text-blue-300 rounded-full"
+                      aria-label="Remove tag {tag}"
+                    >
+                      <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </span>
+                {/each}
+                <input
+                  id="tag-input"
+                  type="text"
+                  bind:value={tagInput}
+                  onkeydown={handleTagKeydown}
+                  placeholder={tagList.length === 0 ? "Type and press Enter…" : ""}
+                  class="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-0"
+                />
+              </div>
+              <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                Press <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Enter</kbd>
+                or <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">,</kbd>
+                to add · Backspace to remove
+              </p>
             </div>
 
-            <!-- Material -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Material</p>
               <Input bind:value={material} placeholder="e.g. Steel, Oak" />
             </div>
 
-            <!-- Color -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Color</p>
               <Input bind:value={color} placeholder="e.g. Charcoal grey" />
             </div>
 
-            <!-- Project -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Project</p>
               <Input bind:value={project} placeholder="Associated project" />
             </div>
 
-            <!-- Product Use -->
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Product Use</p>
               <Input bind:value={product_use} placeholder="Intended use" />
             </div>
 
-            <!-- Details (full width) -->
             <div class="sm:col-span-2">
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Details</p>
               <Textarea bind:value={details} placeholder="Additional notes, specifications…" rows={3} class="w-full" />

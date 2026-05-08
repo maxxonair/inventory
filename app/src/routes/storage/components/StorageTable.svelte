@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Input } from "flowbite-svelte";
+  import { Input, Badge } from "flowbite-svelte";
   import { Section } from "flowbite-svelte-blocks";
   import Pagination from "./Pagination.svelte";
 
@@ -32,6 +32,10 @@
         <div class="mt-2 text-slate-700 dark:text-slate-100">
           {item.name}
         </div>
+        <Badge color="dark" class="text-xs font-mono">ID: {item.id}</Badge>
+        {#if item.date_added}
+          <p class="text-xs text-gray-400 dark:text-gray-500">Added {item.date_added}</p>
+        {/if}
       </button>
     {/each}
   </div>
