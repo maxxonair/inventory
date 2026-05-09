@@ -3,12 +3,15 @@
   import { Undo2, Trash2, SquarePen, Check, X, AlertTriangle } from "lucide-svelte";
   import type { StorageLocation } from "../services/storage.svelte";
   import { onMount } from "svelte";
+  import { PrinterOutline } from "flowbite-svelte-icons";
+  import { printQR } from '$lib/niimbot';
 
   let { item, onClose, onUpdate, onDelete } = $props();
 
   let isEditing = $state(false);
   let showDeleteConfirm = $state(false);
   let deleteError = $state("");
+  let printError = $state("");
   let editedStorage = $state<StorageLocation>({ ...item });
 
   let locationItems = $state<{ id: number; name: string; manufacturer?: string; is_checked_out?: boolean }[]>([]);
@@ -44,6 +47,17 @@
   function handleCancel() {
     editedStorage = { ...item };
     isEditing = false;
+  }
+
+  async function handlePrintQrLabel() {
+    printError="";
+    const qrString = `istr;id;${item.id}`;
+    try {
+      await printQR(qrString);
+    } catch (printError) {
+      console.error("Printer error:", printError);
+      throw printError;
+    }
   }
 
   async function confirmDelete() {
@@ -90,6 +104,9 @@
           <Trash2 class="mr-2 h-4 w-4" /> Delete
         </Button>
       {/if}
+      <Button color="blue" size="sm" onclick={handlePrintQrLabel}>
+          <PrinterOutline class="mr-2 h-4 w-4" /> Print Label
+        </Button>
       <CloseButton onclick={onClose} class="ml-2" />
     </div>
   </div>
@@ -101,6 +118,16 @@
         <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm1 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1-8a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V6.5a1 1 0 0 1 1-1Z"/>
       </svg>
       {deleteError}
+    </div>
+  {/if}
+
+  <!-- Print (QR Label) error banner -->
+  {#if printError}
+    <div class="flex items-center gap-2 px-6 py-3 text-sm text-red-800 bg-red-50 dark:bg-gray-800 dark:text-red-400 border-b border-red-200 dark:border-red-800">
+      <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm1 13a1 1 0 1 1-2 0 1 1 0 0 1 2 0Zm-1-8a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V6.5a1 1 0 0 1 1-1Z"/>
+      </svg>
+      {printError}
     </div>
   {/if}
 

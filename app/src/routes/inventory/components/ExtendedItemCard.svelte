@@ -7,9 +7,11 @@
     ExclamationCircleOutline, CartPlusAltOutline, PrinterOutline,
     PenOutline, MinusOutline, PlusOutline
   } from 'flowbite-svelte-icons';
+  import { Undo2 } from "lucide-svelte";
   import type { InventoryItem } from "../services/inventory.svelte";
   import FieldRow from './FieldRow.svelte';
   import { onMount } from "svelte";
+  import { printQR } from '$lib/niimbot';
 
   let {
     item,
@@ -50,6 +52,7 @@
   let mediaStream = $state<MediaStream | null>(null);
   let storageLocations = $state<{ value: number; name: string }[]>([]);
   let storageLocationsError = $state("");
+  let printError = $state("");
 
   $effect(() => {
     if (!isEditing) editedItem = freshCopy();
@@ -110,16 +113,50 @@
     mediaStream = null;
   }
 
-  function captureImage() {
-    if (!videoEl) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = videoEl.videoWidth;
-    canvas.height = videoEl.videoHeight;
-    canvas.getContext('2d')?.drawImage(videoEl, 0, 0);
-    image = canvas.toDataURL('image/png');
-    imageUpdated = true;
-    stopCamera();
-    showCameraStream = false;
+  async function captureImage() {
+    camera_error='';
+    if (!videoEl) {
+      camera_error = 'Video element not ready';
+      return;
+    }
+
+    try {
+      // 1. Create a canvas to draw the video frame
+      const canvas = document.createElement('canvas');
+      canvas.width = videoEl.videoWidth;
+      canvas.height = videoEl.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Failed to get canvas context");
+
+      // 2. Draw current video frame onto the canvas
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+      // 3. Convert canvas to blob
+      const blob: Blob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
+
+      // 4. Send blob to backend
+      const formData = new FormData();
+      formData.append("avatar", blob, "capture.png");
+
+      const response = await fetch(`/api/image_upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        camera_error='Image capture failed. Failed to send image to server.';
+      } else {
+        imageUpdated = true;
+        stopCamera();
+        showCameraStream = false;
+      }
+    } catch (err) {
+      camera_error='Failed to upload image';
+      console.error(err);
+    }
   }
 
   function getStorageLocationName(id: any) {
@@ -162,13 +199,28 @@
     };
     reader.readAsDataURL(file);
   }
+
+  async function handlePrintQrLabel() {
+    printError="";
+    const qrString = `iitem;id;${item.id}`;
+    try {
+      await printQR(qrString);
+    } catch (printError) {
+      console.error("Printer error:", printError);
+      throw printError;
+    }
+  }
 </script>
 
 <div class="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 
   <!-- Top bar -->
   <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-wrap gap-3">
-
+    <!-- Return to Overview -->
+    <Button color="alternative" size="sm" onclick={onClose}>
+      <Undo2 class="mr-2 h-4 w-4" /> Back to Inventory Overview
+    </Button>
+    
     <!-- Title + status -->
     <div class="flex items-center gap-3 flex-wrap">
       <a href={item.manufacturer_link} target="_blank" rel="noopener noreferrer"
@@ -222,7 +274,7 @@
             <CartPlusAltOutline class="mr-1.5 h-4 w-4" /> Borrow
           </Button>
         {/if}
-        <Button color="alternative" size="sm" onclick={() => onPrint(item.id)}>
+        <Button color="blue" size="sm" onclick={handlePrintQrLabel}>
           <PrinterOutline class="mr-1.5 h-4 w-4" /> Print label
         </Button>
         <!-- {#if user_privilege > PRIVILEGE_REPORTER} -->
@@ -232,7 +284,6 @@
           </Button>
         <!-- {/if} -->
       {/if}
-      <CloseButton onclick={onClose} class="dark:text-white ml-1" />
     </div>
   </div>
 
@@ -416,7 +467,6 @@
             </p>
           {/if}
         </div>
-
       </div>
     </div>
   </div>

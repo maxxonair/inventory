@@ -236,11 +236,10 @@ export const CHAR_UUID = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
   // -----------------------------
   // Main print function
   // -----------------------------
-  export async function printQR(itemId: string) {
-    const qrString = `bigml2;id;${itemId}`;
+  export async function printQR(qr_payload: string) {
 
     // 1) Generate QR
-    let canvas = await generateQrCanvas(qrString, NIIMBOT_D110_MAX_HEIGHT_PX);
+    let canvas = await generateQrCanvas(qr_payload, NIIMBOT_D110_MAX_HEIGHT_PX);
     
     // 2) add top padding (becomes left when printed)
     canvas = addTopPadding(canvas, 2);

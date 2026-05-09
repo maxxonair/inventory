@@ -15,6 +15,7 @@ from logging import info, warning, error, debug
 import logging
 import socket
 from rich.rule import Rule
+from rich.prompt import Prompt
 from rich import print
 import os
 import sys
@@ -266,7 +267,7 @@ def run_config_setup(use_traefik: bool = False) -> bool:
     warning(
       "IP address of current host could not be determined. Please enter a valid host address manually."
     )
-    host_ip_address = input("Enter host address :  ")
+    host_ip_address = Prompt.ask("Enter host address", default="127.0.0.1")
   info(f"    Host IP address: {host_ip_address}")
 
   # -- Create compose.yml for all containers --
