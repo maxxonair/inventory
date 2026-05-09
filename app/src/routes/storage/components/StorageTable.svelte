@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Input, Badge } from "flowbite-svelte";
-  import { Section } from "flowbite-svelte-blocks";
+  import { Input } from "flowbite-svelte";
+  import { SearchOutline } from "flowbite-svelte-icons";
   import Pagination from "./Pagination.svelte";
 
   let {
@@ -12,30 +12,42 @@
   } = $props();
 </script>
 
-<Section
-  name="advancedTable"
-  sectionClass="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5"
->
-  <div class="mb-4">
-    <Input
-      placeholder="Search"
-      bind:value={searchTerm}
-    />
+<div class="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
+
+  <!-- Search bar -->
+  <div class="flex justify-center mb-6">
+    <div class="relative w-full max-w-md">
+      <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+        <SearchOutline class="h-5 w-5 text-gray-500 dark:text-gray-400" />
+      </div>
+      <Input type="search" placeholder="Search locations…" bind:value={searchTerm} class="pl-10" />
+    </div>
   </div>
 
-  <div class="grid gap-4 p-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+  <!-- Tile grid -->
+  <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
     {#each filteredStorageLocations as item (item.id)}
       <button
-        class="flex flex-col items-center rounded-lg bg-slate-100 dark:bg-slate-700 p-2 hover:bg-sky-300 dark:hover:bg-sky-700"
         onclick={() => onSelect(item.id)}
+        class="group flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-150 text-left"
       >
-        <div class="mt-2 text-slate-700 dark:text-slate-100">
-          {item.name}
+        <!-- Icon area -->
+        <div class="flex items-center justify-center w-full aspect-square bg-gray-100 dark:bg-gray-700 group-hover:bg-blue-50 dark:group-hover:bg-gray-600 transition-colors">
+          <svg class="w-12 h-12 text-gray-400 dark:text-gray-500 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zm-9 9H7m6 0h-2m5-4H7"/>
+          </svg>
         </div>
-        <Badge color="dark" class="text-xs font-mono">ID: {item.id}</Badge>
-        {#if item.date_added}
-          <p class="text-xs text-gray-400 dark:text-gray-500">Added {item.date_added}</p>
-        {/if}
+
+        <!-- Info -->
+        <div class="flex flex-col gap-1 px-3 py-2.5 border-t border-gray-100 dark:border-gray-700">
+          <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-gray-400 dark:text-gray-500">ID: {item.id}</span>
+            {#if item.date_added}
+              <span class="text-xs text-gray-400 dark:text-gray-500">{item.date_added}</span>
+            {/if}
+          </div>
+        </div>
       </button>
     {/each}
   </div>
@@ -47,4 +59,4 @@
       bind:currentPosition={currentPosition}
     />
   </div>
-</Section>
+</div>

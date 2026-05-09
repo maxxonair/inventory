@@ -58,19 +58,8 @@ export function createStorageLocationStore() {
     }
   }
 
-  async function deleteStorageLocation(storageId: number) {
-    const res = await fetch(`/api/delete_storage`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ storageId }),
-    });
-
-    if (res.ok) {
-      storage_locations = storage_locations.filter((i) => i.id !== storageId);
-    } else {
-      error_msg = "Deleting storage location failed";
-    }
+  async function deleteStorageLocation(id: number) {
+    storage_locations = storage_locations.filter(loc => loc.id !== id);
   }
 
   async function updateStorageLocation(id: number, updatedData: any) {

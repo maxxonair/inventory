@@ -8,7 +8,7 @@
   const itemsPerPage = 50;
 
   // 1. Initialize the store
-  const storage = createStorageLocationStore();
+  let storage = createStorageLocationStore();
 
   // 2. Component State
   let selectedStorageId = $state<number | null>(null);

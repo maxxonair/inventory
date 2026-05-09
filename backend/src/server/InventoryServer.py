@@ -86,6 +86,25 @@ class InventoryServer:
     # Routes
     self.configure_routes()
 
+  def _sanitize_dict_list(self, data_dict_list):
+    """Sanitize input data to prevent SQL injection and other attacks
+
+    Args:
+        input_data (str): The input data to sanitize
+
+    Returns:
+        str: The sanitized input data
+    """
+    # Replace NaN and None with empty string
+    cleaned_data = []
+    for row in data_dict_list:
+      cleaned_row = {
+        k: ("" if (isinstance(v, float) and math.isnan(v) or v is None) else v)
+        for k, v in row.items()
+      }
+      cleaned_data.append(cleaned_row)
+    return cleaned_data
+
   def configure_routes(self):
     """Configure Http routes for this server"""
 
@@ -143,9 +162,18 @@ class InventoryServer:
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
-      data_dict = client.get_all_inventory_items_as_dict_list()
+      data_dict_list = client.get_all_inventory_items_as_dict_list()
+      # Replace NaN and None with empty string
+      cleaned_data = []
+      for row in data_dict_list:
+        cleaned_row = {
+          k: ("" if (isinstance(v, float) and math.isnan(v) or v is None) else v)
+          for k, v in row.items()
+        }
+        cleaned_data.append(cleaned_row)
+      print(cleaned_data)
       client.close_connection()
-      return jsonify(data_dict)
+      return jsonify(cleaned_data)
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /get_item
@@ -329,7 +357,7 @@ class InventoryServer:
 
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
-      
+
       data = request.get_json()
       storage_id = int(data.get("id"))
       info(f"Serve storage info fors ID {storage_id}")
@@ -344,6 +372,28 @@ class InventoryServer:
         for k, v in data_dict.items()
       }
 
+      return jsonify(cleaned_data)
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /storage_items
+    # --------------------------------------------------------------------------
+    @self.app.route("/storage_items", methods=["POST"])
+    def get_storage_items():
+      if "user" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+
+      data = request.get_json()
+      storage_id = int(data.get("id"))
+      info(f"Serve storage items for ID {storage_id}")
+
+      data_dict_list = client.get_storage_items(storage_id)
+      # Replace NaN and None with empty string
+      cleaned_data = self._sanitize_dict_list(data_dict_list)
+
+      client.close_connection()
       return jsonify(cleaned_data)
 
     # --------------------------------------------------------------------------
@@ -363,14 +413,8 @@ class InventoryServer:
 
       client.close_connection()
 
-      # Replace NaN with empty string
-      cleaned_data = []
-      for row in data_dict_list:
-        cleaned_row = {
-          k: ("" if isinstance(v, float) and math.isnan(v) else v)
-          for k, v in row.items()
-        }
-        cleaned_data.append(cleaned_row)
+      # Replace NaN and None with empty string
+      cleaned_data = self._sanitize_dict_list(data_dict_list)
 
       return jsonify(cleaned_data)
 
