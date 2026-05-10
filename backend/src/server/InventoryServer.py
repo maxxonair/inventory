@@ -479,11 +479,26 @@ class InventoryServer:
     # --------------------------------------------------------------------------
     @self.app.route("/me")
     def me():
-      if "user" in session:
-        info(f"User {session['user']} logged in")
-        return jsonify({"user": session["user"]})
-      return jsonify({"error": "Not logged in"}), 401
-
+      if "user" not in session:
+          return jsonify({"error": "Not logged in"}), 401
+      client = DataBaseClient(host=self.db_host, port=self.db_port)
+      if not client.connect():
+        return jsonify({"error": "Database connection failed"}), 500
+      try:
+        # Look up the full user record from the DB
+        user = client.get_inventory_user_as_dict(session["user"])
+        if not user:
+          return jsonify({"error": "User not found"}), 404
+        return jsonify({
+            "id":              user["id"],
+            "username":        user["user_name"],
+            "user_privileges": user["user_privileges"],
+        })
+      except Exception as e:
+        error(f"User {session["user"]} not found: {e}")
+        client.close_connection()
+        return jsonify({"error": f"User: {session["user"]} not found"}), 404
+      
     # --------------------------------------------------------------------------
     #       ROUTE --> /user_privilege
     # --------------------------------------------------------------------------
@@ -494,13 +509,13 @@ class InventoryServer:
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       # Load privilege level for this user
-      info(f"Load privilege level for user {str(data.get('user'))}")
+      print(f"Load privilege level for user {str(data.get('user'))}")
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
       try:
         user_dict = client.get_inventory_user_as_dict(str(data.get("user")))
-        info(
+        print(
           f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
         )
         client.close_connection()
@@ -539,9 +554,9 @@ class InventoryServer:
         return jsonify({"error": "Database connection failed"}), 500
       new_user = InventoryUser(
         user_name=data_dict["username"],
-        password=data_dict["password"],
-        user_privileges=data_dict["privilege"],
+        user_password=data_dict["password"],
       )
+      new_user.user_privileges = data_dict["privilege"]
       new_id = client.add_inventory_user(new_user)
       client.close_connection()
       return jsonify({"message": f"{new_id}"}), 200

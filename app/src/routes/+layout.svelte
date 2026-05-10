@@ -1,7 +1,8 @@
 <script>
   import Header from "./Header.svelte";
   import { onMount } from "svelte";
-  import { fetchUser } from "$lib/stores/auth.js";
+  import { fetchUser, user } from "$lib/stores/auth.js";
+  import { get } from 'svelte/store';
   import "../app.css";
   import { page } from '$app/stores';
 
@@ -23,7 +24,17 @@
 
   const isLoginPage = $derived($page.url.pathname === '/login');
 
-  onMount(fetchUser);
+  onMount(async () => {
+    // Wait for the session check to complete before checking auth state.
+    // This prevents the race where the store is still null when the
+    // Header's onMount runs and incorrectly redirects to /login.
+    await fetchUser();
+
+    // Central auth guard: redirect to /login on any protected page if not logged in.
+    if (!isLoginPage && !get(user)) {
+      goto('/login');
+    }
+  });
 </script>
 
 {#if isLoginPage}

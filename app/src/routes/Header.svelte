@@ -6,7 +6,6 @@
   import { CloseSidebarSolid, QrCodeOutline, ArrowLeftToBracketOutline, OpenDoorOutline } from "flowbite-svelte-icons";
   import { goto } from '$app/navigation';
   import { user, logout } from '$lib/stores/auth.js';
-  import { get } from 'svelte/store';
 
   let isMobile = false;
   let activePage = $state("");
@@ -41,14 +40,6 @@
 
   onMount(() => {
     isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    // Read the actual store value, not the store object
-    const currentUser = get(user);
-    if (!currentUser) {
-      goto('/login');
-    }
-    // Removed the else goto('/inventory') — no need to redirect
-    // if the user is already authenticated and on a valid page
   });
 </script>
 

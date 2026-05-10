@@ -1,18 +1,19 @@
+
 import { writable } from 'svelte/store';
 import { goto } from '$app/navigation';
-
+ 
 export const user = writable(null);
 export const message = writable('');
-
+ 
 // Fetch the current logged-in user
 export async function fetchUser() {
   try {
     const res = await fetch('/api/me', {
       credentials: 'include'
     });
-
     if (res.ok) {
       const data = await res.json();
+      // /api/me now returns { id, username, user_privileges } directly
       user.set(data);
     } else {
       user.set(null);
@@ -22,7 +23,7 @@ export async function fetchUser() {
     user.set(null);
   }
 }
-
+ 
 // Log user out
 export async function logout() {
   try {
@@ -30,7 +31,6 @@ export async function logout() {
       method: 'POST',
       credentials: 'include'
     });
-
     if (res.ok) {
       user.set(null);
       message.set('Logged out');

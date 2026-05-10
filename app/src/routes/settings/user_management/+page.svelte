@@ -25,6 +25,14 @@
 
   const PRIVILEGE_ORDER: Privilege[] = ['GUEST', 'REPORTER', 'DEVELOPER', 'MAINTAINER', 'OWNER'];
 
+  // Maps numeric DB id (0–4) ↔ Privilege string
+  function privilegeFromId(id: number): Privilege {
+    return PRIVILEGE_ORDER[id] ?? 'GUEST';
+  }
+  function privilegeToId(p: Privilege): number {
+    return PRIVILEGE_ORDER.indexOf(p);
+  }
+
   const BADGE_COLOR: Record<Privilege, string> = {
     GUEST:      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
     REPORTER:   'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
@@ -35,7 +43,19 @@
 
   // ── State ──────────────────────────────────────────────────────────────────
 
-  let currentUser = $state(get(user) as AppUser | null);
+  // The auth store may hold the raw DB integer for privilege, so normalise it
+  // immediately so that isAtLeast() works before fetchUsers() is called.
+  function normaliseUser(raw: any): AppUser | null {
+    if (!raw) return null;
+    const priv = raw.privilege ?? raw.user_privileges;
+    return {
+      id: raw.id,
+      username: raw.username,
+      privilege: typeof priv === 'number' ? privilegeFromId(priv) : priv as Privilege,
+    };
+  }
+
+  let currentUser = $state(normaliseUser(get(user)));
   let users       = $state<AppUser[]>([]);
   let loading     = $state(true);
   let errorMsg    = $state('');
@@ -48,9 +68,10 @@
   let showPasswordModal = $state(false);
 
   // Add user form
-  let newUsername   = $state('');
-  let newPassword   = $state('');
-  let newPrivilege  = $state<Privilege>('GUEST');
+  let newUsername        = $state('');
+  let newPassword        = $state('');
+  let newPasswordConfirm = $state('');
+  let newPrivilege       = $state<Privilege>('GUEST');
 
   // Edit user
   let editTarget    = $state<AppUser | null>(null);
@@ -71,7 +92,7 @@
   }
 
   function isAtLeast(p: Privilege) {
-    return currentUser ? rank(currentUser.privilege) >= 3 : false;
+    return currentUser ? rank(currentUser.privilege) >= rank(p) : false;
   }
 
   function canManage(target: AppUser) {
@@ -107,7 +128,19 @@
     try {
       const res = await fetch('/api/users', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load users');
-      users = await res.json();
+      const raw: { id: number; username: string; user_privileges: number }[] = await res.json();
+      // Convert numeric user_privileges → Privilege string for every user
+      users = raw.map(u => ({
+        id: u.id,
+        username: u.username,
+        privilege: privilegeFromId(u.user_privileges),
+      }));
+      // Re-hydrate currentUser's privilege from the freshly fetched list so it
+      // stays in sync with the DB (important on first load).
+      if (currentUser) {
+        const me = users.find(u => u.id === currentUser!.id);
+        if (me) currentUser = { ...currentUser, privilege: me.privilege };
+      }
     } catch (e: any) {
       flash('error', e.message);
     } finally {
@@ -117,17 +150,30 @@
 
   async function addUser() {
     if (!newUsername.trim() || !newPassword.trim()) return;
+    if (newPassword !== newPasswordConfirm) {
+      flash('error', 'Passwords do not match.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      flash('error', 'Password must be at least 6 characters.');
+      return;
+    }
     try {
       const res = await fetch('/api/add_user', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: newUsername, password: newPassword, privilege: newPrivilege }),
+        // Backend expects "privilege" as the numeric DB id
+        body: JSON.stringify({
+          username:  newUsername,
+          password:  newPassword,
+          privilege: privilegeToId(newPrivilege),
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to add user');
       flash('success', `User "${newUsername}" added.`);
       showAddModal = false;
-      newUsername = ''; newPassword = ''; newPrivilege = 'GUEST';
+      newUsername = ''; newPassword = ''; newPasswordConfirm = ''; newPrivilege = 'GUEST';
       await fetchUsers();
     } catch (e: any) { flash('error', e.message); }
   }
@@ -139,7 +185,8 @@
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ privilege: editPrivilege }),
+        // Send the numeric privilege id the DB expects
+        body: JSON.stringify({ user_privileges: privilegeToId(editPrivilege) }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to update privilege');
       flash('success', `Privilege updated for "${editTarget.username}".`);
@@ -290,8 +337,12 @@
       <Input id="new-username" bind:value={newUsername} placeholder="Enter username" />
     </div>
     <div>
-      <Label for="new-password" class="mb-1">Initial Password</Label>
-      <Input id="new-password" type="password" bind:value={newPassword} placeholder="Enter password" />
+      <Label for="new-password" class="mb-1">Password</Label>
+      <Input id="new-password" type="password" bind:value={newPassword} placeholder="Min. 6 characters" />
+    </div>
+    <div>
+      <Label for="new-password-confirm" class="mb-1">Confirm Password</Label>
+      <Input id="new-password-confirm" type="password" bind:value={newPasswordConfirm} placeholder="Repeat password" />
     </div>
     <div>
       <Label for="new-privilege" class="mb-1">Privilege Level</Label>
@@ -304,7 +355,7 @@
   </div>
   {#snippet footer()}
     <Button color="alternative" onclick={addUser}>Add User</Button>
-    <Button color="light" onclick={() => showAddModal = false}>Cancel</Button>
+    <Button color="light" onclick={() => { showAddModal = false; newUsername = ''; newPassword = ''; newPasswordConfirm = ''; newPrivilege = 'GUEST'; }}>Cancel</Button>
   {/snippet}
 </Modal>
 
