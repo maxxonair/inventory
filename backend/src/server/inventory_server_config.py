@@ -18,13 +18,16 @@ inventory_server_ip = "0.0.0.0"
 
 # InventorySever port
 # Default: 5000
+# TODO add back correct port for production
 inventory_server_port = 5001
 
 
 # --- CONSTANTS ---
 
 # Path to where media files are saved
-MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
+# MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
+# TODO add back correct setting for production!
+MEDIA_DEFAULT_PATH = (config_path / ".." / ".." / "media").resolve()
 
 
 # IP address of the database server

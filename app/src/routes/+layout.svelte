@@ -9,7 +9,7 @@
   import {
     HomeSolid, ArchiveSolid, CogSolid,
     ListOutline, PlusOutline,
-    ArchiveArrowDownSolid, UserSettingsSolid
+    DownloadOutline, UserSettingsSolid
   } from 'flowbite-svelte-icons';
 
   let { children } = $props();
@@ -61,6 +61,10 @@
               <a href="/inventory/add_item" class={itemClass}>
                 <PlusOutline class="w-4 h-4 flex-shrink-0" />
                 {#if !isMinimized}<span>Add Item</span>{/if}
+              </a>
+              <a href="/inventory/export_db" class={itemClass}>
+                <DownloadOutline class="w-4 h-4 flex-shrink-0" />
+                {#if !isMinimized}<span>Export</span>{/if}
               </a>
             </div>
           </SidebarDropdownWrapper>

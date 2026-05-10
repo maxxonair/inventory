@@ -1,5 +1,62 @@
 import { printQR } from "$lib/niimbot";
 
+export const media_url = "/api/media/";
+
+// --- Image Utilities ---
+
+export async function uploadImage(formData: FormData): Promise<{ error: string; image: string }> {
+  try {
+    const response = await fetch(`/api/image_upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      return { error: "Image upload failed. Server returned an error.", image: "" };
+    }
+
+    const data = await response.json();
+    return { error: "", image: data.image };
+
+  } catch (err) {
+    console.error("Upload error:", err);
+    return { error: "Network error during image upload.", image: "" };
+  }
+}
+
+export async function captureImage(videoEl: HTMLVideoElement): Promise<{ error: string; image: string }> {
+  if (!videoEl) {
+    return { error: "Video element not ready.", image: "" };
+  }
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Failed to get canvas context");
+
+    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        b => b ? resolve(b) : reject(new Error("toBlob returned null")),
+        "image/png"
+      )
+    );
+
+    const formData = new FormData();
+    formData.append("avatar", blob, "capture.png");
+
+    return await uploadImage(formData);
+
+  } catch (err) {
+    console.error("Capture error:", err);
+    return { error: "Failed to capture image.", image: "" };
+  }
+}
+
 export interface InventoryItem {
   id: number;
   name?: string | '';
@@ -31,7 +88,7 @@ export function createInventoryStore() {
   let searchTerm = $state("");
   let loading = $state(false);
   let error_msg = $state("");
-  let imageUpdated = $state(false);
+  let image_updated = $state(false);
   let currentImage = $state("");
 
 
@@ -132,48 +189,52 @@ export function createInventoryStore() {
     }
   }
 
-  async function updateItem(id: number, updatedData: any) {
+  async function updateItem(id: number, updatedData: any): Promise<String> {
+    let save_error = "";
+
     // 1. Validation
     if (!updatedData.name) {
-      error_msg = "No item name set. Define item name before updating.";
-      return;
+      save_error = "No item name set. Define item name before updating.";
+      return save_error;
     }
-
-    // 2. Handle Image Logic
-    // If the image was updated in the UI, use the new store-level 'currentImage'
-    // Otherwise, stick with what was already on the item
-    const finalImage = imageUpdated ? currentImage : updatedData.image;
-
-    try {
-      const res = await fetch(`/api/update_item`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          ...updatedData,
-          image: finalImage,
-          date_updated: new Date().toISOString()
-        }),
-      });
-
-      if (!res.ok) {
-        error_msg = "Updating Item Failed";
-      } else {
-        // 3. Update Local State (Optimistic UI)
-        // Find the item in our reactive array and update it so the UI refreshes instantly
-        const index = items.findIndex((i) => i.id === id);
-        if (index !== -1) {
-          items[index] = { ...items[index], ...updatedData, image: finalImage };
+    else
+    {
+      // 2. Handle Image Logic
+      // If the image was updated in the UI, use the new store-level 'currentImage'
+      // Otherwise, stick with what was already on the item
+      const finalImage = image_updated ? currentImage : updatedData.image;
+  
+      try {
+        const res = await fetch(`/api/update_item`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id,
+            ...updatedData,
+            image: finalImage,
+          }),
+        });
+  
+        if (!res.ok) {
+          save_error = "Saving item updates failed";
+        } else {
+          // 3. Update Local State (Optimistic UI)
+          // Find the item in our reactive array and update it so the UI refreshes instantly
+          const index = items.findIndex((i) => i.id === id);
+          if (index !== -1) {
+            items[index] = { ...items[index], ...updatedData, image: finalImage };
+          }
+          
+          // 4. Reset flags
+          error_msg = "";
+          image_updated = false;
         }
-        
-        // 4. Reset flags
-        error_msg = "";
-        imageUpdated = false;
+      } catch (err) {
+        save_error = "Network error while updating item.";
       }
-    } catch (err) {
-      error_msg = "Network error while updating item.";
     }
+    return save_error;
   }
 
   async function addItem(newItemData: any) {
@@ -213,7 +274,7 @@ export function createInventoryStore() {
         // 2. Handle QR Printing
         try {
           // You can import your existing handleAddItemPrintQr logic here
-          await handlePrintQr(newId);
+          await printItemQrLabel(newId);
         } catch (err) {
           console.error('Failed to print QR for new item:', err);
         }
@@ -240,13 +301,16 @@ export function createInventoryStore() {
     return false;
   }
 
-  async function handlePrintQr(item_id: number) {
+  async function printItemQrLabel(id: number): Promise<String> {
+    let printError = "";
+    const qrPayload = `iitem;id;${id}`;
     try {
-      await printQR(String(item_id));
+      await printQR(String(qrPayload));
     } catch (err) {
       console.error("Printer error:", err);
-      throw err;
+      printError = "Failed to print QR label!";
     }
+    return printError
   }
 
   // --- Return object ---
@@ -257,6 +321,7 @@ export function createInventoryStore() {
     get searchTerm() { return searchTerm },
     get loading() { return loading },
     get user_privilege() { return user_privilege },
+    get image_updated() { return image_updated },
     get error_msg() { return error_msg },
 
     // State Setters
@@ -269,6 +334,8 @@ export function createInventoryStore() {
     checkoutItem,
     returnItem,
     updateItem,
-    addItem
+    addItem,
+    printItemQrLabel,
+    captureImage
   };
 }

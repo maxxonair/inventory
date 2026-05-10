@@ -163,15 +163,9 @@ class InventoryServer:
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
       data_dict_list = client.get_all_inventory_items_as_dict_list()
+      
       # Replace NaN and None with empty string
-      cleaned_data = []
-      for row in data_dict_list:
-        cleaned_row = {
-          k: ("" if (isinstance(v, float) and math.isnan(v) or v is None) else v)
-          for k, v in row.items()
-        }
-        cleaned_data.append(cleaned_row)
-      print(cleaned_data)
+      cleaned_data = self._sanitize_dict_list(data_dict_list)
       client.close_connection()
       return jsonify(cleaned_data)
 
@@ -226,6 +220,7 @@ class InventoryServer:
       success = cv.imwrite(str(img_path), img_np)
 
       if not success:
+        print(f'Failed to save uploaded image file to {img_path}')
         return {"error": "Failed to save image"}, 500
 
       # --- Generate thumbnail ---
@@ -239,6 +234,7 @@ class InventoryServer:
       thumb_success = cv.imwrite(str(thumb_path), thumb_np)
 
       if not thumb_success:
+        print('Failed to save thumbnail')
         return {"error": "Failed to save thumbnail"}, 500
 
       return {"message": "Image saved", "image": f"{hash_hex}"}
@@ -268,6 +264,27 @@ class InventoryServer:
       data_dict = request.json
       item_id = int(data_dict["id"])
       data_dict.pop("id")
+      
+      # TODO move to sensible place if safeguards remain
+      ALLOWED_FIELDS = {
+        'name', 'image', 'description', 'manufacturer', 'details',
+        'is_checked_out', 'check_out_date', 'check_out_poc', 'tags',
+        'location', 'item_type', 'manufacturer_link', 'project',
+        'manufacturer_location', 'color', 'material', 'product_use',
+        'number_items'
+      }
+
+      INTEGER_FIELDS = {'location', 'number_items', 'is_checked_out'}
+
+      # Strip unknown fields, coerce empty strings to None for integer columns
+      data_dict = {
+          k: (None if v == "" else v)
+          if k in INTEGER_FIELDS
+          else v
+          for k, v in data_dict.items()
+          if k in ALLOWED_FIELDS
+      }
+      
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500

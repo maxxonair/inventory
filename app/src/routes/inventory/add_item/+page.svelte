@@ -3,6 +3,7 @@
   import { MinusOutline, PlusOutline } from "flowbite-svelte-icons";
   import { onDestroy, onMount } from "svelte";
   import { goto } from "$app/navigation";
+  import { media_url, captureImage } from "../services/inventory.svelte";
 
   let name = $state("");
   let manufacturer = $state("");
@@ -25,7 +26,6 @@
   let videoEl = $state<HTMLVideoElement | null>(null);
   let stream_error = $state("");
   let camera_error = $state("");
-  let media_url = "/api/media/";
 
   let storageLocations = $state<{ value: number; name: string }[]>([]);
   let storageLocationsError = $state("");
@@ -94,9 +94,15 @@
     }
   }
 
-  async function captureImage() {
-    showCameraStream = false;
-    stopCamera();
+  async function handleImageCapture() {
+    const result = await captureImage(videoEl);
+    camera_error = result.error;
+
+    if (camera_error === "") {
+      image = result.image;
+      showCameraStream = false;
+      stopCamera();
+    }
   }
 
   function handleFileUpload(e: Event) {
@@ -112,33 +118,35 @@
 
   function onDragOver(e: DragEvent) { e.preventDefault(); }
 
-  async function handleSubmit(e: Event) {
-    if (!name) return;
-    try {
-      const date_added = new Date().toISOString();
-      const res = await fetch(`/api/add_item`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name, manufacturer, manufacturer_link, manufacturer_location,
-          number_items, item_type, location, tags: tagList.join(","),
-          material, color, project, product_use, details, image, date_added,
-        }),
-      });
-      if (!res.ok) {
-        error_msg = "Adding Item Failed";
-      } else {
-        error_msg = "";
-        const data = await res.json();
-        const newId = data.message;
-      }
-    } catch (err) {
-      error_msg = "Network error while adding item.";
-    } finally {
-      goto('/inventory');
+async function handleSubmit(e: Event) {
+  if (!name) return;
+  try {
+    const date_added = new Date().toISOString();
+    const res = await fetch(`/api/add_item`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name, manufacturer, manufacturer_link, manufacturer_location,
+        number_items, item_type,
+        location: location === "" ? null : location,
+        tags: tagList.join(","),
+        material, color, project, product_use, details, image, date_added,
+      }),
+    });
+    if (!res.ok) {
+      error_msg = "Adding Item Failed";
+    } else {
+      error_msg = "";
+      const data = await res.json();
+      const newId = data.message;
     }
+  } catch (err) {
+    error_msg = "Network error while adding item.";
+  } finally {
+    goto('/inventory');
   }
+}
 
   onDestroy(stopCamera);
 </script>
@@ -182,7 +190,7 @@
         <p class="text-xs text-gray-400">{camera_error}</p>
       {/if}
       <div class="flex gap-3">
-        <Button size="sm" onclick={captureImage}>Capture image</Button>
+        <Button size="sm" onclick={handleImageCapture}>Capture image</Button>
         <Button color="alternative" size="sm" onclick={toggleCameraVisibility}>Cancel</Button>
       </div>
     </div>

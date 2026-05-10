@@ -11,30 +11,29 @@
   import type { InventoryItem } from "../services/inventory.svelte";
   import FieldRow from './FieldRow.svelte';
   import { onMount } from "svelte";
-  import { printQR } from '$lib/niimbot';
+  import { media_url, captureImage} from "../services/inventory.svelte";
 
   let {
     item,
     user_privilege,
-    media_url,
+    image_updated,
     categories = [],
     onClose,
     onUpdate,
     onDelete,
     onCheckout,
     onReturn,
-    onPrint
+    onPrint,
   }: {
     item: InventoryItem;
     user_privilege: number;
-    media_url: string;
     categories?: { value: string; name: string }[];
     onClose: () => void;
-    onUpdate: (id: number | string, data: InventoryItem) => void;
-    onDelete: (id: number | string) => void;
-    onCheckout: (id: number | string) => void;
-    onReturn: (id: number | string) => void;
-    onPrint: (id: number | string) => void;
+    onUpdate: (id: number, data: InventoryItem) => Promise<String>;
+    onDelete: (id: number) => void;
+    onCheckout: (id: number) => void;
+    onReturn: (id: number) => void;
+    onPrint: (id: number) => Promise<String>;
   } = $props();
 
   const PRIVILEGE_MAINTAINER = 2;
@@ -45,14 +44,16 @@
   let showDeleteConfirm = $state(false);
   let editedItem = $state<InventoryItem>({ ...item });
   let videoEl = $state<HTMLVideoElement | undefined>(undefined);
-  let imageUpdated = $state(false);
   let image = $state(item.image ?? '');
-  let stream_error = $state('');
-  let camera_error = $state('');
   let mediaStream = $state<MediaStream | null>(null);
   let storageLocations = $state<{ value: number; name: string }[]>([]);
   let storageLocationsError = $state("");
-  let printError = $state("");
+  
+  // Process error strings
+  let save_error = $state("");
+  let stream_error = $state('');
+  let camera_error = $state('');
+  let print_error = $state("");
 
   $effect(() => {
     if (!isEditing) editedItem = freshCopy();
@@ -85,10 +86,28 @@
 
   function toggleEdit() { editedItem = freshCopy(); isEditing = true; }
   function cancelEdit() { editedItem = freshCopy(); isEditing = false; }
-  function handleSave() { onUpdate(item.id, editedItem); isEditing = false; }
   function requestDelete() { showDeleteConfirm = true; }
   function cancelDelete() { showDeleteConfirm = false; }
   function confirmDelete() { onDelete(item.id); showDeleteConfirm = false; onClose(); }
+
+  // Action Handlers
+  function handleSave() { save_error = String(onUpdate(item.id, editedItem)); isEditing = false; }
+  async function handlePrintQrLabel() {print_error = String(onPrint(item.id))}
+  function handleFileUpload(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) processImageFile(file);
+  }
+  async function handleImageCapture() {
+    const result = await captureImage(videoEl);
+    camera_error = result.error;
+
+    if (camera_error === "") {
+      editedItem.image = result.image;
+      image_updated = true;
+      stopCamera();
+      showCameraStream = false;
+    }
+  }
 
   async function toggleCameraVisibility() {
     showCameraStream = !showCameraStream;
@@ -111,52 +130,6 @@
   function stopCamera() {
     mediaStream?.getTracks().forEach(t => t.stop());
     mediaStream = null;
-  }
-
-  async function captureImage() {
-    camera_error='';
-    if (!videoEl) {
-      camera_error = 'Video element not ready';
-      return;
-    }
-
-    try {
-      // 1. Create a canvas to draw the video frame
-      const canvas = document.createElement('canvas');
-      canvas.width = videoEl.videoWidth;
-      canvas.height = videoEl.videoHeight;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Failed to get canvas context");
-
-      // 2. Draw current video frame onto the canvas
-      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-
-      // 3. Convert canvas to blob
-      const blob: Blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/png")
-      );
-
-      // 4. Send blob to backend
-      const formData = new FormData();
-      formData.append("avatar", blob, "capture.png");
-
-      const response = await fetch(`/api/image_upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        camera_error='Image capture failed. Failed to send image to server.';
-      } else {
-        imageUpdated = true;
-        stopCamera();
-        showCameraStream = false;
-      }
-    } catch (err) {
-      camera_error='Failed to upload image';
-      console.error(err);
-    }
   }
 
   function getStorageLocationName(id: any) {
@@ -185,31 +158,16 @@
     }
   });
 
-  function handleFileUpload(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) processImageFile(file);
-  }
-
   function processImageFile(file: File) {
     const reader = new FileReader();
     reader.onload = (e) => {
       image = e.target?.result as string;
-      imageUpdated = true;
+      image_updated = true;
       editedItem = { ...editedItem, image };
     };
     reader.readAsDataURL(file);
   }
 
-  async function handlePrintQrLabel() {
-    printError="";
-    const qrString = `iitem;id;${item.id}`;
-    try {
-      await printQR(qrString);
-    } catch (printError) {
-      console.error("Printer error:", printError);
-      throw printError;
-    }
-  }
 </script>
 
 <div class="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -305,13 +263,13 @@
           {#if camera_error}
             <p class="text-xs text-gray-400">{camera_error}</p>
           {/if}
-          <Button size="sm" onclick={captureImage} class="w-full">Capture</Button>
+          <Button size="sm" onclick={handleImageCapture} class="w-full">Capture</Button>
           <Button color="alternative" size="sm" onclick={toggleCameraVisibility} class="w-full">Cancel</Button>
         </div>
       {:else}
         <div class="w-full aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
           <img
-            src={imageUpdated ? image : `${media_url}${item.image}.png`}
+            src={image_updated ? image : `${media_url}${item.image}.png`}
             alt={item.name}
             class="w-full h-full object-contain"
           />
