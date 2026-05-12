@@ -18,30 +18,29 @@ inventory_server_ip = "0.0.0.0"
 
 # InventorySever port
 # Default: 5000
-# TODO add back correct port for production
-inventory_server_port = 5001
+inventory_server_port = 5000
 
 
 # --- CONSTANTS ---
 
 # Path to where media files are saved
-# MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
-# TODO add back correct setting for production!
-MEDIA_DEFAULT_PATH = (config_path / ".." / ".." / "media").resolve()
+MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
+# Debug path (when running servica manually here)
+# MEDIA_DEFAULT_PATH = (config_path / ".." / ".." / "media").resolve()
 
 
 # IP address of the database server
 # Default: inventory_db (container)
+# Debug: localhost (run service manually)
 DEFAULT_DB_HOST = "inventory_db"
-DEFAULT_DB_HOST = "localhost"  # --- IGNORE ---
 
 
 # Port of the database server
 # Default: 3306 (mapped container port)
 # Note: This is not necessarily the port on the host machine. The host port
 #       might be mapped to a different value in the docker-compose.yml file.
-DEFAULT_DB_PORT = 3307
+DEFAULT_DB_PORT = 3306
 
 
-# [CONSTANT] Name of the main database to store the Inventor
+# [CONSTANT] Name of the main database to store the inventory
 INVENTORY_DB_NAME = "inventory"
