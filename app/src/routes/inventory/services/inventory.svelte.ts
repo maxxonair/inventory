@@ -106,23 +106,16 @@ export function createInventoryStore() {
   async function fetchData() {
     loading = true;
     try {
-      // 1. Get User info
+      // 1. Get User info + privileges in one call — /api/me returns { id, username, user_privileges }
       const userRes = await fetch(`/api/me`, { credentials: "include" });
+      if (!userRes.ok) throw new Error("Failed to fetch user");
       const userData = await userRes.json();
-      user = userData.user;
+      user = userData;
+      user_privilege = userData.user_privileges; 
 
-      // 2. Get Privileges
-      const privRes = await fetch(`/api/user_privilege`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user }),
-      });
-      const privData = await privRes.json();
-      user_privilege = privData.privilege;
-
-      // 3. Get Items
+      // 2. Get Items
       const itemsRes = await fetch(`/api/items`, { credentials: "include" });
+      if (!itemsRes.ok) throw new Error("Failed to fetch items");
       items = await itemsRes.json();
     } catch (err) {
       console.error("Failed to fetch inventory data:", err);
@@ -257,7 +250,6 @@ export function createInventoryStore() {
           date_added,
           // Ensure defaults if not provided by the form
           is_checked_out: false,
-          // TODO map location from dropdown.
           location: null,
           check_out_poc: null,
           check_out_date: null

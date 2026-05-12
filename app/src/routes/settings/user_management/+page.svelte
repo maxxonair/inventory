@@ -128,11 +128,11 @@
     try {
       const res = await fetch('/api/users', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load users');
-      const raw: { id: number; username: string; user_privileges: number }[] = await res.json();
-      // Convert numeric user_privileges → Privilege string for every user
+      const raw: { id: number; user_name: string; user_privileges: number }[] = await res.json();
+      // DB column is user_name, map it to username for the AppUser type
       users = raw.map(u => ({
         id: u.id,
-        username: u.username,
+        username: u.user_name,
         privilege: privilegeFromId(u.user_privileges),
       }));
       // Re-hydrate currentUser's privilege from the freshly fetched list so it

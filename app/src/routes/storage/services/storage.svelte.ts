@@ -32,20 +32,12 @@ export function createStorageLocationStore() {
   async function fetchData() {
     loading = true;
     try {
-      // 1. Get User info
+      // 1. Get User info + privileges in one call — /api/me returns { id, username, user_privileges }
       const userRes = await fetch(`/api/me`, { credentials: "include" });
+      if (!userRes.ok) throw new Error("Failed to fetch user");
       const userData = await userRes.json();
-      user = userData.user;
-
-      // 2. Get Privileges
-      const privRes = await fetch(`/api/user_privilege`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user }),
-      });
-      const privData = await privRes.json();
-      user_privilege = privData.privilege;
+      user = userData;
+      user_privilege = userData.user_privileges; 
 
       // 3. Get storage_locations
       const locationsRes = await fetch(`/api/storage_locations`, { credentials: "include" });
@@ -126,16 +118,8 @@ export function createStorageLocationStore() {
         const data = await res.json();
         const newId = data.message;
 
-        // 2. Handle QR Printing
-        try {
-          // You can import your existing handleAddItemPrintQr logic here
-          await handlePrintStorageQr(newId);
-        } catch (err) {
-          console.error('Failed to print QR for new storage location:', err);
-        }
-
-        // 3. Update Local State (Avoids window.location.reload)
-        // We push the new item to our state array so it appears instantly
+        // Update Local State (Avoids window.location.reload)
+        // The new item is pushed to our state array so it appears instantly
         const itemToAppend = { 
           ...newStorageLocation, 
           id: newId, 
@@ -152,16 +136,6 @@ export function createStorageLocationStore() {
       loading = false;
     }
     return false;
-  }
-
-  async function handlePrintStorageQr(item_id: number) {
-    try {
-      // TODO! add method to print QR code for storage location (probably same as item QR but with different endpoint)
-      await printQR(String(item_id));
-    } catch (err) {
-      console.error("Printer error:", err);
-      throw err;
-    }
   }
 
   // --- Return object ---

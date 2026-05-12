@@ -72,10 +72,10 @@
     </button>
 
     <button class="py2 px-1 py-1 bg-sky-600 dark:bg-sky-800 text-sky-100 hover:text-white border border-gray-800 hover:bg-gray-900 focus:ring-4 focus:outline-none focus:ring-gray-300 font-medium rounded-lg text-sm text-center me-2 mb-2 dark:border-gray-600 dark:text-sky-100 dark:hover:text-white dark:hover:bg-gray-600 dark:focus:ring-gray-800">
-      {#if user}
+      {#if $user}
         <OpenDoorOutline class="p-1! md-1" onclick={logout}/>
         <Tooltip placement="bottom" transitionParams={{ duration: 100 }}>
-            Log out
+            Log out {$user.username}
         </Tooltip>
       {:else}
         <ArrowLeftToBracketOutline class="p-1! md-1" onclick={login}/>

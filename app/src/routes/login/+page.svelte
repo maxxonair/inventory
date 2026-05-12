@@ -51,7 +51,6 @@
 
   async function createAdmin() {
     error_msg = '';
-    let privilege = 4;
     if (!username.trim() || !password.trim()) {
       error_msg = 'Username and password are required.';
       return;
@@ -64,11 +63,12 @@
       error_msg = 'Password must be at least 6 characters.';
       return;
     }
-    const res = await fetch('/api/add_user', {
+    // Use /api/setup — does not require a session, privilege hardcoded to OWNER server-side
+    const res = await fetch('/api/setup', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, privilege }),
+      body: JSON.stringify({ username, password }),
     });
     if (res.ok) {
       // Auto-login with the new credentials
@@ -123,7 +123,7 @@
 
       <!-- Setup form -->
       {:else if mode === 'setup'}
-        <form on:submit|preventDefault={createAdmin} class="space-y-5">
+        <form onsubmit={(e) => { e.preventDefault(); createAdmin(); }} class="space-y-5">
           <FloatingLabelInput
             clearable variant="outlined" id="su-user" name="su-user" type="text"
             class="bg-white dark:bg-gray-700 rounded-lg" required bind:value={username}
@@ -165,7 +165,7 @@
 
       <!-- Login form -->
       {:else}
-        <form on:submit|preventDefault={login} class="space-y-5">
+        <form onsubmit={(e) => { e.preventDefault(); login(); }} class="space-y-5">
           <FloatingLabelInput
             clearable variant="outlined" id="user" name="user" type="text"
             class="bg-white dark:bg-gray-700 rounded-lg" required bind:value={username}

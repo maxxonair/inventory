@@ -4,6 +4,7 @@
   import type { StorageLocation } from "../services/storage.svelte";
   import { onMount } from "svelte";
   import { PrinterOutline } from "flowbite-svelte-icons";
+  import { goto } from '$app/navigation';
   import { printQR } from '$lib/niimbot';
 
   let { item, onClose, onUpdate, onDelete } = $props();
@@ -240,7 +241,13 @@
           {:else}
             <div class="divide-y divide-gray-100 dark:divide-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
               {#each locationItems as locationItem}
-                <div class="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-gray-900 hover:bg-sky-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  onclick={() => goto(`/inventory/item/${locationItem.id}`)}
+                  onkeydown={(e) => e.key === 'Enter' && goto(`/inventory/item/${locationItem.id}`)}
+                >
                   <div class="min-w-0">
                     <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{locationItem.name}</p>
                     {#if locationItem.manufacturer}

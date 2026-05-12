@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import { fetchUser, user } from "$lib/stores/auth.js";
   import { get } from 'svelte/store';
+  import { goto } from '$app/navigation';
   import "../app.css";
   import { page } from '$app/stores';
 

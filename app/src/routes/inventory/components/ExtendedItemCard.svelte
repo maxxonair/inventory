@@ -235,12 +235,11 @@
         <Button color="blue" size="sm" onclick={handlePrintQrLabel}>
           <PrinterOutline class="mr-1.5 h-4 w-4" /> Print label
         </Button>
-        <!-- {#if user_privilege > PRIVILEGE_REPORTER} -->
-         <!-- TODO add back guardrails -->
-          <Button color="alternative" size="sm" onclick={toggleEdit}>
+        {#if user_privilege > PRIVILEGE_REPORTER}
+          <Button color="primary" size="sm" onclick={toggleEdit}>
             <PenOutline class="mr-1.5 h-4 w-4" /> Edit
           </Button>
-        <!-- {/if} -->
+        {/if}
       {/if}
     </div>
   </div>

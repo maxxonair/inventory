@@ -362,33 +362,45 @@ class InventoryServer:
 
       return jsonify({"status": "success"}), 200
 
-    # --------------------------------------------------------------------------
+    #--------------------------------------------------------------------------
     #       ROUTE --> /storage
     # --------------------------------------------------------------------------
     @self.app.route("/storage")
     def get_storage():
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-
+ 
       client = DataBaseClient(host=self.db_host, port=self.db_port)
-
+ 
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
-
-      data = request.get_json()
-      storage_id = int(data.get("id"))
-      info(f"Serve storage info fors ID {storage_id}")
-
+ 
+      # Accept id as a query parameter: /storage?id=3
+      storage_id = request.args.get("id")
+      if storage_id is None:
+        client.close_connection()
+        return jsonify({"error": "Missing id parameter"}), 400
+ 
+      storage_id = int(storage_id)
+      info(f"Serve storage info for ID {storage_id}")
+ 
       data_dict = client.get_storage_location(storage_id)
-
       client.close_connection()
-
+ 
+      if not data_dict:
+        return jsonify({"error": "Storage location not found"}), 404
+ 
+      # get_storage_location may return a list — take the first row
+      if isinstance(data_dict, list):
+        if len(data_dict) == 0:
+          return jsonify({"error": "Storage location not found"}), 404
+        data_dict = data_dict[0]
+ 
       # Replace NaN with empty string
       cleaned_data = {
         k: ("" if isinstance(v, float) and math.isnan(v) else v)
         for k, v in data_dict.items()
       }
-
       return jsonify(cleaned_data)
 
     # --------------------------------------------------------------------------
@@ -487,6 +499,7 @@ class InventoryServer:
       try:
         # Look up the full user record from the DB
         user = client.get_inventory_user_as_dict(session["user"])
+        client.close_connection()
         if not user:
           return jsonify({"error": "User not found"}), 404
         return jsonify({
@@ -529,7 +542,7 @@ class InventoryServer:
     #       ROUTE --> /users
     # --------------------------------------------------------------------------
     @self.app.route("/users")
-    def get_users():
+    def users():
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       client = DataBaseClient(host=self.db_host, port=self.db_port)
@@ -538,6 +551,42 @@ class InventoryServer:
       data_dict = client.get_all_inventory_users_as_dict_list()
       client.close_connection()
       return jsonify(data_dict)
+    
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /setup
+    # --------------------------------------------------------------------------
+    @self.app.route("/setup", methods=["GET", "POST"])
+    def setup():
+        client = DataBaseClient(host=self.db_host, port=self.db_port)
+        if not client.connect():
+            return jsonify({"error": "Database connection failed"}), 500
+
+        user_list = client.get_all_inventory_users_as_dict_list()
+
+        if request.method == "GET":
+            client.close_connection()
+            return jsonify({"setup_required": len(user_list) == 0})
+
+        # POST — only allowed when table is empty
+        if len(user_list) > 0:
+            client.close_connection()
+            return jsonify({"error": "Setup already complete"}), 403
+
+        try:
+            data = request.json
+            from server.InventoryUser import UserPrivileges
+            new_user = InventoryUser(
+                user_name=data["username"],
+                user_password=data["password"],
+                user_privileges=UserPrivileges.OWNER,
+            )
+            client.add_inventory_user(new_user)
+            client.close_connection()
+            return jsonify({"message": "Admin user created"}), 200
+        except Exception as e:
+            error(f"Setup error: {e}")
+            client.close_connection()
+            return jsonify({"error": str(e)}), 500
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /add_user
@@ -570,7 +619,7 @@ class InventoryServer:
       if "user" not in session:
         return jsonify({"error": "Unauthorized"}), 401
       data = request.get_json()
-      user_name = int(data.get("username"))
+      user_name = str(data.get("username"))
       info(f"Delete user: {user_name}")
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
@@ -591,10 +640,11 @@ class InventoryServer:
       client = DataBaseClient(host=self.db_host, port=self.db_port)
       if not client.connect():
         return jsonify({"error": "Database connection failed"}), 500
+      from server.InventoryUser import UserPrivileges
       updated_user = InventoryUser(
         user_name=data_dict["username"],
-        password=data_dict["password"],
-        user_privileges=data_dict["privilege"],
+        user_password=data_dict["password"],
+        user_privileges=UserPrivileges(data_dict["privilege"]),
       )
       client.update_inventory_user_privileges(updated_user)
       client.update_inventory_user_password(updated_user)

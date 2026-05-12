@@ -48,7 +48,9 @@
       return { type: 0, id: 0 };
     }
 
+    // -> Inventory item ID
     if (prefix === "iitem") return { type: 1, id: Number(rawId) };
+    // -> Inventory storage location ID
     if (prefix === "istr")  return { type: 2, id: Number(rawId) };
 
     return { type: 0, id: 0 };
@@ -70,7 +72,7 @@
     if (type === 1) {
       goto(`/inventory/item/${id}`);
     } else if (type === 2) {
-      goto(`/inventory/storage/${id}`);
+      goto(`/storage/item/${id}`);
     }
   }
 
