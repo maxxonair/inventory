@@ -11,7 +11,7 @@
   import type { InventoryItem } from "../services/inventory.svelte";
   import FieldRow from './FieldRow.svelte';
   import { onMount } from "svelte";
-  import { media_url, captureImage} from "../services/inventory.svelte";
+  import { media_url, captureImage, uploadImage} from "../services/inventory.svelte";
 
   let {
     item,
@@ -45,6 +45,7 @@
   let editedItem = $state<InventoryItem>({ ...item });
   let videoEl = $state<HTMLVideoElement | undefined>(undefined);
   let image = $state(item.image ?? '');
+  let tmp_image = $state('');
   let mediaStream = $state<MediaStream | null>(null);
   let storageLocations = $state<{ value: number; name: string }[]>([]);
   let storageLocationsError = $state("");
@@ -93,9 +94,9 @@
   // Action Handlers
   function handleSave() { save_error = String(onUpdate(item.id, editedItem)); isEditing = false; }
   async function handlePrintQrLabel() {print_error = String(onPrint(item.id))}
-  function handleFileUpload(e: Event) {
+  async function handleFileUpload(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) processImageFile(file);
+    if (file) await processImageFile(file);
   }
   async function handleImageCapture() {
     const result = await captureImage(videoEl);
@@ -158,14 +159,20 @@
     }
   });
 
-  function processImageFile(file: File) {
+  async function processImageFile(file: File) {
     const reader = new FileReader();
+    reader.readAsDataURL(file);
     reader.onload = (e) => {
-      image = e.target?.result as string;
+      tmp_image = e.target?.result as string;
+    }
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const result = await uploadImage(formData);
+    if (camera_error === "") {
+      image = result.image;
       image_updated = true;
       editedItem = { ...editedItem, image };
-    };
-    reader.readAsDataURL(file);
+    }
   }
 
 </script>
@@ -268,7 +275,7 @@
       {:else}
         <div class="w-full aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
           <img
-            src={image_updated ? image : `${media_url}${item.image}.png`}
+            src={image_updated ? tmp_image : `${media_url}${item.image}.png`}
             alt={item.name}
             class="w-full h-full object-contain"
           />

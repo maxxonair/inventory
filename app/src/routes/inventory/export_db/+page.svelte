@@ -140,7 +140,7 @@
 
   <!-- Notes -->
   <div class="text-xs text-gray-400 dark:text-gray-500 leading-relaxed space-y-1">
-    <p>· Exports always reflect the current state of the database at the time of download.</p>
+    <p>· Exports always reflect the current state of the database at the time of the download.</p>
     <p>· Images and avatars are excluded from all export formats.</p>
   </div>
 

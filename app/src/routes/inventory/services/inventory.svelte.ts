@@ -95,7 +95,7 @@ export function createInventoryStore() {
   // --- Derived ---
   const filteredItems = $derived(
     items.filter((item: InventoryItem) =>
-      Object.values(item).some((v) => 
+      Object.values(item).some((v) =>
         String(v).toLowerCase().includes(searchTerm.toLowerCase())
       )
     )
@@ -111,7 +111,7 @@ export function createInventoryStore() {
       if (!userRes.ok) throw new Error("Failed to fetch user");
       const userData = await userRes.json();
       user = userData;
-      user_privilege = userData.user_privileges; 
+      user_privilege = userData.user_privileges;
 
       // 2. Get Items
       const itemsRes = await fetch(`/api/items`, { credentials: "include" });
@@ -190,13 +190,12 @@ export function createInventoryStore() {
       save_error = "No item name set. Define item name before updating.";
       return save_error;
     }
-    else
-    {
+    else {
       // 2. Handle Image Logic
       // If the image was updated in the UI, use the new store-level 'currentImage'
       // Otherwise, stick with what was already on the item
       const finalImage = image_updated ? currentImage : updatedData.image;
-  
+
       try {
         const res = await fetch(`/api/update_item`, {
           method: "POST",
@@ -208,7 +207,7 @@ export function createInventoryStore() {
             image: finalImage,
           }),
         });
-  
+
         if (!res.ok) {
           save_error = "Saving item updates failed";
         } else {
@@ -218,7 +217,7 @@ export function createInventoryStore() {
           if (index !== -1) {
             items[index] = { ...items[index], ...updatedData, image: finalImage };
           }
-          
+
           // 4. Reset flags
           error_msg = "";
           image_updated = false;
@@ -240,7 +239,7 @@ export function createInventoryStore() {
     loading = true;
     try {
       const date_added = new Date().toISOString();
-      
+
       const res = await fetch(`/api/add_item`, {
         method: "POST",
         credentials: "include",
@@ -273,17 +272,17 @@ export function createInventoryStore() {
 
         // 3. Update Local State (Avoids window.location.reload)
         // We push the new item to our state array so it appears instantly
-        const itemToAppend = { 
-          id: newId, 
-          ...newItemData, 
-          date_added, 
-          is_checked_out: false 
+        const itemToAppend = {
+          id: newId,
+          ...newItemData,
+          date_added,
+          is_checked_out: false
         };
-        
+
         items = [...items, itemToAppend];
 
         // 4. Return success to let the component know it can close the drawer
-        return true; 
+        return true;
       }
     } catch (err) {
       error_msg = "Network error while adding item.";
