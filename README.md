@@ -2,7 +2,7 @@
 inventory
 </h1>
 <p align="center">
-A minimal physical asset management tool
+A minimal asset management tool
 </p>
 
 ### In Short
@@ -12,12 +12,13 @@ Minimal inventory management system to track physical assets in a digital databa
 ### Key Features
 
 :thumbsup: Easy access, easy to maintain inventory database.  
-:vertical_traffic_light: Track item storage and item lending automated with QR code system.  
-:computer: Designed for minimal hardware requirements and cost (see recommended hardware below).  
+:ticket: Identify assets and storage locations with QR labels 
+:computer: Designed for minimal hardware requirements and cost (see recommended hardware).  
 :raising_hand: Use build-in authentification management or hook up to your own.  
 :fire: Easy customer access via web app built with [svelte](https://svelte.dev/)  
+:mag: Track and match assets and storage locations
 
-![alt text](https://github.com/maxxonair/inventory/blob/0.0.1/imgs/inv_example.png?raw=true)
+![alt text](https://github.com/maxxonair/inventory/blob/0.0.2/imgs/inv_example.png?raw=true)
 
 # SETUP
 
@@ -31,13 +32,10 @@ The core modules:
 - The database 
 - The inventory server
 - The inventory application
-- Services:
-    - Camera 
-    - Printer
 
-The database, inventory servera and application should be run on the same machine, while the services can be run on dedicated terminal machines, e.g. in the archive or warehouse.
+The database, inventory servera and application should be run on the same machine.
 
-![alt text](https://github.com/maxxonair/inventory/blob/0.0.1/imgs/inventory_sketch_light.drawio.png?raw=true)
+![alt text](https://github.com/maxxonair/inventory/blob/0.0.2/imgs/inventory_sketch_light.drawio.png?raw=true)
 
 ## 1. Requirements
 
@@ -117,16 +115,7 @@ This allows to:
 Note: This functionality is not protected and should hence be accessible only to
 system administrators on the backend server.
 
-#### 2.3 (Optional) Set up kuma uptime
-
-If there is no service monitoring already in place it is recommended to use [kuma uptime](https://github.com/louislam/uptime-kuma) to monitor the health status of the application. Kuma as well runs as a podman container and can be installed running the scripts/setup_kuma_uptime.sh script. Note kuma by default is set to use docker instead of podman so you will need to replace the image link in the uptime-kuma docker-compose file before running the container:
-
-```
-services:
-  uptime-kuma:
-    image: docker.io/louislam/uptime-kuma:2
-```
-
+Once the first admin user is set up additional users can added within the application under Settings / User Settings
 
 ### User Privileges
 
@@ -139,7 +128,7 @@ The following privelege levels are currently maintained, the table shows their a
 | **Delete Item**     | -     | -        | x          | x          | x     |
 | **Modify Item**     | -     | -        | x          | x          | x     |
 | **Export to CSV**   | -     | x        | x          | x          | x     |
-| **Settings Access** | -     | -        | -          | x          | x     |
+| **Add User**        | -     | -        | -          | x          | x     |
 
 
 ## 3 Manual Commands
@@ -172,16 +161,18 @@ bun run dev
 
 :warning: The printer connection requires Web Bluetooth which only works with the following browsers:
 
-| Platform                     | Supported?                  |
-| ---------------------------- | --------------------------- |
+| Platform                     | Supported?                   |
+| ---------------------------- | ---------------------------  |
 | **Chrome (desktop)**         | ✅ Yes                       |
 | **Chrome on Android**        | ✅ Yes                       |
-| **Edge (Chromium)**          | ⚠️ Partial                  |
+| **Edge (Chromium)**          | ⚠️ Partial                   |
 | **Firefox**                  | ❌ No                        |
 | **Safari (Mac/iOS)**         | ❌ No                        |
 | **Any browser in an iframe** | ❌ No (unless special flags) |
 | **On http:// URLs**          | ❌ No                        |
 | **On localhost**             | ✅ Yes                       |
+
+Note that any browser will not allow camera access unless the application is accessed through https or if the server is accessed as locahost.
 
 ### Enable Web-Bluetooth
 
@@ -218,20 +209,23 @@ each item in the inventory.
 | **Color**     | Product color  |
 | **Product Use**     | Product use  |
 | **Material**     | Product Material |
-| **Storage Location**     | Storage location of the item  |
+| **Storage Location**     | Storage location ID of the storage location where the item is stored  |
+
+### Storage Location Data
+
+A second table tracks storage location instances. Each item can only have a single storage location, but each storage location can contain several items. The mapping is done in the storage location column in the item database, which contains the ID of the storage location that item is stored.
 
 # Hardware Requirements
 
 Inventory is fully containerised and hence can be run on any system able to run podman containers.
 
-It was developped and tested with the following hardware:
+It was developped and tested with the following auxiliary hardware:
 
-- BMAX mini PC (to run UI server and database) running Ubuntu Desktop 24.04.1
+- BMAX mini PC (to run UI server and database) running Ubuntu Desktop 24.04.1 also tested successfully on macOS Tahoe and Windows 11
 - (OPTIONAL) USB webcam. Any device camera (smartphone, tabled, laptop) can be used as well.
 - Niimbot D110 label printer (to print item QR code labels)
 
-## Client Side Requirements
+The inventory application can run on any device with a browser and has been tested successfully on desktops, laptops, tablets and smartphones.
 
-Inventory can be run on any device that has a web browser installed. To be able 
-to use full functionality (camera and printer access), you need to use Google Chrome on any desktop device with linux or windows (untested) installed or any android device. Apple devices currently do not give access to Web-Bluetooth, hence the label printer cannot be accessed from there, all other functions work normally.
+To be able to use all functions (camera and printer access), you need to use Google Chrome. Some apple devices currently do not give access to Web-Bluetooth which prevents label printing.
 
