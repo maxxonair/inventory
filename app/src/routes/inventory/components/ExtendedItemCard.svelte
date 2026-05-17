@@ -41,6 +41,7 @@
 
   let isEditing = $state(false);
   let showCameraStream = $state(false);
+  let imageExpanded = $state(false);
   let showDeleteConfirm = $state(false);
   let editedItem = $state<InventoryItem>({ ...item });
   let videoEl = $state<HTMLVideoElement | undefined>(undefined);
@@ -273,7 +274,15 @@
           <Button color="alternative" size="sm" onclick={toggleCameraVisibility} class="w-full">Cancel</Button>
         </div>
       {:else}
-        <div class="w-full aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+        <div
+          class="w-full aspect-square rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center cursor-zoom-in"
+          onclick={() => (imageExpanded = true)}
+          title="Click to enlarge"
+          role="button"
+          tabindex="0"
+          onkeydown={(e) => e.key === 'Enter' && (imageExpanded = true)}
+        >
           <img
             src={image_updated ? tmp_image : `${media_url}${item.image}.png`}
             alt={item.name}
@@ -441,3 +450,31 @@
     </div>
   </div>
 </div>
+
+<!-- Lightbox overlay -->
+{#if imageExpanded}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out"
+    onclick={() => (imageExpanded = false)}
+    role="button"
+    tabindex="0"
+    onkeydown={(e) => e.key === 'Escape' && (imageExpanded = false)}
+    title="Click to close"
+  >
+    <img
+      src={image_updated ? tmp_image : `${media_url}${item.image}.png`}
+      alt={item.name}
+      class="max-w-[90vw] max-h-[90vh] rounded-xl object-contain shadow-2xl"
+    />
+    <button
+      class="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+      onclick={() => (imageExpanded = false)}
+      aria-label="Close enlarged image"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+{/if}

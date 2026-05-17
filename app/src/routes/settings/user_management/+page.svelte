@@ -261,7 +261,7 @@
     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage users and their privilege levels</p>
   </div>
   {#if isAtLeast('MAINTAINER')}
-    <Button color="alternative" onclick={() => showAddModal = true}>
+    <Button color="primary" onclick={() => showAddModal = true}>
       <PlusOutline class="w-4 h-4 me-2" /> Add User
     </Button>
   {/if}
@@ -330,7 +330,7 @@
 {/if}
 
 <!-- ── Add User Modal ─────────────────────────────────────────────────────────── -->
-<Modal title="Add User" bind:open={showAddModal} autoclose={false}>
+<Modal title="Add User" bind:open={showAddModal} autoclose={false} outsideclose={false}>
   <div class="space-y-4">
     <div>
       <Label for="new-username" class="mb-1">Username</Label>
@@ -354,13 +354,13 @@
     </div>
   </div>
   {#snippet footer()}
-    <Button color="alternative" onclick={addUser}>Add User</Button>
+    <Button color="primary" onclick={addUser}>Add User</Button>
     <Button color="light" onclick={() => { showAddModal = false; newUsername = ''; newPassword = ''; newPasswordConfirm = ''; newPrivilege = 'GUEST'; }}>Cancel</Button>
   {/snippet}
 </Modal>
 
 <!-- ── Edit Privilege Modal ───────────────────────────────────────────────────── -->
-<Modal title="Edit Privilege" bind:open={showEditModal} autoclose={false}>
+<Modal title="Edit Privilege" bind:open={showEditModal} autoclose={false} outsideclose={false}>
   {#if editTarget}
     <div class="space-y-4">
       <p class="text-sm text-gray-600 dark:text-gray-400">
@@ -377,13 +377,13 @@
     </div>
   {/if}
   {#snippet footer()}
-    <Button color="alternative" onclick={savePrivilege}>Save</Button>
+    <Button color="primary" onclick={savePrivilege}>Save</Button>
     <Button color="light" onclick={() => showEditModal = false}>Cancel</Button>
   {/snippet}
 </Modal>
 
 <!-- ── Delete Confirm Modal ───────────────────────────────────────────────────── -->
-<Modal title="Delete User" bind:open={showDeleteModal} autoclose={false}>
+<Modal title="Delete User" bind:open={showDeleteModal} autoclose={false} outsideclose={false}>
   {#if deleteTarget}
     <p class="text-gray-700 dark:text-gray-300">
       Are you sure you want to delete <strong>{deleteTarget.username}</strong>? This cannot be undone.
@@ -396,7 +396,7 @@
 </Modal>
 
 <!-- ── Change Password Modal ──────────────────────────────────────────────────── -->
-<Modal title="Change Password" bind:open={showPasswordModal} autoclose={false}>
+<Modal title="Change Password" bind:open={showPasswordModal} autoclose={false} outsideclose={false}>
   {#if passwordTarget}
     <div class="space-y-4">
       <p class="text-sm text-gray-600 dark:text-gray-400">
@@ -413,7 +413,7 @@
     </div>
   {/if}
   {#snippet footer()}
-    <Button color="alternative" onclick={changePassword}>Update Password</Button>
+    <Button color="primary" onclick={changePassword}>Update Password</Button>
     <Button color="light" onclick={() => showPasswordModal = false}>Cancel</Button>
   {/snippet}
 </Modal>
