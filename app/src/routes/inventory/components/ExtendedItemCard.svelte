@@ -329,8 +329,8 @@
           {/snippet}
         </FieldRow>
 
-        <!-- Manufacturer Location -->
-        <FieldRow label="Manufacturer Location" editing={isEditing}>
+        <!-- Manufacturer Location [VERSION A FIELD RECYCLE] -->
+        <FieldRow label="Procured for Project" editing={isEditing}>
           {#snippet editSlot()}<Input bind:value={editedItem.manufacturer_location} />{/snippet}
           {#snippet viewSlot()}<span>{item.manufacturer_location || '—'}</span>{/snippet}
         </FieldRow>
@@ -359,26 +359,26 @@
           {#snippet viewSlot()}<span>{item.item_type || '—'}</span>{/snippet}
         </FieldRow>
 
-        <!-- Product Use -->
-        <FieldRow label="Product Use" editing={isEditing}>
+        <!-- Product Use [VERSION A FIELD RECYCLE] -->
+        <FieldRow label="Point of Contact" editing={isEditing}>
           {#snippet editSlot()}<Input bind:value={editedItem.product_use} />{/snippet}
           {#snippet viewSlot()}<span>{item.product_use || '—'}</span>{/snippet}
         </FieldRow>
 
         <!-- Material -->
-        <FieldRow label="Material" editing={isEditing}>
+        <!-- <FieldRow label="Material" editing={isEditing}>
           {#snippet editSlot()}<Input bind:value={editedItem.material} />{/snippet}
           {#snippet viewSlot()}<span>{item.material || '—'}</span>{/snippet}
-        </FieldRow>
+        </FieldRow> -->
 
         <!-- Color -->
-        <FieldRow label="Color" editing={isEditing}>
+        <!-- <FieldRow label="Color" editing={isEditing}>
           {#snippet editSlot()}<Input bind:value={editedItem.color} />{/snippet}
           {#snippet viewSlot()}<span>{item.color || '—'}</span>{/snippet}
-        </FieldRow>
+        </FieldRow> -->
 
-        <!-- Project -->
-        <FieldRow label="Project" editing={isEditing}>
+        <!-- Project [VERSION A FIELD RECYCLE] -->
+        <FieldRow label="Used for Project" editing={isEditing}>
           {#snippet editSlot()}<Input bind:value={editedItem.project} />{/snippet}
           {#snippet viewSlot()}<span>{item.project || '—'}</span>{/snippet}
         </FieldRow>
