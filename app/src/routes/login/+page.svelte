@@ -16,18 +16,21 @@
   // ── On mount: check whether the user table is empty ───────────────────────
 
   onMount(async () => {
-    try {
-      const res = await fetch('/api/setup', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        mode = data.setup_required ? 'setup' : 'login';
-      } else {
-        // 403 = setup already complete (users exist)
-        mode = 'login';
-      }
-    } catch {
-      mode = 'login';
-    }
+    // Disable automatic first time  setup for now
+    // try {
+    //   const res = await fetch('/api/setup', { credentials: 'include' });
+    //   if (res.ok) {
+    //     const data = await res.json();
+    //     mode = data.setup_required ? 'setup' : 'login';
+    //   } else {
+    //     // 403 = setup already complete (users exist)
+    //     mode = 'login';
+    //   }
+    // } catch {
+    //   mode = 'login';
+    // }
+    mode = 'login';
+
   });
 
   // ── Actions ────────────────────────────────────────────────────────────────

@@ -14,16 +14,18 @@
 
   const currentPath = $derived($page.url.pathname);
 
-  $effect(() => {
-    if (currentPath === '/') activePage = "Inventory Management System";
-    else if (currentPath === '/inventory') activePage = "Inventory";
-    else if (currentPath === '/inventory/add_item') activePage = "Add Inventory Item";
-    else if (currentPath === '/inventory/scan_qr') activePage = "Scan QR Label";
-    else if (currentPath === '/storage') activePage = "Storage Locations";
-    else if (currentPath === '/storage/add_storage') activePage = "Add Storage Location";
-    else if (currentPath === '/settings') activePage = "Settings";
-    else activePage = "App";
-  });
+$effect(() => {
+  if (currentPath === '/') activePage = "Inventory Management System";
+  else if (currentPath === '/inventory') activePage = "Inventory";
+  else if (currentPath === '/inventory/add_item') activePage = "Add Inventory Item";
+  else if (currentPath.startsWith('/inventory/item/')) activePage = "Item Card";
+  else if (currentPath.startsWith('/storage/item/')) activePage = "Storage Location Card";
+  else if (currentPath === '/inventory/scan_qr') activePage = "Scan QR Label";
+  else if (currentPath === '/storage') activePage = "Storage Locations";
+  else if (currentPath === '/storage/add_storage') activePage = "Add Storage Location";
+  else if (currentPath === '/settings') activePage = "Settings";
+  else activePage = "App";
+});
 
   function login() {
     goto('/login');

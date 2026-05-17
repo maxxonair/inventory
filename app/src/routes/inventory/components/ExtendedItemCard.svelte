@@ -400,7 +400,13 @@
             {/if}
           {/snippet}
           {#snippet viewSlot()}
-            <span>{getStorageLocationName(editedItem.location)}</span>
+            {#if editedItem.location}
+              <a href="/storage/item/{editedItem.location}" class="text-blue-500 hover:underline">
+                {getStorageLocationName(editedItem.location)}
+              </a>
+            {:else}
+              <span class="text-gray-400 italic">No location set</span>
+            {/if}
           {/snippet}
         </FieldRow>
 
