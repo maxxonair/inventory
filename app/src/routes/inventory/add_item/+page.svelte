@@ -161,7 +161,7 @@ async function handleSubmit(e: Event) {
     </div>
     <div class="flex items-center gap-2">
       {#if !showCameraStream}
-        <Button color="alternative" size="sm" onclick={toggleCameraVisibility}>Open camera</Button>
+        <Button color="primary" size="sm" onclick={toggleCameraVisibility}>Open camera</Button>
         <Button color="green" size="sm" onclick={handleSubmit}>Add item</Button>
       {/if}
     </div>
@@ -239,13 +239,13 @@ async function handleSubmit(e: Event) {
             </div>
 
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer Link</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Link</p>
               <Input bind:value={manufacturer_link} placeholder="https://…" />
             </div>
 
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Manufacturer Location</p>
-              <Input bind:value={manufacturer_location} placeholder="City, Country" />
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Procured for Project</p>
+              <Input bind:value={manufacturer_location} placeholder="Project name" />
             </div>
 
             <div>
@@ -317,24 +317,24 @@ async function handleSubmit(e: Event) {
               </p>
             </div>
 
-            <div>
+            <!-- <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Material</p>
               <Input bind:value={material} placeholder="e.g. Steel, Oak" />
-            </div>
+            </div> -->
 
-            <div>
+            <!-- <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Color</p>
               <Input bind:value={color} placeholder="e.g. Charcoal grey" />
-            </div>
+            </div> -->
 
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Project</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Used for Project</p>
               <Input bind:value={project} placeholder="Associated project" />
             </div>
 
             <div>
-              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Product Use</p>
-              <Input bind:value={product_use} placeholder="Intended use" />
+              <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Point of Contact</p>
+              <Input bind:value={product_use} placeholder="Point of Contact" />
             </div>
 
             <div class="sm:col-span-2">
