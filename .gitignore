@@ -6,13 +6,13 @@ env/
 .venv/
 **/__pycache__
 **/*mysql.py
-
+**/db
 
 # --- [DATABASE]
 # Ignore database linked data folders
 backend/inventory_data/*
 backend/media/*
-**/inventory_data/
+**/inventory_db/
 
 # --- [AUTO-GENERATED FILES]
 docker-compose.yml

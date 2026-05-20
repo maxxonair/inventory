@@ -12,11 +12,6 @@ ROOT_DIR=$PWD
 
 cd ${ROOT_DIR}/backend
 
-echo "     [ COMPOSE INVENTORY DATABASE CONTAINER ]"
-# Start inventory database container
-podman-compose up -d inventory_db
-
-
 echo "     [ COMPOSE INVENTORY SERVER CONTAINER ]"
 # Start inventory server container
 podman-compose up -d inventory_server

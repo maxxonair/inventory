@@ -92,7 +92,7 @@ class InventoryUser:
     # Compile query
     create_table_query = f"CREATE TABLE IF NOT EXISTS {
       INVENTORY_USER_TABLE_NAME
-    } ( id INT PRIMARY KEY AUTO_INCREMENT,"
+    } ( id INTEGER PRIMARY KEY AUTOINCREMENT,"
     create_table_query += "user_name VARCHAR(50) UNIQUE NOT NULL,"
     create_table_query += "user_password VARCHAR(50),"
     create_table_query += "user_privileges INT )"
@@ -116,7 +116,7 @@ class InventoryUser:
 
     # Create series of ? that matches the number of values in
     # list(self.inventoryUserDict.values())
-    value_clause = ", ".join(["%s" for column in list(self.inventoryUserDict.values())])
+    value_clause = ", ".join(["?" for column in list(self.inventoryUserDict.values())])
 
     sql = f"INSERT INTO {INVENTORY_USER_TABLE_NAME} ( {set_clause} ) VALUES ( {
       value_clause
@@ -142,7 +142,7 @@ class InventoryUser:
       [f"{column} = ?" for column in list(self.inventoryUserDict.keys())]
     )
 
-    sql = f"UPDATE {INVENTORY_USER_TABLE_NAME} SET {set_clause} WHERE user_name = %s"
+    sql = f"UPDATE {INVENTORY_USER_TABLE_NAME} SET {set_clause} WHERE user_name = ?"
 
     # Prepare the data to update
     values = list(self.inventoryUserDict.values()) + [user_name]

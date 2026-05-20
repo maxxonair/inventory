@@ -12,11 +12,11 @@ in the inventory_server_config.py file before running standalone.
 
 """
 
-from flask import Flask, request, jsonify, send_from_directory, session
-from flask_cors import CORS
-from flask_session import Session
-from logging import info, error
-from datetime import timedelta
+from fastapi import FastAPI, Request, Depends, HTTPException, UploadFile, File, status
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 import asyncio
 import cv2 as cv
 import numpy as np
@@ -24,6 +24,9 @@ import queue
 import math
 import hashlib
 from pathlib import Path
+from typing import Any
+import uvicorn
+import logging
 
 from server.InventoryUser import InventoryUser
 from server.DataBaseClient import DataBaseClient
@@ -34,41 +37,76 @@ from server.inventory_server_config import (
   inventory_server_ip,
   inventory_server_port,
   MEDIA_DEFAULT_PATH,
-  DEFAULT_DB_HOST,
-  DEFAULT_DB_PORT,
 )
+
+logging.basicConfig(
+  level=logging.INFO,
+  format="%(asctime)s [%(levelname)s] %(message)s",
+  datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+logger = logging.getLogger(__name__)
+info = logger.info
+error = logger.error
 
 # Max size for thumbnail images in pixels
 MAX_THUMB_SIZE_PX = 200
+
+ALLOWED_ITEM_FIELDS = {
+  "name",
+  "image",
+  "description",
+  "manufacturer",
+  "details",
+  "is_checked_out",
+  "check_out_date",
+  "check_out_poc",
+  "tags",
+  "location",
+  "item_type",
+  "manufacturer_link",
+  "project",
+  "manufacturer_location",
+  "color",
+  "material",
+  "product_use",
+  "number_items",
+}
+
+INTEGER_ITEM_FIELDS = {"location", "number_items", "is_checked_out"}
 
 
 class InventoryServer:
   def __init__(
     self,
-    db_host: str = DEFAULT_DB_HOST,
-    db_port: int = DEFAULT_DB_PORT,
     media_path: str = MEDIA_DEFAULT_PATH,
     session_timeout_min: float = 60.0,
   ):
     """Create InventoryServer instance
 
     Args:
-        db_host (str, optional): Database server IP.
-            Defaults to DEFAULT_DB_HOST.
-        db_port (int, optional): Database server port.
-            Defaults to DEFAULT_DB_PORT.
         media_path (str, optional): Media storage file path.
             Defaults to MEDIA_DEFAULT_PATH.
         session_timeout_min (float, optional): Session timeout for active user
             sessions. Defaults to 60.0 minutes
     """
-    self.app = Flask(__name__)
-    self.app.secret_key = "super-secret"
-    self.app.config["SESSION_TYPE"] = "filesystem"
-    CORS(self.app, supports_credentials=True)  # Enable CORS
-    Session(self.app)
+    self.app = FastAPI()
 
-    self.app.permanent_session_lifetime = timedelta(minutes=session_timeout_min)
+    # Session middleware (replaces flask-session)
+    self.app.add_middleware(
+      SessionMiddleware,
+      secret_key="super-secret",
+      max_age=int(session_timeout_min * 60),
+    )
+
+    # CORS middleware
+    self.app.add_middleware(
+      CORSMiddleware,
+      allow_origins=["*"],
+      allow_credentials=True,
+      allow_methods=["*"],
+      allow_headers=["*"],
+    )
 
     # Set path to load media files from
     self.media_path = media_path
@@ -80,22 +118,14 @@ class InventoryServer:
     # Store the camera server URL
     self.camera_registry = {"url": None}
 
-    self.db_host = db_host
-    self.db_port = db_port
+    # Initialize database client (will be connected on demand in each route)
+    _ = DataBaseClient()
 
     # Routes
     self.configure_routes()
 
   def _sanitize_dict_list(self, data_dict_list):
-    """Sanitize input data to prevent SQL injection and other attacks
-
-    Args:
-        input_data (str): The input data to sanitize
-
-    Returns:
-        str: The sanitized input data
-    """
-    # Replace NaN and None with empty string
+    """Sanitize input data — replace NaN and None with empty string"""
     cleaned_data = []
     for row in data_dict_list:
       cleaned_row = {
@@ -105,123 +135,115 @@ class InventoryServer:
       cleaned_data.append(cleaned_row)
     return cleaned_data
 
+  def _get_session_user(self, request: Request) -> str:
+    """Return the logged-in username or raise 401."""
+    user = request.session.get("user")
+    if not user:
+      raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized"
+      )
+    return user
+
+  def _db_connect(self) -> DataBaseClient:
+    """Return a connected DataBaseClient or raise 500."""
+    client = DataBaseClient()
+    if not client.connect():
+      raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Database connection failed",
+      )
+    return client
+
   def configure_routes(self):
-    """Configure Http routes for this server"""
+    """Configure HTTP routes for this server"""
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /media/<filename>
     # --------------------------------------------------------------------------
-    @self.app.route("/media/<filename>")
-    def serve_image(filename):
+    @self.app.get("/media/{filename}")
+    def serve_image(filename: str):
       """Serve requested image from the media directory"""
-      return send_from_directory(self.media_path, filename)
+      file_path = Path(self.media_path) / filename
+      if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+      return FileResponse(str(file_path))
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /checkout_item
     # --------------------------------------------------------------------------
-    @self.app.route("/checkout_item", methods=["POST"])
-    def checkout_item():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
-
+    @self.app.post("/checkout_item")
+    async def checkout_item(request: Request):
+      user = self._get_session_user(request)
+      data = await request.json()
+      client = self._db_connect()
       client.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], CheckoutType.BORROW
+        int(data["itemId"]), user, CheckoutType.BORROW
       )
       client.close_connection()
-      return jsonify({"message": f"Item {data['itemId']} checked out"})
+      return {"message": f"Item {data['itemId']} checked out"}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /return_item
     # --------------------------------------------------------------------------
-    @self.app.route("/return_item", methods=["POST"])
-    def return_item():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
-
+    @self.app.post("/return_item")
+    async def return_item(request: Request):
+      user = self._get_session_user(request)
+      data = await request.json()
+      client = self._db_connect()
       client.update_inventory_item_checkout_status(
-        int(data["itemId"]), session["user"], CheckoutType.RETURN
+        int(data["itemId"]), user, CheckoutType.RETURN
       )
       client.close_connection()
-      return jsonify({"message": f"Item {data['itemId']} checked out"})
+      return {"message": f"Item {data['itemId']} returned"}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /items
     # --------------------------------------------------------------------------
-    @self.app.route("/items")
-    def get_items():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.get("/items")
+    def get_items(request: Request):
+      self._get_session_user(request)
+      client = self._db_connect()
       data_dict_list = client.get_all_inventory_items_as_dict_list()
-      
-      # Replace NaN and None with empty string
       cleaned_data = self._sanitize_dict_list(data_dict_list)
       client.close_connection()
-      return jsonify(cleaned_data)
+      return cleaned_data
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /get_item
     # --------------------------------------------------------------------------
-    @self.app.route("/get_item", methods=["POST"])
-    def get_item():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.post("/get_item")
+    async def get_item(request: Request):
+      self._get_session_user(request)
+      data = await request.json()
+      client = self._db_connect()
       data_dict = client.get_inventory_item_as_dict(int(data["itemId"]))
       client.close_connection()
-      # TODO add callback funtion to check if item with ID exists in DB
-
       if data_dict is None:
-        return jsonify({"error": "Item not found!"}), 401
-      return jsonify(data_dict)
+        raise HTTPException(status_code=404, detail="Item not found!")
+      return data_dict
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /image_upload
     # --------------------------------------------------------------------------
-    @self.app.route("/image_upload", methods=["POST"])
-    def upload_file():
-      if "avatar" not in request.files:
-        return {"error": "No file part"}, 400
-
-      file = request.files["avatar"]
-
-      if file.filename == "":
-        return {"error": "No selected file"}, 400
-
-      # Read file content into bytes
-      file_bytes = file.read()
+    @self.app.post("/image_upload")
+    async def upload_file(avatar: UploadFile = File(...)):
+      file_bytes = await avatar.read()
 
       # Hash the file bytes
-      hash_object = hashlib.sha256(file_bytes)
-      hash_hex = hash_object.hexdigest()
+      hash_hex = hashlib.sha256(file_bytes).hexdigest()
 
       # Convert bytes to NumPy array for OpenCV
       nparr = np.frombuffer(file_bytes, np.uint8)
       img_np = cv.imdecode(nparr, cv.IMREAD_COLOR)
 
       if img_np is None:
-        return {"error": "Could not decode image"}, 400
+        raise HTTPException(status_code=400, detail="Could not decode image")
 
       # Save image using OpenCV
       img_path = Path(MEDIA_DEFAULT_PATH) / f"{hash_hex}.png"
-      success = cv.imwrite(str(img_path), img_np)
-
-      if not success:
-        print(f'Failed to save uploaded image file to {img_path}')
-        return {"error": "Failed to save image"}, 500
+      if not cv.imwrite(str(img_path), img_np):
+        print(f"Failed to save uploaded image file to {img_path}")
+        raise HTTPException(status_code=500, detail="Failed to save image")
 
       # --- Generate thumbnail ---
       h, w = img_np.shape[:2]
@@ -231,231 +253,161 @@ class InventoryServer:
       )
 
       thumb_path = Path(MEDIA_DEFAULT_PATH) / f"thumbnail_{hash_hex}.png"
-      thumb_success = cv.imwrite(str(thumb_path), thumb_np)
+      if not cv.imwrite(str(thumb_path), thumb_np):
+        print("Failed to save thumbnail")
+        raise HTTPException(status_code=500, detail="Failed to save thumbnail")
 
-      if not thumb_success:
-        print('Failed to save thumbnail')
-        return {"error": "Failed to save thumbnail"}, 500
-
-      return {"message": "Image saved", "image": f"{hash_hex}"}
+      return {"message": "Image saved", "image": hash_hex}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /add_item
     # --------------------------------------------------------------------------
-    @self.app.route("/add_item", methods=["POST"])
-    def add_item():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data_dict = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.post("/add_item")
+    async def add_item(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      client = self._db_connect()
       new_id = client.add_inventory_item(data_dict)
       client.close_connection()
-      return jsonify({"message": f"{new_id}"}), 200
+      return JSONResponse(content={"message": f"{new_id}"}, status_code=200)
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /update_item
     # --------------------------------------------------------------------------
-    @self.app.route("/update_item", methods=["POST"])
-    def update_item():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data_dict = request.json
-      item_id = int(data_dict["id"])
-      data_dict.pop("id")
-      
-      # TODO move to sensible place if safeguards remain
-      ALLOWED_FIELDS = {
-        'name', 'image', 'description', 'manufacturer', 'details',
-        'is_checked_out', 'check_out_date', 'check_out_poc', 'tags',
-        'location', 'item_type', 'manufacturer_link', 'project',
-        'manufacturer_location', 'color', 'material', 'product_use',
-        'number_items'
-      }
-
-      INTEGER_FIELDS = {'location', 'number_items', 'is_checked_out'}
+    @self.app.post("/update_item")
+    async def update_item(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      item_id = int(data_dict.pop("id"))
 
       # Strip unknown fields, coerce empty strings to None for integer columns
       data_dict = {
-          k: (None if v == "" else v)
-          if k in INTEGER_FIELDS
-          else v
-          for k, v in data_dict.items()
-          if k in ALLOWED_FIELDS
+        k: (None if v == "" else v) if k in INTEGER_ITEM_FIELDS else v
+        for k, v in data_dict.items()
+        if k in ALLOWED_ITEM_FIELDS
       }
-      
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+
+      client = self._db_connect()
       client.update_inventory_item(data_dict, item_id)
       client.close_connection()
-      return jsonify({"status": "item updated"}), 200
+      return {"status": "item updated"}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /delete_item
     # --------------------------------------------------------------------------
-    @self.app.route("/delete_item", methods=["POST"])
-    def delete_item():
+    @self.app.post("/delete_item")
+    async def delete_item(request: Request):
       """Remove item from inventory database"""
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data = request.get_json()
+      self._get_session_user(request)
+      data = await request.json()
       item_id = int(data.get("itemId"))
       info(f"Delete item with ID {item_id}")
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+      client = self._db_connect()
       client.delete_inventory_item(item_id)
       client.close_connection()
-
-      return jsonify({"status": "success"}), 200
+      return {"status": "success"}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /add_storage
     # --------------------------------------------------------------------------
-    @self.app.route("/add_storage", methods=["POST"])
-    def add_storage():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data_dict = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.post("/add_storage")
+    async def add_storage(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      client = self._db_connect()
       new_id = client.add_storage_location(data_dict)
       client.close_connection()
-      return jsonify({"message": f"{new_id}"}), 200
+      return JSONResponse(content={"message": f"{new_id}"}, status_code=200)
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /update_storage
     # --------------------------------------------------------------------------
-    @self.app.route("/update_storage", methods=["POST"])
-    def update_storage():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data_dict = request.json
-      item_id = int(data_dict["id"])
-      data_dict.pop("id")
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.post("/update_storage")
+    async def update_storage(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      item_id = int(data_dict.pop("id"))
+      client = self._db_connect()
       client.update_storage_location(data_dict, item_id)
       client.close_connection()
-      return jsonify({"status": "storage location updated"}), 200
+      return {"status": "storage location updated"}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /delete_storage
     # --------------------------------------------------------------------------
-    @self.app.route("/delete_storage", methods=["POST"])
-    def delete_storage():
+    @self.app.post("/delete_storage")
+    async def delete_storage(request: Request):
       """Remove storage location from database"""
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data = request.get_json()
+      self._get_session_user(request)
+      data = await request.json()
       storage_id = int(data.get("id"))
       info(f"Delete storage location with ID {storage_id}")
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+      client = self._db_connect()
       client.delete_storage_location(storage_id)
       client.close_connection()
+      return {"status": "success"}
 
-      return jsonify({"status": "success"}), 200
-
-    #--------------------------------------------------------------------------
+    # --------------------------------------------------------------------------
     #       ROUTE --> /storage
     # --------------------------------------------------------------------------
-    @self.app.route("/storage")
-    def get_storage():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
- 
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
- 
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
- 
-      # Accept id as a query parameter: /storage?id=3
-      storage_id = request.args.get("id")
-      if storage_id is None:
-        client.close_connection()
-        return jsonify({"error": "Missing id parameter"}), 400
- 
-      storage_id = int(storage_id)
-      info(f"Serve storage info for ID {storage_id}")
- 
-      data_dict = client.get_storage_location(storage_id)
+    @self.app.get("/storage")
+    def get_storage(request: Request, id: int):
+      self._get_session_user(request)
+      info(f"Serve storage info for ID {id}")
+      client = self._db_connect()
+      data_dict = client.get_storage_location(id)
       client.close_connection()
- 
+
       if not data_dict:
-        return jsonify({"error": "Storage location not found"}), 404
- 
+        raise HTTPException(status_code=404, detail="Storage location not found")
+
       # get_storage_location may return a list — take the first row
       if isinstance(data_dict, list):
         if len(data_dict) == 0:
-          return jsonify({"error": "Storage location not found"}), 404
+          raise HTTPException(status_code=404, detail="Storage location not found")
         data_dict = data_dict[0]
- 
+
       # Replace NaN with empty string
       cleaned_data = {
         k: ("" if isinstance(v, float) and math.isnan(v) else v)
         for k, v in data_dict.items()
       }
-      return jsonify(cleaned_data)
+      return cleaned_data
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /storage_items
     # --------------------------------------------------------------------------
-    @self.app.route("/storage_items", methods=["POST"])
-    def get_storage_items():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
-
-      data = request.get_json()
+    @self.app.post("/storage_items")
+    async def get_storage_items(request: Request):
+      self._get_session_user(request)
+      data = await request.json()
       storage_id = int(data.get("id"))
       info(f"Serve storage items for ID {storage_id}")
-
+      client = self._db_connect()
       data_dict_list = client.get_storage_items(storage_id)
-      # Replace NaN and None with empty string
       cleaned_data = self._sanitize_dict_list(data_dict_list)
-
       client.close_connection()
-      return jsonify(cleaned_data)
+      return cleaned_data
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /storage_locations
     # --------------------------------------------------------------------------
-    @self.app.route("/storage_locations")
-    def get_storage_locations():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
-
+    @self.app.get("/storage_locations")
+    def get_storage_locations(request: Request):
+      self._get_session_user(request)
+      client = self._db_connect()
       data_dict_list = client.get_all_storage_locations_as_dict_list()
-
       client.close_connection()
-
-      # Replace NaN and None with empty string
       cleaned_data = self._sanitize_dict_list(data_dict_list)
-
-      return jsonify(cleaned_data)
+      return cleaned_data
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /login
     # --------------------------------------------------------------------------
-    @self.app.route("/login", methods=["POST"])
-    def login():
-      data = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.post("/login")
+    async def login(request: Request):
+      data = await request.json()
+      client = self._db_connect()
       is_user_exists, inventoryUser = client.get_inventory_user_as_object(
         str(data["username"])
       )
@@ -464,143 +416,134 @@ class InventoryServer:
       if not is_user_exists:
         client.log_user_login(data["username"], LoginStatus.USER_NOT_FOUND)
         client.close_connection()
-        return jsonify({"error": "User not found"}), 401
+        raise HTTPException(status_code=401, detail="User not found")
       if not inventoryUser.is_password(str(data["password"])):
         client.log_user_login(data["username"], LoginStatus.PASSWORD_INVALID)
         client.close_connection()
-        return jsonify({"error": "Invalid credentials"}), 401
-      else:
-        client.log_user_login(data["username"], LoginStatus.SUCCESS)
-        client.close_connection()
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+      client.log_user_login(data["username"], LoginStatus.SUCCESS)
+      client.close_connection()
 
       # Login valid -> Create a session cookie for this user
-      session["user"] = data["username"]
-      return jsonify({"message": "Login successful"})
+      request.session["user"] = data["username"]
+      return {"message": "Login successful"}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /logout
     # --------------------------------------------------------------------------
-    @self.app.route("/logout", methods=["POST"])
-    def logout():
+    @self.app.post("/logout")
+    def logout(request: Request):
       info("Log out user")
-      session.clear()
-      return jsonify({"message": "Logged out"})
+      request.session.clear()
+      return {"message": "Logged out"}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /me
     # --------------------------------------------------------------------------
-    @self.app.route("/me")
-    def me():
-      if "user" not in session:
-          return jsonify({"error": "Not logged in"}), 401
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.get("/me")
+    def me(request: Request):
+      session_user = self._get_session_user(request)
+      client = self._db_connect()
       try:
-        # Look up the full user record from the DB
-        user = client.get_inventory_user_as_dict(session["user"])
+        user = client.get_inventory_user_as_dict(session_user)
         client.close_connection()
         if not user:
-          return jsonify({"error": "User not found"}), 404
-        return jsonify({
-            "id":              user["id"],
-            "username":        user["user_name"],
-            "user_privileges": user["user_privileges"],
-        })
+          raise HTTPException(status_code=404, detail="User not found")
+        return {
+          "id": user["id"],
+          "username": user["user_name"],
+          "user_privileges": user["user_privileges"],
+        }
+      except HTTPException:
+        raise
       except Exception as e:
-        error(f"User {session["user"]} not found: {e}")
+        error(f"User {session_user} not found: {e}")
         client.close_connection()
-        return jsonify({"error": f"User: {session["user"]} not found"}), 404
-      
+        raise HTTPException(status_code=404, detail=f"User: {session_user} not found")
+
     # --------------------------------------------------------------------------
     #       ROUTE --> /user_privilege
     # --------------------------------------------------------------------------
-    @self.app.route("/user_privilege", methods=["POST"])
-    def user_privilege():
+    @self.app.post("/user_privilege")
+    async def user_privilege(request: Request):
       """Return privilege level for a given user"""
-      data = request.get_json()
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      # Load privilege level for this user
+      self._get_session_user(request)
+      data = await request.json()
       print(f"Load privilege level for user {str(data.get('user'))}")
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+      client = self._db_connect()
       try:
         user_dict = client.get_inventory_user_as_dict(str(data.get("user")))
         print(
           f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
         )
         client.close_connection()
-        return jsonify({"privilege": user_dict["user_privileges"]})
+        return {"privilege": user_dict["user_privileges"]}
       except Exception as e:
         error(f"User {data.get('user')} not found: {e}")
         client.close_connection()
-        return jsonify({"error": f"User: {data.get('user')} not found"}), 404
+        raise HTTPException(
+          status_code=404, detail=f"User: {data.get('user')} not found"
+        )
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /users
     # --------------------------------------------------------------------------
-    @self.app.route("/users")
-    def users():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.get("/users")
+    def users(request: Request):
+      self._get_session_user(request)
+      client = self._db_connect()
       data_dict = client.get_all_inventory_users_as_dict_list()
       client.close_connection()
-      return jsonify(data_dict)
-    
+      return data_dict
+
     # --------------------------------------------------------------------------
     #       ROUTE --> /setup
     # --------------------------------------------------------------------------
-    @self.app.route("/setup", methods=["GET", "POST"])
-    def setup():
-        client = DataBaseClient(host=self.db_host, port=self.db_port)
-        if not client.connect():
-            return jsonify({"error": "Database connection failed"}), 500
+    @self.app.get("/setup")
+    def setup_get():
+      client = self._db_connect()
+      user_list = client.get_all_inventory_users_as_dict_list()
+      client.close_connection()
+      return {"setup_required": len(user_list) == 0}
 
-        user_list = client.get_all_inventory_users_as_dict_list()
+    @self.app.post("/setup")
+    async def setup_post(request: Request):
+      client = self._db_connect()
+      user_list = client.get_all_inventory_users_as_dict_list()
 
-        if request.method == "GET":
-            client.close_connection()
-            return jsonify({"setup_required": len(user_list) == 0})
+      if len(user_list) > 0:
+        client.close_connection()
+        raise HTTPException(status_code=403, detail="Setup already complete")
 
-        # POST — only allowed when table is empty
-        if len(user_list) > 0:
-            client.close_connection()
-            return jsonify({"error": "Setup already complete"}), 403
+      try:
+        data = await request.json()
+        from server.InventoryUser import UserPrivileges
 
-        try:
-            data = request.json
-            from server.InventoryUser import UserPrivileges
-            new_user = InventoryUser(
-                user_name=data["username"],
-                user_password=data["password"],
-                user_privileges=UserPrivileges.OWNER,
-            )
-            client.add_inventory_user(new_user)
-            client.close_connection()
-            return jsonify({"message": "Admin user created"}), 200
-        except Exception as e:
-            error(f"Setup error: {e}")
-            client.close_connection()
-            return jsonify({"error": str(e)}), 500
+        new_user = InventoryUser(
+          user_name=data["username"],
+          user_password=data["password"],
+          user_privileges=UserPrivileges.OWNER,
+        )
+        client.add_inventory_user(new_user)
+        client.close_connection()
+        return JSONResponse(content={"message": "Admin user created"}, status_code=200)
+      except HTTPException:
+        raise
+      except Exception as e:
+        error(f"Setup error: {e}")
+        client.close_connection()
+        raise HTTPException(status_code=500, detail=str(e))
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /add_user
     # --------------------------------------------------------------------------
-    @self.app.route("/add_user", methods=["POST"])
-    def add_user():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-
+    @self.app.post("/add_user")
+    async def add_user(request: Request):
+      self._get_session_user(request)
       # TODO add check if user has sufficient privileges to add new user
-      data_dict = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+      data_dict = await request.json()
+      client = self._db_connect()
       new_user = InventoryUser(
         user_name=data_dict["username"],
         user_password=data_dict["password"],
@@ -608,39 +551,33 @@ class InventoryServer:
       new_user.user_privileges = data_dict["privilege"]
       new_id = client.add_inventory_user(new_user)
       client.close_connection()
-      return jsonify({"message": f"{new_id}"}), 200
+      return JSONResponse(content={"message": f"{new_id}"}, status_code=200)
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /delete_user
     # --------------------------------------------------------------------------
-    @self.app.route("/delete_user", methods=["POST"])
-    def delete_user():
+    @self.app.post("/delete_user")
+    async def delete_user(request: Request):
       """Remove user from database"""
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data = request.get_json()
+      self._get_session_user(request)
+      data = await request.json()
       user_name = str(data.get("username"))
       info(f"Delete user: {user_name}")
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+      client = self._db_connect()
       client.delete_inventory_user(user_name)
       client.close_connection()
-
-      return jsonify({"status": "success"}), 200
+      return {"status": "success"}
 
     # --------------------------------------------------------------------------
-    #       ROUTE --> /set_user_privilege
+    #       ROUTE --> /update_user
     # --------------------------------------------------------------------------
-    @self.app.route("/update_user", methods=["POST"])
-    def update_user():
-      if "user" not in session:
-        return jsonify({"error": "Unauthorized"}), 401
-      data_dict = request.json
-      client = DataBaseClient(host=self.db_host, port=self.db_port)
-      if not client.connect():
-        return jsonify({"error": "Database connection failed"}), 500
+    @self.app.post("/update_user")
+    async def update_user(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      client = self._db_connect()
       from server.InventoryUser import UserPrivileges
+
       updated_user = InventoryUser(
         user_name=data_dict["username"],
         user_password=data_dict["password"],
@@ -649,31 +586,21 @@ class InventoryServer:
       client.update_inventory_user_privileges(updated_user)
       client.update_inventory_user_password(updated_user)
       client.close_connection()
-      return jsonify({"message": "Success"})
+      return {"message": "Success"}
 
   async def run(
     self, host: str = inventory_server_ip, port: int = inventory_server_port
   ):
-    """Run the server
-
-    This function is to run the inventory server in a separate thread
-    """
-
-    def start_flask():
-      self.app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
-
-    # Run the Flask app in a separate thread and return it as an asyncio
-    # task
-    return await asyncio.to_thread(start_flask)
+    """Run the server using uvicorn"""
+    config = uvicorn.Config(self.app, host=host, port=port, log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
 
   async def stop(self):
     info("Stopping Inventory Server...")
 
 
 if __name__ == "__main__":
-  """Allows to run the server directly as module
-  """
+  """Allows to run the server directly as module"""
   server = InventoryServer()
-  loop = asyncio.new_event_loop()
-  asyncio.set_event_loop(loop)
-  loop.run_until_complete(asyncio.gather(server.run()))
+  asyncio.run(server.run())
