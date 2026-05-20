@@ -11,8 +11,6 @@ services:
       - ./backend/inventory_db:/app/db
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      - inventory_db
 
   inventory_app:
     image: inventoryapp:latest

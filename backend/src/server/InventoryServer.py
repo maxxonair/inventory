@@ -118,6 +118,9 @@ class InventoryServer:
     # Store the camera server URL
     self.camera_registry = {"url": None}
 
+    # Initialize database client (will be connected on demand in each route)
+    _ = DataBaseClient()
+
     # Routes
     self.configure_routes()
 

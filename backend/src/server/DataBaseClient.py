@@ -23,7 +23,7 @@ from server.database_config import (
   LoginStatus,
   CheckoutType,
 )
-from server.InventoryUser import InventoryUser
+from server.InventoryUser import InventoryUser, UserPrivileges
 
 # --- CONSTANTS ---
 
@@ -144,13 +144,22 @@ class DataBaseClient:
     self._init_table(INVENTORY_LOGIN_TABLE_NAME, INVENTORY_LOGIN_TABLE_QUERY)
     self._init_table(INVENTORY_CHECKOUT_TABLE_NAME, INVENTORY_CHECKOUT_TABLE_QUERY)
 
-    user = InventoryUser("", "")
-    self._init_table(INVENTORY_USER_TABLE_NAME, user.get_sql_query_table_for_user())
+    user = InventoryUser(
+      user_name="admin",
+      user_password="admin",
+      user_privileges=UserPrivileges.OWNER,
+    )
+    if self._init_table(INVENTORY_USER_TABLE_NAME, user.get_sql_query_table_for_user()):
+      # If user table was just created, add default admin user
+      info("First time setup: Adding default admin")
+      info("Username: admin")
+      info("Password: admin")
+      self.add_inventory_user(user)
 
   # -----------------------------------------------------------------------
   #                        [LIST & SEARCH]
   # -----------------------------------------------------------------------
-  def _init_table(self, table_name: str, query: str):
+  def _init_table(self, table_name: str, query: str) -> bool:
     """
     Initialise table
 

@@ -295,9 +295,9 @@ def build_podman_images():
     "-t",
     "inventoryserver:latest",
     ".",
-    _out=sys.stdout.write,
-    _err=sys.stderr.write,
-    _tty_out=True,
+    _out=sys.stdout,
+    _err=sys.stderr,
+    _bg=False,
   )
 
   print(Rule(title="BUILDING FRONTEND", style="bold red"))
@@ -311,9 +311,9 @@ def build_podman_images():
     "-t",
     "inventoryapp:latest",
     ".",
-    _out=sys.stdout.write,
-    _err=sys.stderr.write,
-    _tty_out=True,
+    _out=sys.stdout,
+    _err=sys.stderr,
+    _bg=False,
   )
 
 

@@ -1,9 +1,9 @@
 [project]
 name = "inventory_server"
 version = "0.1.0"
-description = "Base dependencies for inventory server"
+description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
   "flask",
   "flask_sqlalchemy",
@@ -12,11 +12,11 @@ dependencies = [
   "flask_session",
   "requests",
   "opencv-python",
-  "pillow",
   "pyserial",
-  "rich", 
-  "mysql-connector-python>=9.5.0",
-  "numpy",
+  "rich",
+  "fastapi>=0.136.1",
+  "uvicorn>=0.47.0",
+  "python-multipart>=0.0.29",
 ]
 
 [tool.ruff]

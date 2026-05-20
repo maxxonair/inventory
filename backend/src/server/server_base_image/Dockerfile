@@ -16,7 +16,6 @@ RUN apt-get update && apt-get install -y \
     tk-dev \
     libffi-dev \
     liblzma-dev \
-    libmariadb-dev \
     libsdl2-dev \
     libsdl2-image-dev \
     libsdl2-mixer-dev \

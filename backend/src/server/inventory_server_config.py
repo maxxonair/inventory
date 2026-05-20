@@ -26,8 +26,3 @@ inventory_server_port = 5000
 MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
 # Debug path (when running servica manually here)
 # MEDIA_DEFAULT_PATH = (config_path / ".." / ".." / "media").resolve()
-
-# IP address of the database server
-# Default: inventory_db (container)
-# Debug: localhost (run service manually)
-DEFAULT_DB_HOST = "inventory_db"
