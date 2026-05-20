@@ -1,21 +1,4 @@
 services:
-  inventory_db:
-    container_name: inventory-db
-    image: "docker.io/library/mariadb:lts-noble"
-    restart: unless-stopped
-    ports:
-      - '{{ database_port }}:3306'
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-    volumes:
-      - ./backend/inventory_data/mariadb/data:/var/lib/mysql:Z
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "--silent" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
   inventory_server:
     image: inventoryserver:latest
@@ -25,9 +8,7 @@ services:
       - "{{ inventory_server_port }}:5000"
     volumes:
       - ./backend/media:/app/media
-    environment:
-      DB_HOST: inventory-db
-      DB_PORT: {{ database_port }}
+      - ./backend/inventory_db:/app/db
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

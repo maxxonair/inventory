@@ -9,9 +9,6 @@ from enum import Enum
 # Determine absolute path of directory where this script is located
 config_path = Path(__file__).parent.resolve()
 
-# [CONSTANT] Name of the main database to store the Inventory
-INVENTORY_DB_NAME = '{{ database_name }}'
-
 # [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
 #            Inventory
 INVENTORY_REGISTRY_TABLE_NAME = '{{ inventory_table_name }}'

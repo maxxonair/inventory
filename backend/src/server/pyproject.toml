@@ -8,13 +8,13 @@ dependencies = [
   "flask",
   "flask_sqlalchemy",
   "flask_cors",
-  "mysql-connector-python",
   "pandas",
   "flask_session",
   "requests",
   "opencv-python",
   "pyserial",
-  "rich"
+  "rich",
+  "fastapi>=0.136.1",
 ]
 
 [tool.ruff]

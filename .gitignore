@@ -6,7 +6,7 @@ env/
 .venv/
 **/__pycache__
 **/*mysql.py
-
+**/db
 
 # --- [DATABASE]
 # Ignore database linked data folders

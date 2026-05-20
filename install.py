@@ -176,38 +176,6 @@ def run_config_setup(use_traefik: bool = False) -> bool:
   #                         > BACKEND SETUP <
   # ---------------------------------------------------------------------------#
   print(Rule(title="BACKEND CONFIG SETUP", style="bold green"))
-  # -- Create backend/.env
-  info("Creating mysql database configuration:")
-
-  # MYSQL access credentials are solely for communidation between the backend
-  # and the database. Hence, the following is randomly generated and kept hidden
-  # at the backend.
-  mysql_root_password = rand_id_generator()
-  mysql_database = DATABASE_NAME
-
-  if (PROJECT_ROOT / ".env").exists():
-    warning("Skip regenerating .env. File already set up.")
-  else:
-    render_template(
-      "backend.env.jinja",
-      {
-        "mysql_root_password": mysql_root_password,
-        "mysql_database": mysql_database,
-      },
-      PROJECT_ROOT / ".env",
-    )
-
-  if (PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py").exists():
-    warning("Skip regenerating mysql.py. File already set up.")
-  else:
-    render_template(
-      "mysql.py.jinja",
-      {
-        "mysql_user": "root",
-        "mysql_user_password": mysql_root_password,
-      },
-      PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py",
-    )
 
   if (PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py").exists():
     warning("Skip regenerating database_config.py. File already set up.")
