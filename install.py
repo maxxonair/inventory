@@ -323,7 +323,6 @@ def compose_containers(use_traefik: bool = False):
 
   os.chdir(PROJECT_ROOT)
 
-  info("[ COMPOSE INVENTORY DATABASE CONTAINER ]")
   info("[ COMPOSE INVENTORY SERVER CONTAINER ]")
   info("[ COMPOSE INVENTORY APP CONTAINER ]")
 
@@ -338,7 +337,6 @@ def clean_config_files():
   """Clean up generated configuration files."""
   files_to_remove = [
     PROJECT_ROOT / ".env",
-    PROJECT_ROOT / "backend" / "src" / "server" / "mysql.py",
     PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py",
     PROJECT_ROOT / "backend" / "src" / "server" / "admin.py",
     PROJECT_ROOT / "compose.yml",
