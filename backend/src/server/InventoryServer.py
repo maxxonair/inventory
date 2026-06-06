@@ -161,8 +161,9 @@ class InventoryServer:
     #       ROUTE --> /media/<filename>
     # --------------------------------------------------------------------------
     @self.app.get("/media/{filename}")
-    def serve_image(filename: str):
+    def serve_image(filename: str, request: Request):
       """Serve requested image from the media directory"""
+      self._get_session_user(request)
       file_path = Path(self.media_path) / filename
       if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -226,7 +227,8 @@ class InventoryServer:
     #       ROUTE --> /image_upload
     # --------------------------------------------------------------------------
     @self.app.post("/image_upload")
-    async def upload_file(avatar: UploadFile = File(...)):
+    async def upload_file(request: Request, avatar: UploadFile = File(...)):
+      self._get_session_user(request)
       file_bytes = await avatar.read()
 
       # Hash the file bytes
