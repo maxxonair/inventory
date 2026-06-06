@@ -11,13 +11,12 @@
   import type { InventoryItem } from "../services/inventory.svelte";
   import FieldRow from './FieldRow.svelte';
   import { onMount } from "svelte";
-  import { media_url, captureImage, uploadImage} from "../services/inventory.svelte";
+  import { media_url, captureImage, uploadImage, item_categories } from "../services/inventory.svelte";
 
   let {
     item,
     user_privilege,
     image_updated,
-    categories = [],
     onClose,
     onUpdate,
     onDelete,
@@ -27,7 +26,6 @@
   }: {
     item: InventoryItem;
     user_privilege: number;
-    categories?: { value: string; name: string }[];
     onClose: () => void;
     onUpdate: (id: number, data: InventoryItem) => Promise<String>;
     onDelete: (id: number) => void;
@@ -177,6 +175,17 @@
     }
   }
 
+  // Ensure URLs have a protocol for proper linking by prepending "https://" if 
+  // missing. Otherwise links are interpreted as relative paths and will break
+  // when the base URL isn't the root.
+  function normalizeUrl(url: any): string {
+    if (!url) return '';
+    if (!/^https?:\/\//i.test(url)) {
+      return `https://${url}`;
+    }
+    return url;
+  }
+
 </script>
 
 <div class="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -190,7 +199,7 @@
     
     <!-- Title + status -->
     <div class="flex items-center gap-3 flex-wrap">
-      <a href={item.manufacturer_link} target="_blank" rel="noopener noreferrer"
+      <a href={normalizeUrl(item.manufacturer_link)} target="_blank" rel="noopener noreferrer"
         class="text-lg font-semibold text-gray-900 dark:text-white hover:underline">
         {item.name}
       </a>
@@ -329,7 +338,7 @@
           {#snippet editSlot()}<Input bind:value={editedItem.manufacturer_link} placeholder="https://…" />{/snippet}
           {#snippet viewSlot()}
             {#if item.manufacturer_link}
-              <a href={item.manufacturer_link} target="_blank" rel="noopener noreferrer"
+              <a href={normalizeUrl(item.manufacturer_link)} target="_blank" rel="noopener noreferrer"
                 class="text-blue-600 dark:text-blue-400 hover:underline text-sm">
                 {item.name} product page ↗
               </a>
@@ -364,7 +373,7 @@
         <!-- Product Type -->
         <FieldRow label="Product Type" editing={isEditing}>
           {#snippet editSlot()}
-            <Select items={categories} bind:value={editedItem.item_type} />
+            <Select items={item_categories} bind:value={editedItem.item_type} />
           {/snippet}
           {#snippet viewSlot()}<span>{item.item_type || '—'}</span>{/snippet}
         </FieldRow>

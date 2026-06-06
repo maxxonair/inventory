@@ -3,7 +3,7 @@
   import { MinusOutline, PlusOutline } from "flowbite-svelte-icons";
   import { onDestroy, onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { media_url, captureImage } from "../services/inventory.svelte";
+  import { media_url, captureImage, uploadImage, item_categories } from "../services/inventory.svelte";
 
   let name = $state("");
   let manufacturer = $state("");
@@ -21,6 +21,7 @@
   let details = $state("");
   let image = $state("");
   let error_msg = $state("");
+  let tmp_image = $state('');
 
   let showCameraStream = $state(false);
   let videoEl = $state<HTMLVideoElement | null>(null);
@@ -44,12 +45,6 @@
       storageLocationsError = "Could not load storage locations.";
     }
   });
-
-  const categories = [
-    { value: "Fabric", name: "Fabric" },
-    { value: "Flooring", name: "Flooring" },
-    { value: "Furniture", name: "Furniture" },
-  ];
 
   // Tag helpers
   function addTag() {
@@ -106,49 +101,63 @@
     }
   }
 
-  function handleFileUpload(e: Event) {
+  async function handleFileUpload(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) { /* upload logic */ }
+    if (file) await processImageFile(file);
   }
 
-  function onDrop(e: DragEvent) {
+  async function onDrop(e: DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer?.files[0];
-    if (file) { /* upload logic */ }
+    if (file) await processImageFile(file);
+  }
+
+  async function processImageFile(file: File) {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      tmp_image = e.target?.result as string;
+    }
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const result = await uploadImage(formData);
+    if (camera_error === "") {
+      image = result.image;
+    }
   }
 
   function onDragOver(e: DragEvent) { e.preventDefault(); }
 
-async function handleSubmit(e: Event) {
-  if (!name) return;
-  try {
-    const date_added = new Date().toISOString();
-    const res = await fetch(`/api/add_item`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name, manufacturer, manufacturer_link, manufacturer_location,
-        number_items, item_type,
-        location: location === "" ? null : location,
-        tags: tagList.join(","),
-        material, color, project, product_use, details, image, date_added,
-      }),
-    });
-    if (res.status === 401) {goto('/login');}
-    if (!res.ok) {
-      error_msg = "Adding Item Failed";
-    } else {
-      error_msg = "";
-      const data = await res.json();
-      const newId = data.message;
+  async function handleSubmit(e: Event) {
+    if (!name) return;
+    try {
+      const date_added = new Date().toISOString();
+      const res = await fetch(`/api/add_item`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name, manufacturer, manufacturer_link, manufacturer_location,
+          number_items, item_type,
+          location: location === "" ? null : location,
+          tags: tagList.join(","),
+          material, color, project, product_use, details, image, date_added,
+        }),
+      });
+      if (res.status === 401) {goto('/login');}
+      if (!res.ok) {
+        error_msg = "Adding Item Failed";
+      } else {
+        error_msg = "";
+        const data = await res.json();
+        const newId = data.message;
+      }
+    } catch (err) {
+      error_msg = "Network error while adding item.";
+    } finally {
+      goto('/inventory');
     }
-  } catch (err) {
-    error_msg = "Network error while adding item.";
-  } finally {
-    goto('/inventory');
   }
-}
 
   onDestroy(stopCamera);
 </script>
@@ -265,7 +274,7 @@ async function handleSubmit(e: Event) {
 
             <div>
               <p class="text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">Item Type</p>
-              <Select items={categories} bind:value={item_type} />
+              <Select items={item_categories} bind:value={item_type} />
             </div>
 
             <!-- Storage Location -->

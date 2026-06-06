@@ -2,6 +2,19 @@ import { printQR } from "$lib/niimbot";
 
 export const media_url = "/api/media/";
 
+export const item_categories = [
+    { value: "Fabric", name: "Fabric" },
+    { value: "Flooring", name: "Flooring" },
+    { value: "Furniture", name: "Furniture" },
+    { value: "Wall Covering", name: "Wall Covering" },
+    { value: "Finishes", name: "Finishes" },
+    { value: "Lighting", name: "Lighting" },
+    { value: "Appliances", name: "Appliances" },
+    { value: "Tools", name: "Tools" },
+    { value: "Hardware", name: "Hardware" },
+    { value: "Decor", name: "Decor" },
+  ];
+
 // --- Image Utilities ---
 
 export async function uploadImage(formData: FormData): Promise<{ error: string; image: string }> {

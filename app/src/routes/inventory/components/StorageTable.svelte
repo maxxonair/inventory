@@ -28,8 +28,6 @@
     allTags?: string[];
   } = $props();
 
-  const media_url = `/api/media/`;
-
   // --- Filter state ---
   let selectedLocation       = $state<number | "">("");
   let selectedTag            = $state("");
@@ -184,7 +182,7 @@
         <!-- Image -->
         <div class="relative w-full aspect-square bg-gray-100 dark:bg-gray-700 overflow-hidden">
           <img
-            src="{media_url}thumbnail_{item.image}.png"
+            src={`/api/media/thumbnail_${item.image}.png`}
             alt={item.name}
             class="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-150"
           />
