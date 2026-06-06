@@ -33,6 +33,7 @@
   onMount(async () => {
     try {
       const res = await fetch("/api/storage_locations");
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error("Failed to fetch storage locations");
       const data = await res.json();
       storageLocations = data.map((sl: { id: number; name: string }) => ({
@@ -134,6 +135,7 @@ async function handleSubmit(e: Event) {
         material, color, project, product_use, details, image, date_added,
       }),
     });
+    if (res.status === 401) {goto('/login');}
     if (!res.ok) {
       error_msg = "Adding Item Failed";
     } else {

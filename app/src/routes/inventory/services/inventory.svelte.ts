@@ -296,7 +296,7 @@ export function createInventoryStore() {
     let printError = "";
     const qrPayload = `iitem;id;${id}`;
     try {
-      await printQR(String(qrPayload));
+      await printQR(String(qrPayload), `Item ID: ${id}`);
     } catch (err) {
       console.error("Printer error:", err);
       printError = "Failed to print QR label!";

@@ -127,6 +127,7 @@
     loading = true;
     try {
       const res = await fetch('/api/users', { credentials: 'include' });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error('Failed to load users');
       const raw: { id: number; user_name: string; user_privileges: number }[] = await res.json();
       // DB column is user_name, map it to username for the AppUser type
@@ -170,6 +171,7 @@
           privilege: privilegeToId(newPrivilege),
         }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to add user');
       flash('success', `User "${newUsername}" added.`);
       showAddModal = false;
@@ -188,6 +190,7 @@
         // Send the numeric privilege id the DB expects
         body: JSON.stringify({ user_privileges: privilegeToId(editPrivilege) }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to update privilege');
       flash('success', `Privilege updated for "${editTarget.username}".`);
       showEditModal = false;
@@ -204,6 +207,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: deleteTarget.username }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to delete user');
       flash('success', `User "${deleteTarget.username}" deleted.`);
       showDeleteModal = false;
@@ -228,6 +232,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: newPasswordValue }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to change password');
       flash('success', `Password updated for "${passwordTarget.username}".`);
       showPasswordModal = false;

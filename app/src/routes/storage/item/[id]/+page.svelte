@@ -20,6 +20,7 @@
     // Fetch the storage location — backend now accepts ?id= query param
     try {
       const res = await fetch(`/api/storage?id=${storageId}`, { credentials: 'include' });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) {
         error_msg = res.status === 404
           ? `Storage location #${storageId} not found.`
@@ -42,6 +43,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...data }),
     });
+    if (res.status === 401) {goto('/login');}
     if (res.ok) {
       // Refresh item from server so card reflects saved state
       const refreshed = await fetch(`/api/storage?id=${id}`, { credentials: 'include' });
@@ -56,6 +58,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
+    if (res.status === 401) {goto('/login');}
     if (res.ok) goto('/storage');
   }
 

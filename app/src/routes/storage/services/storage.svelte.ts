@@ -1,4 +1,3 @@
-import { printQR } from "$lib/niimbot";
 
 export interface StorageLocation {
   id: number;
