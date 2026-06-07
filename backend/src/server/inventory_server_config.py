@@ -25,4 +25,4 @@ inventory_server_port = 5000
 # Path to where media files are saved
 MEDIA_DEFAULT_PATH = (config_path / ".." / "media").resolve()
 # Debug path (when running servica manually here)
-# MEDIA_DEFAULT_PATH = (config_path / ".." / ".." / "media").resolve()
+# MEDIA_DEFAULT_PATH = (config_path / ".." / ".." / "inventory_db" /  "media").resolve()

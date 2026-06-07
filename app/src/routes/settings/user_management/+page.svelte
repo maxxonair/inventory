@@ -183,12 +183,13 @@
   async function savePrivilege() {
     if (!editTarget) return;
     try {
-      const res = await fetch(`/api/users/${editTarget.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/update_user_privilege`, {
+        method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         // Send the numeric privilege id the DB expects
-        body: JSON.stringify({ user_privileges: privilegeToId(editPrivilege) }),
+        body: JSON.stringify({ username: editTarget.username,
+                               privilege: privilegeToId(editPrivilege) }),
       });
       if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to update privilege');
@@ -226,11 +227,12 @@
       return;
     }
     try {
-      const res = await fetch(`/api/users/${passwordTarget.id}/password`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/update_user_password`, {
+        method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPasswordValue }),
+        body: JSON.stringify({ username: passwordTarget.username, 
+                               password: newPasswordValue }),
       });
       if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to change password');
