@@ -218,6 +218,13 @@
 
   async function changePassword() {
     if (!passwordTarget) return;
+    // Security guard: only allow changing your own password, or a target you
+    // are explicitly permitted to manage. This mirrors canChangePassword() but
+    // is enforced here too so the check cannot be bypassed (e.g. via devtools).
+    if (passwordTarget.id !== currentUser?.id && !canManage(passwordTarget)) {
+      flash('error', 'You are not allowed to change another user\'s password.');
+      return;
+    }
     if (newPasswordValue !== confirmPassword) {
       flash('error', 'Passwords do not match.');
       return;
@@ -302,7 +309,7 @@
             <TableBodyCell class="text-right">
               <div class="flex justify-end gap-2">
                 <!-- Change password -->
-                {#if canChangePassword(u)}
+                {#if u.id === currentUser?.id}
                   <Button size="xs" color="alternative" onclick={() => {
                     passwordTarget = u;
                     newPasswordValue = ''; confirmPassword = '';
@@ -318,7 +325,7 @@
                     editPrivilege = u.privilege;
                     showEditModal = true;
                   }}>
-                    <EditOutline class="w-3.5 h-3.5 me-1" /> Edit
+                    <EditOutline class="w-3.5 h-3.5 me-1" /> Edit Privilege
                   </Button>
                   <Button size="xs" color="red" onclick={() => {
                     deleteTarget = u;
