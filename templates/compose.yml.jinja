@@ -18,34 +18,8 @@ services:
     restart: unless-stopped
     environment:
       INVENTORY_SERVER_URL: {{ inventory_server_url  }}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.inventory_app.rule=Host(`{{ host_ip_address }}`)"
-      - "traefik.http.routers.inventory_app.entrypoints=websecure"
-      - "traefik.http.routers.inventory_app.tls=true"
-      - "traefik.http.routers.inventory_app.tls.certresolver=selfsigned"
-      - "traefik.http.services.inventory_app.loadbalancer.server.port=3000"
     ports:
       - "{{ inventoryapp_port }}:3000"
 
-  traefik:
-    image: docker.io/traefik:v3.6
-    command:
-      - "--configFile=/etc/traefik/traefik.yml"
-    ports:
-      - "8081:80"  # -> http
-      - "8443:443" # -> https
-    volumes:
-      - "/run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro" 
-      - "./traefik/traefik.yml:/etc/traefik/traefik.yml:ro"
-      - "./traefik/dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro"
-      - "./traefik/acme.json:/acme.json"
-      - "./traefik/certs:/certs"
-    restart: always
-
 networks:
   invnet:
-
-volumes:
-  inventory_data:
-    driver: local

@@ -208,14 +208,6 @@ def run_config_setup(use_traefik: bool = False) -> bool:
     return False
   info(f"[!] Selected inventory server port: {inventory_server_port}")
 
-  render_template(
-    "admin.py.jinja",
-    {
-      "database_port": database_server_port,
-    },
-    PROJECT_ROOT / "backend" / "src" / "server" / "admin.py",
-  )
-
   # ---------------------------------------------------------------------------#
   #                        > FRONTEND SETUP <
   # ---------------------------------------------------------------------------#
