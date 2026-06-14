@@ -31,6 +31,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error("Failed to fetch items");
       locationItems = await res.json();
     } catch (err) {
@@ -54,7 +55,7 @@
     printError="";
     const qrString = `istr;id;${item.id}`;
     try {
-      await printQR(qrString);
+      await printQR(qrString, `Storage ID: ${item.id}`);
     } catch (printError) {
       console.error("Printer error:", printError);
       throw printError;
@@ -70,6 +71,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error("Delete failed");
       onDelete(item.id);
       onClose();

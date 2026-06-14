@@ -3,7 +3,11 @@
   import { Input, Select, Button, Badge } from "flowbite-svelte";
   import { SearchOutline, FilterOutline, CloseOutline } from "flowbite-svelte-icons";
   import Pagination from "./Pagination.svelte";
-
+  import { get } from 'svelte/store';
+  import { goto } from '$app/navigation';
+  import { fetchUser, user } from "$lib/stores/auth.js";
+  import { onMount } from "svelte";
+  
   let {
     items,
     totalItems,
@@ -23,8 +27,6 @@
     allManufacturer?: string[];
     allTags?: string[];
   } = $props();
-
-  const media_url = `/api/media/`;
 
   // --- Filter state ---
   let selectedLocation       = $state<number | "">("");
@@ -90,6 +92,18 @@
     selectedAvailability = "";
     searchTerm           = "";
   }
+
+  onMount(async () => {
+    // Wait for the session check to complete before checking auth state.
+    // This prevents the race where the store is still null when the
+    // Header's onMount runs and incorrectly redirects to /login.
+    await fetchUser();
+
+    // Central auth guard: redirect to /login on any protected page if not logged in.
+    if (!get(user)) {
+      goto('/login');
+    }
+  });
 </script>
 
 <div class="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5 flex flex-col gap-4">
@@ -168,7 +182,7 @@
         <!-- Image -->
         <div class="relative w-full aspect-square bg-gray-100 dark:bg-gray-700 overflow-hidden">
           <img
-            src="{media_url}thumbnail_{item.image}.png"
+            src={`/api/media/thumbnail_${item.image}.png`}
             alt={item.name}
             class="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-150"
           />

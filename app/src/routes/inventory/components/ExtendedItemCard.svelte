@@ -11,13 +11,13 @@
   import type { InventoryItem } from "../services/inventory.svelte";
   import FieldRow from './FieldRow.svelte';
   import { onMount } from "svelte";
-  import { media_url, captureImage, uploadImage} from "../services/inventory.svelte";
+  import { media_url, captureImage, uploadImage, item_categories } from "../services/inventory.svelte";
+  import { goto } from "$app/navigation";
 
   let {
     item,
     user_privilege,
     image_updated,
-    categories = [],
     onClose,
     onUpdate,
     onDelete,
@@ -27,7 +27,6 @@
   }: {
     item: InventoryItem;
     user_privilege: number;
-    categories?: { value: string; name: string }[];
     onClose: () => void;
     onUpdate: (id: number, data: InventoryItem) => Promise<String>;
     onDelete: (id: number) => void;
@@ -50,7 +49,9 @@
   let mediaStream = $state<MediaStream | null>(null);
   let storageLocations = $state<{ value: number; name: string }[]>([]);
   let storageLocationsError = $state("");
-  
+  let editTagList: string[] = $state([]);
+  let editTagInput: string = $state('');
+
   // Process error strings
   let save_error = $state("");
   let stream_error = $state('');
@@ -149,6 +150,7 @@
   onMount(async () => {
     try {
       const res = await fetch("/api/storage_locations");
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error("Failed to fetch storage locations");
       const data = await res.json();
       storageLocations = data.map((sl: { id: number; name: string }) => ({
@@ -176,6 +178,53 @@
     }
   }
 
+  // Ensure URLs have a protocol for proper linking by prepending "https://" if 
+  // missing. Otherwise links are interpreted as relative paths and will break
+  // when the base URL isn't the root.
+  function normalizeUrl(url: any): string {
+    if (!url) return '';
+    if (!/^https?:\/\//i.test(url)) {
+      return `https://${url}`;
+    }
+    return url;
+  }
+
+  // Sync editTagList from editedItem.tags whenever editing is toggled on
+  $effect(() => {
+    if (isEditing) {
+      editTagList = editedItem.tags
+        ? editedItem.tags.split(',').map(t => t.trim()).filter(Boolean)
+        : [];
+      editTagInput = '';
+    }
+  });
+
+  // Keep editedItem.tags in sync as pills change
+  $effect(() => {
+    editedItem.tags = editTagList.join(', ');
+  });
+
+  function addEditTag() {
+    const tag = editTagInput.trim();
+    if (tag && !editTagList.includes(tag)) {
+      editTagList = [...editTagList, tag];
+    }
+    editTagInput = '';
+  }
+
+  function removeEditTag(index: number) {
+    editTagList = editTagList.filter((_, i) => i !== index);
+  }
+
+  function handleEditTagKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addEditTag();
+    } else if (e.key === 'Backspace' && editTagInput === '' && editTagList.length > 0) {
+      editTagList = editTagList.slice(0, -1);
+    }
+  }
+
 </script>
 
 <div class="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -189,7 +238,7 @@
     
     <!-- Title + status -->
     <div class="flex items-center gap-3 flex-wrap">
-      <a href={item.manufacturer_link} target="_blank" rel="noopener noreferrer"
+      <a href={normalizeUrl(item.manufacturer_link)} target="_blank" rel="noopener noreferrer"
         class="text-lg font-semibold text-gray-900 dark:text-white hover:underline">
         {item.name}
       </a>
@@ -328,7 +377,7 @@
           {#snippet editSlot()}<Input bind:value={editedItem.manufacturer_link} placeholder="https://…" />{/snippet}
           {#snippet viewSlot()}
             {#if item.manufacturer_link}
-              <a href={item.manufacturer_link} target="_blank" rel="noopener noreferrer"
+              <a href={normalizeUrl(item.manufacturer_link)} target="_blank" rel="noopener noreferrer"
                 class="text-blue-600 dark:text-blue-400 hover:underline text-sm">
                 {item.name} product page ↗
               </a>
@@ -363,7 +412,7 @@
         <!-- Product Type -->
         <FieldRow label="Product Type" editing={isEditing}>
           {#snippet editSlot()}
-            <Select items={categories} bind:value={editedItem.item_type} />
+            <Select items={item_categories} bind:value={editedItem.item_type} />
           {/snippet}
           {#snippet viewSlot()}<span>{item.item_type || '—'}</span>{/snippet}
         </FieldRow>
@@ -421,7 +470,44 @@
 
         <!-- Tags -->
         <FieldRow label="Tags" editing={isEditing}>
-          {#snippet editSlot()}<Input bind:value={editedItem.tags} placeholder="comma, separated" />{/snippet}
+          {#snippet editSlot()}
+            <div>
+              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+              <div
+                class="flex flex-wrap gap-1.5 items-center min-h-[42px] w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2 cursor-text"
+                onclick={() => document.getElementById('edit-tag-input')?.focus()}
+              >
+                {#each editTagList as tag, i}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                    {tag}
+                    <button
+                      type="button"
+                      onclick={() => removeEditTag(i)}
+                      class="inline-flex items-center p-0.5 text-blue-400 hover:bg-blue-200 hover:text-blue-900 dark:hover:bg-blue-800 dark:hover:text-blue-300 rounded-full"
+                      aria-label="Remove tag {tag}"
+                    >
+                      <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
+                      </svg>
+                    </button>
+                  </span>
+                {/each}
+                <input
+                  id="edit-tag-input"
+                  type="text"
+                  bind:value={editTagInput}
+                  onkeydown={handleEditTagKeydown}
+                  placeholder={editTagList.length === 0 ? "Type and press Enter…" : ""}
+                  class="flex-1 min-w-[120px] bg-transparent border-none outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 p-0"
+                />
+              </div>
+              <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                Press <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Enter</kbd>
+                or <kbd class="px-1 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">,</kbd>
+                to add · Backspace to remove
+              </p>
+            </div>
+          {/snippet}
           {#snippet viewSlot()}
             {#if item.tags}
               <div class="flex flex-wrap gap-1 mt-1">

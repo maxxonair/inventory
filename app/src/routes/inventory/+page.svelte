@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import InventoryTable from "./components/InventoryTable.svelte";
+  import StorageTable from "./components/StorageTable.svelte";
   import ExtendedItemCard from "./components/ExtendedItemCard.svelte";
   import { createInventoryStore } from "./services/inventory.svelte";
+  import { goto } from "$app/navigation";
 
   const itemsPerPage = 50;
   const inventory = createInventoryStore();
@@ -38,6 +39,7 @@
     inventory.fetchData();
     try {
       const res = await fetch("/api/storage_locations");
+      if (res.status === 401) {goto('/login');}
       if (res.ok) storageLocations = await res.json();
     } catch (err) {
       console.error("Failed to fetch storage locations", err);
@@ -48,7 +50,7 @@
 </script>
 
 {#if !selectedItemId}
-  <InventoryTable
+  <StorageTable
     items={displayedItems}
     totalItems={inventory.filteredItems.length}
     bind:searchTerm={inventory.searchTerm}

@@ -127,6 +127,7 @@
     loading = true;
     try {
       const res = await fetch('/api/users', { credentials: 'include' });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error('Failed to load users');
       const raw: { id: number; user_name: string; user_privileges: number }[] = await res.json();
       // DB column is user_name, map it to username for the AppUser type
@@ -170,6 +171,7 @@
           privilege: privilegeToId(newPrivilege),
         }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to add user');
       flash('success', `User "${newUsername}" added.`);
       showAddModal = false;
@@ -181,13 +183,15 @@
   async function savePrivilege() {
     if (!editTarget) return;
     try {
-      const res = await fetch(`/api/users/${editTarget.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/update_user_privilege`, {
+        method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         // Send the numeric privilege id the DB expects
-        body: JSON.stringify({ user_privileges: privilegeToId(editPrivilege) }),
+        body: JSON.stringify({ username: editTarget.username,
+                               privilege: privilegeToId(editPrivilege) }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to update privilege');
       flash('success', `Privilege updated for "${editTarget.username}".`);
       showEditModal = false;
@@ -204,6 +208,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: deleteTarget.username }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to delete user');
       flash('success', `User "${deleteTarget.username}" deleted.`);
       showDeleteModal = false;
@@ -213,6 +218,13 @@
 
   async function changePassword() {
     if (!passwordTarget) return;
+    // Security guard: only allow changing your own password, or a target you
+    // are explicitly permitted to manage. This mirrors canChangePassword() but
+    // is enforced here too so the check cannot be bypassed (e.g. via devtools).
+    if (passwordTarget.id !== currentUser?.id && !canManage(passwordTarget)) {
+      flash('error', 'You are not allowed to change another user\'s password.');
+      return;
+    }
     if (newPasswordValue !== confirmPassword) {
       flash('error', 'Passwords do not match.');
       return;
@@ -222,12 +234,14 @@
       return;
     }
     try {
-      const res = await fetch(`/api/users/${passwordTarget.id}/password`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/update_user_password`, {
+        method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPasswordValue }),
+        body: JSON.stringify({ username: passwordTarget.username, 
+                               password: newPasswordValue }),
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to change password');
       flash('success', `Password updated for "${passwordTarget.username}".`);
       showPasswordModal = false;
@@ -295,7 +309,7 @@
             <TableBodyCell class="text-right">
               <div class="flex justify-end gap-2">
                 <!-- Change password -->
-                {#if canChangePassword(u)}
+                {#if u.id === currentUser?.id}
                   <Button size="xs" color="alternative" onclick={() => {
                     passwordTarget = u;
                     newPasswordValue = ''; confirmPassword = '';
@@ -311,7 +325,7 @@
                     editPrivilege = u.privilege;
                     showEditModal = true;
                   }}>
-                    <EditOutline class="w-3.5 h-3.5 me-1" /> Edit
+                    <EditOutline class="w-3.5 h-3.5 me-1" /> Edit Privilege
                   </Button>
                   <Button size="xs" color="red" onclick={() => {
                     deleteTarget = u;

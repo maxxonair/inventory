@@ -1,12 +1,16 @@
 """CLI admin service functions to
 
+
+NOTE: THIS IS A LEGACY SCRIPT TO WORK WITH THE MYSQL DATABASE WHICH HAS BEEN
+      REPLACED BY THE SQLITE DATABASE. IT IS KEPT HERE FOR LEGACY PURPOSES ONLY.
+
 * create a new user
 * delete a user
 * modifify user privileges
 * modify user passwords
 
 Run with:
-$ uv run -m server.admin
+$ uv run -m server.legacy_admin
 
 WARNING: This script requires direct access to the database server and should
          be exposed to system administrators only.
@@ -15,18 +19,73 @@ WARNING: This script requires direct access to the database server and should
 
 from getpass import getpass
 import logging
-from logging import error, info
+import sqlite3
+from logging import error, info, warning
+from pathlib import Path
+import pandas as pd
 from rich.prompt import Prompt
 from tabulate import tabulate
 
 from server.DataBaseClient import DataBaseClient
 from server.InventoryUser import InventoryUser, UserPrivileges
 
+# [CONSTANT] Name of the main database to store the Inventory
+INVENTORY_DB_NAME = "inventory"
+
+# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
+#            Inventory
+INVENTORY_REGISTRY_TABLE_NAME = "registry"
+
+# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
+#            Inventory
+INVENTORY_STORAGE_LOCATIONS_TABLE_NAME = "storage_locations"
+
+# [CONSTANT] Name of the table in INVENTORY_DB_NAME to store the inventory
+#           item checkout history
+INVENTORY_CHECKOUT_TABLE_NAME = "checkout_history"
+
+# [!SENSITIVE!] Name of the table in INVENTORY_DB_NAME database to store the
+#               Inventory users
+INVENTORY_USER_TABLE_NAME = "users"
+
+# [CONSTANT] Name of the table in INVENTORY_DB_NAME to store the inventory
+#            log-in history
+INVENTORY_LOGIN_TABLE_NAME = "login_history"
+
 database_host = "127.0.0.1"
-database_port = {{ database_port }}
+database_port = 3308
+
+# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
+#            Inventory
+NEW_INVENTORY_REGISTRY_TABLE_NAME = "inventory"
+
+# [!SENSITIVE!] Name of the table in INVENTORY_DB_NAME database to store the
+#               Inventory users
+NEW_INVENTORY_USER_TABLE_NAME = "inventory_user"
+
+# [CONSTANT] Name of the main table in INVENTORY_DB_NAME to store the
+#            Inventory
+NEW_INVENTORY_STORAGE_LOCATIONS_TABLE_NAME = "storage_locations"
+
+# [CONSTANT] Name of the table in INVENTORY_DB_NAME to store the inventory
+#           item checkout history
+NEW_INVENTORY_CHECKOUT_TABLE_NAME = "checkout_history"
+
+# [CONSTANT] Name of the table in INVENTORY_DB_NAME to store the inventory
+#            log-in history
+NEW_INVENTORY_LOGIN_TABLE_NAME = "login_history"
+
 
 def main():
   """Admin CLI functions to handle inventory users"""
+
+  print("")
+  warning("[DEPRECATION WARNING]")
+  warning(
+    "THIS IS A LEGACY SCRIPT TO WORK WITH THE MYSQL DATABASE WHICH HAS BEEN"
+    " REPLACED BY THE SQLITE DATABASE. IT IS KEPT HERE FOR LEGACY PURPOSES ONLY."
+  )
+  print("")
 
   info(
     f"Trying to connect to inventory database at {database_host}:{database_port} ..."
@@ -43,8 +102,12 @@ def main():
   info("5 - List inventory")
   info("6 - List login history")
   info("7 - List checkout history")
+  info("--- Export Functions ---")
+  info("8 - Export MySQL database to SQLite database\n")
   answer = Prompt.ask(
-    "Enter action to perform", choices=["1", "2", "3", "4", "5", "6", "7"], default="1"
+    "Enter action to perform",
+    choices=["1", "2", "3", "4", "5", "6", "7", "8"],
+    default="1",
   )
 
   if answer == "1":
@@ -61,6 +124,8 @@ def main():
     list_login_history(client)
   elif answer == "7":
     list_checkout_history(client)
+  elif answer == "8":
+    export_to_sqlite(client)
 
 
 # ------------------------------------------------------------------------------
@@ -281,6 +346,118 @@ def list_checkout_history(client: DataBaseClient = None):
   client.connect()
   print(tabulate(client.get_checkout_log_as_df(), headers="keys", tablefmt="psql"))
   client.close_connection()
+
+
+def export_to_sqlite(
+  client: DataBaseClient = None, sqlite_db_path: str = "inventory.db"
+):
+  """Export MySQL database to SQLite database"""
+  client.connect()
+  if Path(sqlite_db_path).exists():
+    info(f"SQLite database {sqlite_db_path} already exists. Overwriting ...")
+    Path(sqlite_db_path).unlink()
+
+  sqlite_conn = sqlite3.connect(sqlite_db_path)
+  cursor = sqlite_conn.cursor()
+
+  # Export inventory table
+  export_table(
+    client.cursor,
+    sqlite_conn,
+    INVENTORY_REGISTRY_TABLE_NAME,
+    NEW_INVENTORY_REGISTRY_TABLE_NAME,
+  )
+
+  # Export storage locations table
+  export_table(
+    client.cursor,
+    sqlite_conn,
+    INVENTORY_STORAGE_LOCATIONS_TABLE_NAME,
+    NEW_INVENTORY_STORAGE_LOCATIONS_TABLE_NAME,
+  )
+
+  # Export login table
+  export_table(
+    client.cursor,
+    sqlite_conn,
+    INVENTORY_LOGIN_TABLE_NAME,
+    NEW_INVENTORY_LOGIN_TABLE_NAME,
+  )
+
+  # Export checkout table
+  export_table(
+    client.cursor,
+    sqlite_conn,
+    INVENTORY_CHECKOUT_TABLE_NAME,
+    NEW_INVENTORY_CHECKOUT_TABLE_NAME,
+  )
+
+  sqlite_conn.commit()
+  sqlite_conn.close()
+
+  verify_sqlite_export(sqlite_db_path=sqlite_db_path)
+
+
+def verify_sqlite_export(sqlite_db_path: str = "inventory.db") -> bool:
+  """Verify that the SQLite database was created successfully"""
+  if not Path(sqlite_db_path).exists():
+    error(f"SQLite database {sqlite_db_path} does not exist. Export failed.")
+    return False
+
+  sqlite_conn = sqlite3.connect(sqlite_db_path)
+  cursor = sqlite_conn.cursor()
+
+  # Verify that the tables exist
+  for table_name in [
+    NEW_INVENTORY_REGISTRY_TABLE_NAME,
+    NEW_INVENTORY_STORAGE_LOCATIONS_TABLE_NAME,
+    NEW_INVENTORY_LOGIN_TABLE_NAME,
+    NEW_INVENTORY_CHECKOUT_TABLE_NAME,
+  ]:
+    cursor.execute(
+      f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'"
+    )
+    if not cursor.fetchone():
+      error(f"Table {table_name} does not exist in SQLite database. Export failed.")
+      sqlite_conn.close()
+      return False
+
+  cursor.execute(f"SELECT * FROM {NEW_INVENTORY_REGISTRY_TABLE_NAME}")
+  sqlite_conn.commit()
+  rows = cursor.fetchall()
+  columns = [col[0] for col in cursor.description]
+  registry_df = pd.DataFrame(rows, columns=columns)
+
+  cursor.close()
+  sqlite_conn.close()
+
+  print("Item Registry DataFrame:")
+  print(registry_df)
+
+  info(f"SQLite database {sqlite_db_path} created successfully.")
+  return True
+
+
+def export_table(mysql_cursor, sqlite_conn, old_table_name, new_table_name):
+  """Read all rows from MySQL and insert them into SQLite."""
+  mysql_cursor.execute(f"SELECT * FROM {old_table_name}")
+  rows = mysql_cursor.fetchall()
+
+  # Get column names from MySQL cursor description
+  column_names = [desc[0] for desc in mysql_cursor.description]
+
+  # Create table in SQLite if it doesn't exist
+  create_table_sql = (
+    f"CREATE TABLE IF NOT EXISTS {new_table_name} ({', '.join(column_names)})"
+  )
+  sqlite_conn.execute(create_table_sql)
+
+  # Insert rows into SQLite
+  placeholders = ", ".join(["?"] * len(column_names))
+  insert_sql = (
+    f"INSERT INTO {new_table_name} ({', '.join(column_names)}) VALUES ({placeholders})"
+  )
+  sqlite_conn.executemany(insert_sql, rows)
 
 
 # ------------------------------------------------------------------------------

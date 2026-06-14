@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from "$app/navigation";
   let name = $state("");
   let description = $state("");
   let tagInput = $state("");
@@ -56,6 +57,7 @@
         body: JSON.stringify(payload),
         credentials: 'include',
       });
+      if (res.status === 401) {goto('/login');}
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || 'Server error');

@@ -28,7 +28,7 @@ from typing import Any
 import uvicorn
 import logging
 
-from server.InventoryUser import InventoryUser
+from server.InventoryUser import InventoryUser, UserPrivileges
 from server.DataBaseClient import DataBaseClient
 
 from server.database_config import CheckoutType, LoginStatus
@@ -161,8 +161,9 @@ class InventoryServer:
     #       ROUTE --> /media/<filename>
     # --------------------------------------------------------------------------
     @self.app.get("/media/{filename}")
-    def serve_image(filename: str):
+    def serve_image(filename: str, request: Request):
       """Serve requested image from the media directory"""
+      self._get_session_user(request)
       file_path = Path(self.media_path) / filename
       if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -226,7 +227,8 @@ class InventoryServer:
     #       ROUTE --> /image_upload
     # --------------------------------------------------------------------------
     @self.app.post("/image_upload")
-    async def upload_file(avatar: UploadFile = File(...)):
+    async def upload_file(request: Request, avatar: UploadFile = File(...)):
+      self._get_session_user(request)
       file_bytes = await avatar.read()
 
       # Hash the file bytes
@@ -569,21 +571,38 @@ class InventoryServer:
       return {"status": "success"}
 
     # --------------------------------------------------------------------------
-    #       ROUTE --> /update_user
+    #       ROUTE --> /update_user_privilege
     # --------------------------------------------------------------------------
-    @self.app.post("/update_user")
-    async def update_user(request: Request):
+    @self.app.post("/update_user_privilege")
+    async def update_user_privilege(request: Request):
       self._get_session_user(request)
       data_dict = await request.json()
       client = self._db_connect()
-      from server.InventoryUser import UserPrivileges
+
+      updated_user = InventoryUser(
+        user_name=data_dict["username"],
+        # Set dummy password since update_inventory_user_privileges expects a
+        # full user object, but we don't want to change the password here
+        user_password="UNCHANGED",
+        user_privileges=UserPrivileges(data_dict["privilege"]),
+      )
+      client.update_inventory_user_privileges(updated_user)
+      client.close_connection()
+      return {"message": "Success"}
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /update_user_password
+    # --------------------------------------------------------------------------
+    @self.app.post("/update_user_password")
+    async def update_user_password(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      client = self._db_connect()
 
       updated_user = InventoryUser(
         user_name=data_dict["username"],
         user_password=data_dict["password"],
-        user_privileges=UserPrivileges(data_dict["privilege"]),
       )
-      client.update_inventory_user_privileges(updated_user)
       client.update_inventory_user_password(updated_user)
       client.close_connection()
       return {"message": "Success"}

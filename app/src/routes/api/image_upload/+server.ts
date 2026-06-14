@@ -1,18 +1,24 @@
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, cookies }) => {
   const INVENTORY_SERVER_URL = env.INVENTORY_SERVER_URL;
-  
-  // Get the raw formData from the incoming request
-  const formData = await request.formData();
 
-  // Forward it — do NOT set Content-Type header manually.
-  // fetch() will set it automatically with the correct multipart boundary.
+  const formData = await request.formData();
+  const cookieHeader = cookies.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+
   const res = await fetch(`${INVENTORY_SERVER_URL}/image_upload`, {
     method: 'POST',
     body: formData,
+    headers: {
+      cookie: cookieHeader
+    }
   });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Upload failed' }));
+    return new Response(JSON.stringify(error), { status: res.status });
+  }
 
   const data = await res.json();
   return new Response(JSON.stringify(data), { status: res.status });

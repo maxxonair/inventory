@@ -2,6 +2,10 @@
   import { Input } from "flowbite-svelte";
   import { SearchOutline } from "flowbite-svelte-icons";
   import Pagination from "./Pagination.svelte";
+  import { get } from 'svelte/store';
+  import { goto } from '$app/navigation';
+  import { fetchUser, user } from "$lib/stores/auth.js";
+  import { onMount } from "svelte";
 
   let {
     filteredStorageLocations,
@@ -10,6 +14,18 @@
     currentPosition = $bindable(),
     onSelect,
   } = $props();
+
+  onMount(async () => {
+    // Wait for the session check to complete before checking auth state.
+    // This prevents the race where the store is still null when the
+    // Header's onMount runs and incorrectly redirects to /login.
+    await fetchUser();
+
+    // Central auth guard: redirect to /login on any protected page if not logged in.
+    if (!get(user)) {
+      goto('/login');
+    }
+  });
 </script>
 
 <div class="w-full h-full bg-gray-50 dark:bg-gray-900 p-3 sm:p-5">
