@@ -31,7 +31,7 @@ The application is composed of three independent modules that can run on a singl
 
 ## Setup
 
-> Tested on **Ubuntu 24.04 LTS** and **macOS**.
+> Tested on **Ubuntu 24.04 LTS**, **macOS** and **Windows 11 (WSL)**.
 
 ### 1. Install Dependencies
 
@@ -85,24 +85,18 @@ The installer pre-compiles configuration files, builds all Podman images, and la
 uv run install.py
 ```
 
-#### 2.2 Create an Initial User
+#### 2.2 First Time Log-in
 
-If using the built-in authentication, you must create an admin user before accessing the application. Run the admin CLI:
+On first startup a default user is created by the system.
 
-```bash
-cd backend/src
-uv run -m server.admin
-```
 
-This tool allows you to:
-- Create a new user
-- Delete a user
-- Change user privileges
-- Change user passwords
+| Username | **admin** |
+| ---| ---|
+| Password | **admin** |
 
-> ⚠️ This CLI is unprotected and should only be accessible to system administrators on the backend server.
+Once the first admin user is created, additional users can be managed within the app under **Settings → User Settings**
 
-Once the first admin user is created, additional users can be managed within the app under **Settings → User Settings**.
+:warning: Make sure to remove the initial admin user once that setup is completed! 
 
 #### User Privilege Levels
 
@@ -116,7 +110,7 @@ Once the first admin user is created, additional users can be managed within the
 
 ---
 
-## Manual Operation
+## Manual Operation (for Developers)
 
 ### Running the Frontend
 
