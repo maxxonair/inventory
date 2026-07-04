@@ -2,11 +2,12 @@
 
 Provides functions to connect to the database, query and modify inventory data,
 and manage inventory users. The database schema is defined in the
-inventory_config.py file and is initialised if it does not exist when the
+database_schema.py file and is initialised if it does not exist when the
 client connects to the database.
 
 """
 
+import hashlib
 import sqlite3
 from logging import info, warning, debug, error
 import pandas as pd
@@ -14,70 +15,36 @@ from datetime import datetime
 from pathlib import Path
 import cv2 as cv
 
-from server.database_config import (
+from server.database_schema import (
+  LoginStatus,
+  CheckoutType,
+  UserPrivileges,
   INVENTORY_REGISTRY_TABLE_NAME,
   INVENTORY_LOGIN_TABLE_NAME,
   INVENTORY_CHECKOUT_TABLE_NAME,
   INVENTORY_STORAGE_LOCATIONS_TABLE_NAME,
   INVENTORY_USER_TABLE_NAME,
-  LoginStatus,
-  CheckoutType,
+  INVENTORY_ITEM_TYPES_TABLE_NAME,
+  ALL_TABLE_SCHEMAS,
+  INVENTORY_REGISTRY_SCHEMA,
+  INVENTORY_STORAGE_LOCATIONS_SCHEMA,
+  INVENTORY_LOGIN_SCHEMA,
+  INVENTORY_CHECKOUT_SCHEMA,
+  INVENTORY_USER_SCHEMA,
+  INVENTORY_ITEM_TYPES_SCHEMA,
 )
-from server.InventoryUser import InventoryUser, UserPrivileges
 
 # --- CONSTANTS ---
 
-# Compile query to create inventory table
-INVENTORY_REGISTRY_TABLE_QUERY = f"CREATE TABLE IF NOT EXISTS {
-  INVENTORY_REGISTRY_TABLE_NAME
-} ( id INTEGER PRIMARY KEY AUTOINCREMENT,"
-INVENTORY_REGISTRY_TABLE_QUERY += "name VARCHAR(255) NOT NULL,"
-INVENTORY_REGISTRY_TABLE_QUERY += "image VARCHAR(1055),"
-INVENTORY_REGISTRY_TABLE_QUERY += "description VARCHAR(1055) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "manufacturer VARCHAR(255),"
-INVENTORY_REGISTRY_TABLE_QUERY += "details VARCHAR(1055),"
-INVENTORY_REGISTRY_TABLE_QUERY += "is_checked_out INTEGER,"
-INVENTORY_REGISTRY_TABLE_QUERY += "check_out_date VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "check_out_poc VARCHAR(1055) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "date_added VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "tags VARCHAR(1055) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "location INTEGER ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "item_type VARCHAR(1055) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "manufacturer_link VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "project VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "manufacturer_location VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "color VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "material VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "product_use VARCHAR(255) ,"
-INVENTORY_REGISTRY_TABLE_QUERY += "number_items INTEGER )"
+# Salt used when hashing user passwords before they are persisted.
+# TODO to be changed and moved out of here
+PASSWORD_SALT = "sda8DF7d13e3F2"
 
-INVENTORY_STORAGE_LOCATIONS_TABLE_QUERY = f"CREATE TABLE IF NOT EXISTS {
-  INVENTORY_STORAGE_LOCATIONS_TABLE_NAME
-} ( id INTEGER PRIMARY KEY AUTOINCREMENT,"
-INVENTORY_STORAGE_LOCATIONS_TABLE_QUERY += "name VARCHAR(255) NOT NULL,"
-INVENTORY_STORAGE_LOCATIONS_TABLE_QUERY += "description VARCHAR(1055) ,"
-INVENTORY_STORAGE_LOCATIONS_TABLE_QUERY += "date_added VARCHAR(255) ,"
-INVENTORY_STORAGE_LOCATIONS_TABLE_QUERY += "tags VARCHAR(1055) )"
 
-# Compile query to create inventory table to store login events
-INVENTORY_LOGIN_TABLE_QUERY = f"CREATE TABLE IF NOT EXISTS {
-  INVENTORY_LOGIN_TABLE_NAME
-} ( id INTEGER PRIMARY KEY AUTOINCREMENT,"
-INVENTORY_LOGIN_TABLE_QUERY += "user VARCHAR(255) NOT NULL,"
-INVENTORY_LOGIN_TABLE_QUERY += "status INTEGER ,"
-INVENTORY_LOGIN_TABLE_QUERY += "date VARCHAR(255) )"
-
-# Compile query to create inventory table to store checkout events
-# checkout - Status (direction) of the checkout.
-#            checkout = 1 means item was checked out,
-#            checkout = 0 means item was returned
-INVENTORY_CHECKOUT_TABLE_QUERY = f"CREATE TABLE IF NOT EXISTS {
-  INVENTORY_CHECKOUT_TABLE_NAME
-} ( id INTEGER PRIMARY KEY AUTOINCREMENT,"
-INVENTORY_CHECKOUT_TABLE_QUERY += "user VARCHAR(255) NOT NULL,"
-INVENTORY_CHECKOUT_TABLE_QUERY += "item_id INTEGER ,"
-INVENTORY_CHECKOUT_TABLE_QUERY += "checkout INTEGER ,"
-INVENTORY_CHECKOUT_TABLE_QUERY += "date VARCHAR(255) )"
+def _hash_password(password: str) -> str:
+  """Hash a plaintext password (with a static salt) for storage/comparison"""
+  salted_password = password + PASSWORD_SALT
+  return hashlib.md5(salted_password.encode()).hexdigest()
 
 
 class DataBaseClient:
@@ -98,27 +65,13 @@ class DataBaseClient:
     Returns:
         bool: True if connection was successful, False otherwise
     """
-
-    # -- Ensure that inventory registry table exists --
-    if not self.is_table(INVENTORY_REGISTRY_TABLE_NAME):
-      error(f" {INVENTORY_REGISTRY_TABLE_NAME} table not found.")
-      exit(1)
-    else:
-      debug(f"[x] {INVENTORY_REGISTRY_TABLE_NAME} table found.")
-
-    # -- Ensure that inventory storage locations table exists --
-    if not self.is_table(INVENTORY_STORAGE_LOCATIONS_TABLE_NAME):
-      error(f" {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} table not found.")
-      exit(1)
-    else:
-      debug(f"[x] {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} table found.")
-
-    # -- Ensure that inventory user table exists --
-    if not self.is_table(INVENTORY_USER_TABLE_NAME):
-      error(f" {INVENTORY_USER_TABLE_NAME} table not found.")
-      exit(1)
-    else:
-      debug(f"[x] {INVENTORY_USER_TABLE_NAME} table found.")
+    # -- Ensure that every expected table exists --
+    for schema in ALL_TABLE_SCHEMAS:
+      if not self.is_table(schema.name):
+        error(f" {schema.name} table not found.")
+        exit(1)
+      else:
+        debug(f"[x] {schema.name} table found.")
     return True
 
   def close_connection(self):
@@ -136,25 +89,30 @@ class DataBaseClient:
     """
     debug("Initialising inventory database:")
 
-    # -- Ensure that inventory tables exists --
-    self._init_table(INVENTORY_REGISTRY_TABLE_NAME, INVENTORY_REGISTRY_TABLE_QUERY)
-    self._init_table(
-      INVENTORY_STORAGE_LOCATIONS_TABLE_NAME, INVENTORY_STORAGE_LOCATIONS_TABLE_QUERY
-    )
-    self._init_table(INVENTORY_LOGIN_TABLE_NAME, INVENTORY_LOGIN_TABLE_QUERY)
-    self._init_table(INVENTORY_CHECKOUT_TABLE_NAME, INVENTORY_CHECKOUT_TABLE_QUERY)
+    # -- Ensure that inventory tables exist --
+    for schema in (
+      INVENTORY_REGISTRY_SCHEMA,
+      INVENTORY_STORAGE_LOCATIONS_SCHEMA,
+      INVENTORY_LOGIN_SCHEMA,
+      INVENTORY_CHECKOUT_SCHEMA,
+      INVENTORY_ITEM_TYPES_SCHEMA,
+    ):
+      self._init_table(schema.name, schema.create_table_query())
 
-    user = InventoryUser(
-      user_name="admin",
-      user_password="admin",
-      user_privileges=UserPrivileges.OWNER,
+    # -- Ensure that inventory user table exists --
+    user_table_created = self._init_table(
+      INVENTORY_USER_TABLE_NAME, INVENTORY_USER_SCHEMA.create_table_query()
     )
-    if self._init_table(INVENTORY_USER_TABLE_NAME, user.get_sql_query_table_for_user()):
+    if user_table_created:
       # If user table was just created, add default admin user
       info("First time setup: Adding default admin")
       info("Username: admin")
       info("Password: admin")
-      self.add_inventory_user(user)
+      self.add_inventory_user(
+        user_name="admin",
+        user_password="admin",
+        user_privileges=UserPrivileges.OWNER,
+      )
 
   # -----------------------------------------------------------------------
   #                        [LIST & SEARCH]
@@ -308,27 +266,44 @@ class DataBaseClient:
     """
     return self.cursor.lastrowid
 
-  def add_inventory_item(self, inventory_item_dict: dict) -> id:
+  def _build_insert_query(self, table_name: str, data: dict) -> tuple[str, list]:
+    """
+    Build a generic parameterised INSERT statement for the given table from
+    a dictionary mapping column names to values
+    """
+    columns_clause = ", ".join(str(column) for column in data.keys())
+    placeholders = ", ".join(["?" for _ in data])
+
+    sql = f"INSERT INTO {table_name} ( {columns_clause} ) VALUES ( {placeholders} )"
+    values = list(data.values())
+
+    return sql, values
+
+  def _build_update_query(
+    self, table_name: str, data: dict, where_column: str, where_value
+  ) -> tuple[str, list]:
+    """
+    Build a generic parameterised UPDATE statement for the given table from
+    a dictionary mapping column names to values, matching a single
+    WHERE column = value clause
+    """
+    set_clause = ", ".join(f"{column} = ?" for column in data.keys())
+
+    sql = f"UPDATE {table_name} SET {set_clause} WHERE {where_column} = ?"
+    values = list(data.values()) + [where_value]
+
+    return sql, values
+
+  def add_inventory_item(self, inventory_item_dict: dict) -> int:
     """
     Create row in INVENTORY_TABLE_NAME
 
 
     returns ID of the created inventory item
     """
-    # --- Construct the SQL INSERT statement
-
-    # Pre-construct set each value statement
-    set_clause = ", ".join([f"{column}" for column in list(inventory_item_dict.keys())])
-
-    # Create series of ? that matches the number of values in
-    # list(inventory_item_dict.values())
-    value_clause = ", ".join(["?" for column in list(inventory_item_dict.values())])
-
-    sql = f"INSERT INTO {INVENTORY_REGISTRY_TABLE_NAME} ( {set_clause} ) VALUES ( {value_clause} )"
-
-    # Prepare the data to update
-    values = list(inventory_item_dict.values())
-
+    sql, values = self._build_insert_query(
+      INVENTORY_REGISTRY_TABLE_NAME, inventory_item_dict
+    )
     self.exec_sql_cmd(sql, values)
 
     return self._get_last_inserted_id()
@@ -340,21 +315,9 @@ class DataBaseClient:
 
     returns ID of the created storage location
     """
-    # --- Construct the SQL INSERT statement
-
-    # Pre-construct set each value statement
-    set_clause = ", ".join(
-      [f"{column}" for column in list(storage_location_dict.keys())]
+    sql, values = self._build_insert_query(
+      INVENTORY_STORAGE_LOCATIONS_TABLE_NAME, storage_location_dict
     )
-
-    # Create series of ? that matches the number of values in
-    value_clause = ", ".join(["?" for column in list(storage_location_dict.values())])
-
-    sql = f"INSERT INTO {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} ( {set_clause} ) VALUES ( {value_clause} )"
-
-    # Prepare the data to update
-    values = list(storage_location_dict.values())
-
     self.exec_sql_cmd(sql, values)
 
     return self._get_last_inserted_id()
@@ -363,21 +326,9 @@ class DataBaseClient:
     """
     Modify a storage location identified by ID with given values
     """
-    # --- Construct the SQL UPDATE statement
-
-    # Pre-construct set each value statement
-    set_clause = ", ".join(
-      [f"{column} = ?" for column in list(storage_location_dict.keys())]
+    sql, values = self._build_update_query(
+      INVENTORY_STORAGE_LOCATIONS_TABLE_NAME, storage_location_dict, "id", id
     )
-
-    sql = (
-      f"UPDATE {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} SET {set_clause} WHERE id = ?"
-    )
-
-    # Prepare the data to update
-    values = list(storage_location_dict.values()) + [id]
-
-    # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
 
   def delete_storage_location(self, id: int):
@@ -421,20 +372,79 @@ class DataBaseClient:
     """
     Modify and inventory item identified by ID with given values
     """
-    # --- Construct the SQL UPDATE statement
-
-    # Pre-construct set each value statement
-    set_clause = ", ".join(
-      [f"{column} = ?" for column in list(inventory_item_dict.keys())]
+    sql, values = self._build_update_query(
+      INVENTORY_REGISTRY_TABLE_NAME, inventory_item_dict, "id", id
     )
-
-    sql = f"UPDATE {INVENTORY_REGISTRY_TABLE_NAME} SET {set_clause} WHERE id = ?"
-
-    # Prepare the data to update
-    values = list(inventory_item_dict.values()) + [id]
-
-    # Execute the UPDATE statement
     self.exec_sql_cmd(sql, values)
+
+  # -----------------------------------------------------------------------
+  #                 [ITEM TYPE FUNCTIONS]
+  # -----------------------------------------------------------------------
+  def add_item_type(self, name: str) -> int:
+    """
+    Create a new row in INVENTORY_ITEM_TYPES_TABLE_NAME
+
+    returns ID of the created item type
+
+    Raises:
+        sqlite3.IntegrityError: if an item type with this name already exists
+    """
+    sql, values = self._build_insert_query(
+      INVENTORY_ITEM_TYPES_TABLE_NAME, {"name": str(name)}
+    )
+    self.exec_sql_cmd(sql, values)
+
+    return self._get_last_inserted_id()
+
+  def update_item_type(self, item_type_id: int, name: str):
+    """
+    Rename an existing item type identified by ID
+
+    Raises:
+        sqlite3.IntegrityError: if another item type with this name already
+            exists
+    """
+    sql, values = self._build_update_query(
+      INVENTORY_ITEM_TYPES_TABLE_NAME, {"name": str(name)}, "id", item_type_id
+    )
+    self.exec_sql_cmd(sql, values)
+
+  def delete_item_type(self, item_type_id: int):
+    """
+    Delete an item type identified by ID
+    """
+    sql = f"DELETE FROM {INVENTORY_ITEM_TYPES_TABLE_NAME} WHERE id = ?"
+    values = list([item_type_id])
+
+    # Execute the DELETE statement
+    self.exec_sql_cmd(sql, values)
+
+  def get_all_item_types_as_dict_list(self) -> list:
+    """
+    Return all defined item types as a list of dictionaries
+    """
+    # Query to fetch all data from the specified table
+    query = f"SELECT * FROM {INVENTORY_ITEM_TYPES_TABLE_NAME}"
+
+    # Execute the query
+    self.cursor.execute(query)
+
+    self.connection.commit()
+
+    # Fetch all rows from the executed query
+    rows = self.cursor.fetchall()
+
+    # Get column names from the cursor
+    columns = [col[0] for col in self.cursor.description]
+
+    # Create a DataFrame from the fetched data
+    df = pd.DataFrame(rows, columns=columns)
+
+    data_list_out = df.to_dict("records")
+
+    debug(f"Item types {df}")
+
+    return data_list_out
 
   def update_inventory_item_image_path(self, id: int, path: str):
     """
@@ -618,85 +628,10 @@ class DataBaseClient:
   # -----------------------------------------------------------------------
   #                 [INVENTORY USER FUNCTIONS]
   # -----------------------------------------------------------------------
-  def get_inventory_user_as_object(self, user_name: str):
+  def get_inventory_user_as_dict(self, user_name: str) -> dict | None:
     """
-    Return a specific inventory user identified by its user_name
-    as a InventoryUser object
-    """
-    valid = False
-    # Query to fetch all data from the specified table
-    query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
-
-    # Execute the query
-    self.exec_sql_cmd(query, (user_name,))
-
-    # Fetch all rows from the executed query
-    rows = self.cursor.fetchall()
-
-    if len(rows) == 1:
-      valid = True
-
-    # Get column names from the cursor
-    columns = [col[0] for col in self.cursor.description]
-
-    # Create InventoryUser instance
-    inventoryUser = InventoryUser("", "")
-
-    # Populate all fields from the database export
-    inventoryUser.populate_from_df(user_data_df=pd.DataFrame(rows, columns=columns))
-    return valid, inventoryUser
-
-  def delete_inventory_user(self, user_name: str):
-    """
-    Delete Inventory user
-    """
-    warning(f"[-] Delete user {user_name} ")
-    sql = f"DELETE FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
-    values = list([user_name])
-
-    # Execute the DELETE statement
-    self.exec_sql_cmd(sql, values)
-
-  def add_inventory_user(self, user: InventoryUser):
-    """
-    Create column in INVENTORY_USER_TABLE_NAME
-    """
-    warning(f"[+] Add user {user.user_name} with privileges {user.user_privileges}")
-    # SQL query to insert a new row into the table
-    sql, values = user.get_sql_query_add_user()
-
-    self.exec_sql_cmd(sql, values)
-
-  def update_inventory_user_password(self, user: InventoryUser):
-    """
-    Update password of existing inventory user
-    """
-    sql = (
-      f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_password = ? WHERE user_name = ?"
-    )
-    values = [user.hashed_user_password] + [user.user_name]
-
-    # Execute the UPDATE statement
-    self.exec_sql_cmd(sql, values)
-
-  def update_inventory_user_privileges(self, user: InventoryUser):
-    """
-    Update privileges of existing inventory user
-    """
-    warning(
-      f"[+] Update privileges for user {user.user_name} to {user.user_privileges}"
-    )
-    sql = (
-      f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_privileges = ? WHERE user_name = ?"
-    )
-    values = [user.user_privileges] + [user.user_name]
-
-    # Execute the UPDATE statement
-    self.exec_sql_cmd(sql, values)
-
-  def get_inventory_user_as_dict(self, user_name: str) -> dict:
-    """
-    Return a specific inventory user identified by its user_name as dictionary
+    Return a specific inventory user identified by its user_name as a
+    dictionary, or None if no such user exists
     """
     # Query to fetch all data from the specified table
     query = f"SELECT * FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
@@ -713,9 +648,104 @@ class DataBaseClient:
     # Create a DataFrame from the fetched data
     df = pd.DataFrame(rows, columns=columns)
 
-    item_dict = df.to_dict("records")
+    records = df.to_dict("records")
 
-    return item_dict[0]
+    return records[0] if records else None
+
+  def authenticate_user(
+    self, user_name: str, password: str
+  ) -> tuple[LoginStatus, dict | None]:
+    """
+    Validate a user's credentials against the stored (hashed) password.
+
+    Returns a tuple of (LoginStatus, user_dict). user_dict is only
+    populated when authentication succeeds, otherwise it is None.
+    """
+    user_dict = self.get_inventory_user_as_dict(user_name)
+    if user_dict is None:
+      return LoginStatus.USER_NOT_FOUND, None
+
+    if _hash_password(password) != user_dict["user_password"]:
+      return LoginStatus.PASSWORD_INVALID, None
+
+    return LoginStatus.SUCCESS, user_dict
+
+  def delete_inventory_user(self, user_name: str):
+    """
+    Delete Inventory user
+    """
+    warning(f"[-] Delete user {user_name} ")
+    sql = f"DELETE FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
+    values = list([user_name])
+
+    # Execute the DELETE statement
+    self.exec_sql_cmd(sql, values)
+
+  def add_inventory_user(
+    self,
+    user_name: str,
+    user_password: str,
+    user_privileges: UserPrivileges | int = UserPrivileges.GUEST,
+  ) -> int:
+    """
+    Create a new row in INVENTORY_USER_TABLE_NAME. The password is hashed
+    before being persisted.
+
+    returns ID of the created user
+    """
+    privilege_value = (
+      user_privileges.value
+      if isinstance(user_privileges, UserPrivileges)
+      else int(user_privileges)
+    )
+
+    warning(f"[+] Add user {user_name} with privileges {privilege_value}")
+
+    user_dict = {
+      "user_name": str(user_name),
+      "user_password": _hash_password(user_password),
+      "user_privileges": privilege_value,
+    }
+
+    sql, values = self._build_insert_query(INVENTORY_USER_TABLE_NAME, user_dict)
+    self.exec_sql_cmd(sql, values)
+
+    return self._get_last_inserted_id()
+
+  def update_inventory_user_password(self, user_name: str, user_password: str):
+    """
+    Update password of an existing inventory user. The new password is
+    hashed before being persisted.
+    """
+    sql, values = self._build_update_query(
+      INVENTORY_USER_TABLE_NAME,
+      {"user_password": _hash_password(user_password)},
+      "user_name",
+      user_name,
+    )
+    self.exec_sql_cmd(sql, values)
+
+  def update_inventory_user_privileges(
+    self, user_name: str, user_privileges: UserPrivileges | int
+  ):
+    """
+    Update privileges of an existing inventory user
+    """
+    privilege_value = (
+      user_privileges.value
+      if isinstance(user_privileges, UserPrivileges)
+      else int(user_privileges)
+    )
+
+    warning(f"[+] Update privileges for user {user_name} to {privilege_value}")
+
+    sql, values = self._build_update_query(
+      INVENTORY_USER_TABLE_NAME,
+      {"user_privileges": privilege_value},
+      "user_name",
+      user_name,
+    )
+    self.exec_sql_cmd(sql, values)
 
   def get_inventory_users_as_df(self):
     """

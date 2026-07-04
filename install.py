@@ -28,11 +28,6 @@ import requests
 # Define project root directory path
 PROJECT_ROOT = Path(__file__).parent.resolve()
 
-# Define constants for database configuration
-DATABASE_NAME = "inventory"
-INVENTORY_TABLE_NAME = "inventory"
-USER_DATABASE_NAME = "inventory_user"
-
 INVENTORY_SERVER_CONTAINER_NAME = "inventory_server"
 INVENTORY_APP_CONTAINER_NAME = "inventory_app"
 
@@ -176,19 +171,6 @@ def run_config_setup(use_traefik: bool = False) -> bool:
   #                         > BACKEND SETUP <
   # ---------------------------------------------------------------------------#
   print(Rule(title="BACKEND CONFIG SETUP", style="bold green"))
-
-  if (PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py").exists():
-    warning("Skip regenerating database_config.py. File already set up.")
-  else:
-    render_template(
-      "database_config.py.jinja",
-      {
-        "database_name": DATABASE_NAME,
-        "inventory_table_name": INVENTORY_TABLE_NAME,
-        "user_database_name": USER_DATABASE_NAME,
-      },
-      PROJECT_ROOT / "backend" / "src" / "server" / "database_config.py",
-    )
 
   # -- Scan for open port for database server
   database_server_port = scan_ports(3307, 3400)
