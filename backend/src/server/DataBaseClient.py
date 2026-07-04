@@ -104,21 +104,21 @@ class DataBaseClient:
       error(f" {INVENTORY_REGISTRY_TABLE_NAME} table not found.")
       exit(1)
     else:
-      info(f"[x] {INVENTORY_REGISTRY_TABLE_NAME} table found.")
+      debug(f"[x] {INVENTORY_REGISTRY_TABLE_NAME} table found.")
 
     # -- Ensure that inventory storage locations table exists --
     if not self.is_table(INVENTORY_STORAGE_LOCATIONS_TABLE_NAME):
       error(f" {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} table not found.")
       exit(1)
     else:
-      info(f"[x] {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} table found.")
+      debug(f"[x] {INVENTORY_STORAGE_LOCATIONS_TABLE_NAME} table found.")
 
     # -- Ensure that inventory user table exists --
     if not self.is_table(INVENTORY_USER_TABLE_NAME):
       error(f" {INVENTORY_USER_TABLE_NAME} table not found.")
       exit(1)
     else:
-      info(f"[x] {INVENTORY_USER_TABLE_NAME} table found.")
+      debug(f"[x] {INVENTORY_USER_TABLE_NAME} table found.")
     return True
 
   def close_connection(self):
@@ -134,7 +134,7 @@ class DataBaseClient:
     Returns:
         _type_: _description_
     """
-    info("Initialising inventory database:")
+    debug("Initialising inventory database:")
 
     # -- Ensure that inventory tables exists --
     self._init_table(INVENTORY_REGISTRY_TABLE_NAME, INVENTORY_REGISTRY_TABLE_QUERY)
@@ -175,7 +175,7 @@ class DataBaseClient:
       info(f"|-> Created table: {table_name}")
       return True
     else:
-      info(f"[x] {table_name} does already exist.")
+      debug(f"[x] {table_name} does already exist.")
       return False
 
   def list_tables(self):
@@ -650,7 +650,7 @@ class DataBaseClient:
     """
     Delete Inventory user
     """
-    info(f"[-] Delete user {user_name} ")
+    warning(f"[-] Delete user {user_name} ")
     sql = f"DELETE FROM {INVENTORY_USER_TABLE_NAME} WHERE user_name = ?"
     values = list([user_name])
 
@@ -661,7 +661,7 @@ class DataBaseClient:
     """
     Create column in INVENTORY_USER_TABLE_NAME
     """
-    info(f"[+] Add user {user.user_name} with privileges {user.user_privileges}")
+    warning(f"[+] Add user {user.user_name} with privileges {user.user_privileges}")
     # SQL query to insert a new row into the table
     sql, values = user.get_sql_query_add_user()
 
@@ -683,7 +683,9 @@ class DataBaseClient:
     """
     Update privileges of existing inventory user
     """
-    info(f"[+] Update privileges for user {user.user_name} to {user.user_privileges}")
+    warning(
+      f"[+] Update privileges for user {user.user_name} to {user.user_privileges}"
+    )
     sql = (
       f"UPDATE {INVENTORY_USER_TABLE_NAME} SET user_privileges = ? WHERE user_name = ?"
     )

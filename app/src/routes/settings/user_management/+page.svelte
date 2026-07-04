@@ -203,7 +203,7 @@
     if (!deleteTarget) return;
     try {
       const res = await fetch(`/api/delete_user`, {
-        method: 'PATCH',
+        method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: deleteTarget.username }),
