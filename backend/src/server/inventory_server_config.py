@@ -18,7 +18,7 @@ inventory_server_ip = "0.0.0.0"
 
 # InventorySever port
 # Default: 5000
-inventory_server_port = 5001
+inventory_server_port = 5000
 
 # --- CONSTANTS ---
 

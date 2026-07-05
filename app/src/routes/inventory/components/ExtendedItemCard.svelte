@@ -11,7 +11,7 @@
   import type { InventoryItem } from "../services/inventory.svelte";
   import FieldRow from './FieldRow.svelte';
   import { onMount } from "svelte";
-  import { media_url, captureImage, uploadImage, item_categories } from "../services/inventory.svelte";
+  import { media_url, captureImage, uploadImage } from "../services/inventory.svelte";
   import { goto } from "$app/navigation";
 
   let {
@@ -51,6 +51,9 @@
   let storageLocationsError = $state("");
   let editTagList: string[] = $state([]);
   let editTagInput: string = $state('');
+
+  let itemTypes = $state<{ value: string; name: string }[]>([]);
+  let itemTypesError = $state("");
 
   // Process error strings
   let save_error = $state("");
@@ -159,6 +162,19 @@
       }));
     } catch (err) {
       storageLocationsError = "Could not load storage locations.";
+    }
+
+    try {
+      const res = await fetch("/api/item_types");
+      if (res.status === 401) {goto('/login');}
+      if (!res.ok) throw new Error("Failed to fetch item types");
+      const data = await res.json();
+      itemTypes = data.map((t: { id: number; name: string }) => ({
+        value: t.name,
+        name: t.name,
+      }));
+    } catch (err) {
+      itemTypesError = "Could not load item types.";
     }
   });
 
@@ -412,7 +428,13 @@
         <!-- Product Type -->
         <FieldRow label="Product Type" editing={isEditing}>
           {#snippet editSlot()}
-            <Select items={item_categories} bind:value={editedItem.item_type} />
+              {#if itemTypesError}
+                <p class="text-xs text-red-500">{itemTypesError}</p>
+              {:else if itemTypes.length === 0}
+                <p class="text-xs text-gray-400 dark:text-gray-500 italic">Loading item types…</p>
+              {:else}
+                <Select items={itemTypes} bind:value={editedItem.item_type} />
+              {/if}
           {/snippet}
           {#snippet viewSlot()}<span>{item.item_type || '—'}</span>{/snippet}
         </FieldRow>
