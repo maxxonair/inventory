@@ -1,0 +1,8 @@
+stages:
+  - test_backend_API
+
+test_backend_API:
+  stage: test_backend_API
+  script:
+    - uv --version
+    - ./scripts/test_backend_API.sh
