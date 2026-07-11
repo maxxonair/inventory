@@ -6,16 +6,45 @@
   import { goto } from '$app/navigation';
   import "../app.css";
   import { page } from '$app/stores';
+  import { PRIVILEGE_ORDER } from './settings/settings.svelte';
 
   import { SidebarDropdownWrapper } from 'flowbite-svelte';
   import {
     HomeSolid, ArchiveSolid, CogSolid,
     ListOutline, PlusOutline,
-    DownloadOutline, UserSettingsSolid
+    DownloadOutline, UserSettingsSolid,
+    TagOutline
   } from 'flowbite-svelte-icons';
 
   let { children } = $props();
   let isMinimized = $state(false);
+
+  function privilegeFromId(id) {
+    return PRIVILEGE_ORDER[id] ?? 'GUEST';
+  }
+
+  // The auth store may hold either a string privilege or the raw DB integer
+  // (user_privileges), so normalise it the same way the settings pages do.
+  function normaliseUser(raw) {
+    if (!raw) return null;
+    const priv = raw.privilege ?? raw.user_privileges;
+    return {
+      id: raw.id,
+      username: raw.username,
+      privilege: typeof priv === 'number' ? privilegeFromId(priv) : priv,
+    };
+  }
+
+  function rank(p) {
+    return PRIVILEGE_ORDER.indexOf(p);
+  }
+
+  // Reads $user live (auto-subscribed store), so this stays correct once
+  // fetchUser() resolves after mount and whenever the store changes.
+  function isAtLeast(p) {
+    const currentUser = normaliseUser($user);
+    return currentUser ? rank(currentUser.privilege) >= rank(p) : false;
+  }
 
   const itemClass = "flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-800 hover:bg-sky-100 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-slate-100 w-full";
 
@@ -107,27 +136,38 @@
             </div>
           </SidebarDropdownWrapper>
 
-          <!-- Settings -->
-          <SidebarDropdownWrapper label={isMinimized ? "" : "Settings"} class="group text-left">
-            {#snippet icon()}<CogSolid class="w-4 h-4 flex-shrink-0" />{/snippet}
-            {#snippet arrowdown()}
-              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            {/snippet}
-            {#snippet arrowup()}
-              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-            {/snippet}
+          <!-- Settings (hidden entirely below DEVELOPER, since that's the
+               lowest threshold of anything it can contain) -->
+          {#if isAtLeast('DEVELOPER')}
+            <SidebarDropdownWrapper label={isMinimized ? "" : "Settings"} class="group text-left">
+              {#snippet icon()}<CogSolid class="w-4 h-4 flex-shrink-0" />{/snippet}
+              {#snippet arrowdown()}
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              {/snippet}
+              {#snippet arrowup()}
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              {/snippet}
 
-            <div class="pl-2 space-y-1">
-              <a href="/settings/user_management" class={itemClass}>
-                <UserSettingsSolid class="w-4 h-4 flex-shrink-0" />
-                {#if !isMinimized}<span>User Management</span>{/if}
-              </a>
-            </div>
-          </SidebarDropdownWrapper>
+              <div class="pl-2 space-y-1">
+                {#if isAtLeast('DEVELOPER')}
+                  <a href="/settings/user_management" class={itemClass}>
+                    <UserSettingsSolid class="w-4 h-4 flex-shrink-0" />
+                    {#if !isMinimized}<span>User Management</span>{/if}
+                  </a>
+                {/if}
+                {#if isAtLeast('MAINTAINER')}
+                  <a href="/settings/categories" class={itemClass}>
+                    <TagOutline class="w-4 h-4 flex-shrink-0" />
+                    {#if !isMinimized}<span>Categories</span>{/if}
+                  </a>
+                {/if}
+              </div>
+            </SidebarDropdownWrapper>
+          {/if}
 
         </nav>
       </div>

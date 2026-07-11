@@ -10,36 +10,16 @@
   import {
     PlusOutline, TrashBinOutline, EditOutline, LockSolid
   } from 'flowbite-svelte-icons';
+  import { PRIVILEGE_ORDER, BADGE_COLOR, privilegeFromId, privilegeToId } from '../settings.svelte';
+  import type { Privilege } from '../settings.svelte';
 
   // ── Types ──────────────────────────────────────────────────────────────────
-
-  type Privilege = 'GUEST' | 'REPORTER' | 'DEVELOPER' | 'MAINTAINER' | 'OWNER';
 
   interface AppUser {
     id: number;
     username: string;
     privilege: Privilege;
   }
-
-  // ── Constants ──────────────────────────────────────────────────────────────
-
-  const PRIVILEGE_ORDER: Privilege[] = ['GUEST', 'REPORTER', 'DEVELOPER', 'MAINTAINER', 'OWNER'];
-
-  // Maps numeric DB id (0–4) ↔ Privilege string
-  function privilegeFromId(id: number): Privilege {
-    return PRIVILEGE_ORDER[id] ?? 'GUEST';
-  }
-  function privilegeToId(p: Privilege): number {
-    return PRIVILEGE_ORDER.indexOf(p);
-  }
-
-  const BADGE_COLOR: Record<Privilege, string> = {
-    GUEST:      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-    REPORTER:   'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-    DEVELOPER:  'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-    MAINTAINER: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
-    OWNER:      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-  };
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -97,8 +77,8 @@
 
   function canManage(target: AppUser) {
     if (!currentUser) return false;
-    if (currentUser.id === target.id) return false;            // can't edit yourself here
-    if (!isAtLeast('MAINTAINER')) return false;                // must be MAINTAINER+
+    if (currentUser.id === target.id) return false;
+    if (!isAtLeast('MAINTAINER')) return false;
     if (target.privilege === 'OWNER' && !isAtLeast('OWNER')) return false;
     return true;
   }
@@ -251,8 +231,11 @@
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
+  /* NOTE: Access to this page should be guarded by the layout. This adds an 
+   * extra layer of security and redirects to the start page if a user gets here 
+   * with insufficient privileges */
   onMount(() => {
-    if (!currentUser || !isAtLeast('MAINTAINER')) {
+    if (!currentUser || !isAtLeast('DEVELOPER')) {
       goto('/');
       return;
     }

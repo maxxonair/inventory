@@ -23,15 +23,15 @@ import numpy as np
 import queue
 import math
 import hashlib
+import sqlite3
 from pathlib import Path
 from typing import Any
 import uvicorn
 import logging
 
-from server.InventoryUser import InventoryUser, UserPrivileges
 from server.DataBaseClient import DataBaseClient
 
-from server.database_config import CheckoutType, LoginStatus
+from server.database_schema import CheckoutType, LoginStatus, UserPrivileges
 
 from server.inventory_server_config import (
   inventory_server_ip,
@@ -404,28 +404,96 @@ class InventoryServer:
       return cleaned_data
 
     # --------------------------------------------------------------------------
+    #       ROUTE --> /item_types
+    # --------------------------------------------------------------------------
+    @self.app.get("/item_types")
+    def get_item_types(request: Request):
+      self._get_session_user(request)
+      client = self._db_connect()
+      data_dict_list = client.get_all_item_types_as_dict_list()
+      client.close_connection()
+      return data_dict_list
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /add_item_type
+    # --------------------------------------------------------------------------
+    @self.app.post("/add_item_type")
+    async def add_item_type(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      name = str(data_dict.get("name", "")).strip()
+      if not name:
+        raise HTTPException(status_code=400, detail="Item type name is required")
+
+      client = self._db_connect()
+      try:
+        new_id = client.add_item_type(name)
+      except sqlite3.IntegrityError:
+        client.close_connection()
+        raise HTTPException(
+          status_code=409, detail=f"Item type '{name}' already exists"
+        )
+      client.close_connection()
+      return JSONResponse(content={"message": f"{new_id}"}, status_code=200)
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /update_item_type
+    # --------------------------------------------------------------------------
+    @self.app.post("/update_item_type")
+    async def update_item_type(request: Request):
+      self._get_session_user(request)
+      data_dict = await request.json()
+      item_type_id = int(data_dict["id"])
+      name = str(data_dict.get("name", "")).strip()
+      if not name:
+        raise HTTPException(status_code=400, detail="Item type name is required")
+
+      client = self._db_connect()
+      try:
+        client.update_item_type(item_type_id, name)
+      except sqlite3.IntegrityError:
+        client.close_connection()
+        raise HTTPException(
+          status_code=409, detail=f"Item type '{name}' already exists"
+        )
+      client.close_connection()
+      return {"status": "item type updated"}
+
+    # --------------------------------------------------------------------------
+    #       ROUTE --> /delete_item_type
+    # --------------------------------------------------------------------------
+    @self.app.post("/delete_item_type")
+    async def delete_item_type(request: Request):
+      """Remove item type from database"""
+      self._get_session_user(request)
+      data = await request.json()
+      item_type_id = int(data.get("id"))
+      info(f"Delete item type with ID {item_type_id}")
+      client = self._db_connect()
+      client.delete_item_type(item_type_id)
+      client.close_connection()
+      return {"status": "success"}
+
+    # --------------------------------------------------------------------------
     #       ROUTE --> /login
     # --------------------------------------------------------------------------
     @self.app.post("/login")
     async def login(request: Request):
       data = await request.json()
       client = self._db_connect()
-      is_user_exists, inventoryUser = client.get_inventory_user_as_object(
-        str(data["username"])
+
+      login_status, user_dict = client.authenticate_user(
+        str(data["username"]), str(data["password"])
       )
-
-      info(f"Log in attempt: {data['username']} -> {is_user_exists}")
-      if not is_user_exists:
-        client.log_user_login(data["username"], LoginStatus.USER_NOT_FOUND)
-        client.close_connection()
-        raise HTTPException(status_code=401, detail="User not found")
-      if not inventoryUser.is_password(str(data["password"])):
-        client.log_user_login(data["username"], LoginStatus.PASSWORD_INVALID)
-        client.close_connection()
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-      client.log_user_login(data["username"], LoginStatus.SUCCESS)
+      client.log_user_login(data["username"], login_status)
       client.close_connection()
+
+      info(f"Log in attempt: {data['username']} -> {login_status.name}")
+
+      if login_status == LoginStatus.USER_NOT_FOUND:
+        raise HTTPException(status_code=401, detail="User not found")
+      if login_status == LoginStatus.PASSWORD_INVALID:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
       # Login valid -> Create a session cookie for this user
       request.session["user"] = data["username"]
@@ -447,22 +515,15 @@ class InventoryServer:
     def me(request: Request):
       session_user = self._get_session_user(request)
       client = self._db_connect()
-      try:
-        user = client.get_inventory_user_as_dict(session_user)
-        client.close_connection()
-        if not user:
-          raise HTTPException(status_code=404, detail="User not found")
-        return {
-          "id": user["id"],
-          "username": user["user_name"],
-          "user_privileges": user["user_privileges"],
-        }
-      except HTTPException:
-        raise
-      except Exception as e:
-        error(f"User {session_user} not found: {e}")
-        client.close_connection()
+      user = client.get_inventory_user_as_dict(session_user)
+      client.close_connection()
+      if user is None:
         raise HTTPException(status_code=404, detail=f"User: {session_user} not found")
+      return {
+        "id": user["id"],
+        "username": user["user_name"],
+        "user_privileges": user["user_privileges"],
+      }
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /user_privilege
@@ -474,19 +535,17 @@ class InventoryServer:
       data = await request.json()
       print(f"Load privilege level for user {str(data.get('user'))}")
       client = self._db_connect()
-      try:
-        user_dict = client.get_inventory_user_as_dict(str(data.get("user")))
-        print(
-          f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
-        )
-        client.close_connection()
-        return {"privilege": user_dict["user_privileges"]}
-      except Exception as e:
-        error(f"User {data.get('user')} not found: {e}")
-        client.close_connection()
+      user_dict = client.get_inventory_user_as_dict(str(data.get("user")))
+      client.close_connection()
+      if user_dict is None:
+        error(f"User {data.get('user')} not found")
         raise HTTPException(
           status_code=404, detail=f"User: {data.get('user')} not found"
         )
+      print(
+        f"User {data.get('user')} authorized up to privilege level {user_dict['user_privileges']}"
+      )
+      return {"privilege": user_dict["user_privileges"]}
 
     # --------------------------------------------------------------------------
     #       ROUTE --> /users
@@ -520,14 +579,11 @@ class InventoryServer:
 
       try:
         data = await request.json()
-        from server.InventoryUser import UserPrivileges
-
-        new_user = InventoryUser(
+        client.add_inventory_user(
           user_name=data["username"],
           user_password=data["password"],
           user_privileges=UserPrivileges.OWNER,
         )
-        client.add_inventory_user(new_user)
         client.close_connection()
         return JSONResponse(content={"message": "Admin user created"}, status_code=200)
       except HTTPException:
@@ -546,12 +602,11 @@ class InventoryServer:
       # TODO add check if user has sufficient privileges to add new user
       data_dict = await request.json()
       client = self._db_connect()
-      new_user = InventoryUser(
+      new_id = client.add_inventory_user(
         user_name=data_dict["username"],
         user_password=data_dict["password"],
+        user_privileges=data_dict["privilege"],
       )
-      new_user.user_privileges = data_dict["privilege"]
-      new_id = client.add_inventory_user(new_user)
       client.close_connection()
       return JSONResponse(content={"message": f"{new_id}"}, status_code=200)
 
@@ -578,15 +633,9 @@ class InventoryServer:
       self._get_session_user(request)
       data_dict = await request.json()
       client = self._db_connect()
-
-      updated_user = InventoryUser(
-        user_name=data_dict["username"],
-        # Set dummy password since update_inventory_user_privileges expects a
-        # full user object, but we don't want to change the password here
-        user_password="UNCHANGED",
-        user_privileges=UserPrivileges(data_dict["privilege"]),
+      client.update_inventory_user_privileges(
+        data_dict["username"], data_dict["privilege"]
       )
-      client.update_inventory_user_privileges(updated_user)
       client.close_connection()
       return {"message": "Success"}
 
@@ -598,12 +647,9 @@ class InventoryServer:
       self._get_session_user(request)
       data_dict = await request.json()
       client = self._db_connect()
-
-      updated_user = InventoryUser(
-        user_name=data_dict["username"],
-        user_password=data_dict["password"],
+      client.update_inventory_user_password(
+        data_dict["username"], data_dict["password"]
       )
-      client.update_inventory_user_password(updated_user)
       client.close_connection()
       return {"message": "Success"}
 

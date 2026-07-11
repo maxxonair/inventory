@@ -18,6 +18,26 @@ export const SERVICE_UUID = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
 export const CHAR_UUID    = "bef8d6c9-9c21-4c9e-b632-bd58c1009f9f";
 
 // -----------------------------
+// Printer model profiles
+// -----------------------------
+// D110 and D110_M share hardware specs (203 DPI, 96px printhead, print
+// direction "left") but use different print-task sequences and density
+// ranges. See https://printers.niim.blue/interfacing/print-tasks/ and
+// https://printers.niim.blue/hardware/niimbot-d110_m/
+export type PrinterModel = "D110" | "D110_M";
+
+interface ModelProfile {
+  minDensity: number;
+  maxDensity: number;
+  defaultDensity: number;
+}
+
+export const MODEL_PROFILES: Record<PrinterModel, ModelProfile> = {
+  D110:   { minDensity: 1, maxDensity: 3, defaultDensity: 2 },
+  D110_M: { minDensity: 1, maxDensity: 5, defaultDensity: 3 },
+};
+
+// -----------------------------
 // Packet helpers (matching reference implementation)
 // -----------------------------
 
@@ -32,6 +52,25 @@ function makePacket(cmd: number, data: number[]): Uint8Array {
 
 function u16(n: number): [number, number] {
   return [(n >> 8) & 0xff, n & 0xff];
+}
+
+// PrintStart (0x01), 9-byte variant used by the D110M_V4 task.
+// Layout: totalPages(u16), always-0(4 bytes), pageColor(u8), speed(u8), flag(u8)
+// speed: 0 = higher quality / slower, 1 = lower quality / faster.
+function printStart9b(totalPages: number, speed = 0): number[] {
+  const [hi, lo] = u16(totalPages);
+  return [hi, lo, 0, 0, 0, 0, /* pageColor */ 0, speed, /* flag */ 0];
+}
+
+// SetPageSize (0x13), 13-byte variant used by the D110M_V4 task.
+// Layout: rows(u16), cols(u16), copies(u16), cutHeight(u16), cutType(u16),
+// sendAll(u8), partHeight(u16). Copies replaces the separate PrintQuantity
+// (0x15) command, which D110M_V4 does not use.
+function setPageSize13b(rows: number, cols: number, copies: number): number[] {
+  const [rowsHi, rowsLo] = u16(rows);
+  const [colsHi, colsLo] = u16(cols);
+  const [copHi, copLo]   = u16(copies);
+  return [rowsHi, rowsLo, colsHi, colsLo, copHi, copLo, 0, 0, 0, 0, 0, 0, 0];
 }
 
 // Count non-zero bits in a byte array, split across three equal chunks.
@@ -248,7 +287,12 @@ export async function connectD110(): Promise<BluetoothRemoteGATTCharacteristic> 
   });
   const server  = await device.gatt!.connect();
   const service = await server.getPrimaryService(SERVICE_UUID);
-  return service.getCharacteristic(CHAR_UUID);
+  const char    = await service.getCharacteristic(CHAR_UUID);
+  // Needed so we can listen for responses (e.g. the model-id query below) —
+  // the D110 line is NOTIFY + WRITE_NO_RESPONSE, so without this we can send
+  // commands but never see what the printer reports back.
+  await char.startNotifications();
+  return char;
 }
 
 // -----------------------------
@@ -264,14 +308,112 @@ async function send(char: BluetoothRemoteGATTCharacteristic, packet: Uint8Array)
 }
 
 // -----------------------------
+// BLE response parsing / model detection
+// -----------------------------
+
+// Parses a single 0x55 0x55 cmd len ...data crc 0xaa 0xaa notification frame.
+// Doesn't handle multi-frame reassembly — fine for the small fixed-size
+// responses (info queries, acks) used here.
+function parsePacket(bytes: Uint8Array): { cmd: number; data: Uint8Array } | null {
+  if (bytes.length < 7 || bytes[0] !== 0x55 || bytes[1] !== 0x55) return null;
+  const cmd = bytes[2];
+  const len = bytes[3];
+  if (bytes.length < 4 + len + 3) return null;
+  return { cmd, data: bytes.slice(4, 4 + len) };
+}
+
+// Sends `packet` and resolves with the data payload of the first notification
+// whose command matches `expectCmd`, or rejects if none arrives in time.
+function sendAndWait(
+  char: BluetoothRemoteGATTCharacteristic,
+  packet: Uint8Array,
+  expectCmd: number,
+  timeoutMs = 2000,
+): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const onValue = (ev: Event) => {
+      const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
+      if (!value) return;
+      const bytes  = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+      const parsed = parsePacket(bytes);
+      if (parsed && parsed.cmd === expectCmd) {
+        clearTimeout(timer);
+        char.removeEventListener("characteristicvaluechanged", onValue);
+        resolve(parsed.data);
+      }
+    };
+
+    timer = setTimeout(() => {
+      char.removeEventListener("characteristicvaluechanged", onValue);
+      reject(new Error(`Timed out waiting for response 0x${expectCmd.toString(16)}`));
+    }, timeoutMs);
+
+    char.addEventListener("characteristicvaluechanged", onValue);
+    send(char, packet).catch((err) => {
+      clearTimeout(timer);
+      char.removeEventListener("characteristicvaluechanged", onValue);
+      reject(err);
+    });
+  });
+}
+
+// Known modelId → PrinterModel.
+//   2304 → D110    (confirmed via PrinterInfo/DeviceType on real hardware)
+//   2320 → D110_M  (community-confirmed: https://xcr4k.hatenablog.com/entry/label_printer_niimbot_d110_m,
+//                   https://github.com/MultiMote/niimbluelib/issues/1)
+// Any other id seen on a "D110*"-named device falls back to the D110 task —
+// extend this map if you run into a different id that turns out to need the
+// D110_M task instead.
+const MODEL_ID_MAP: Record<number, PrinterModel> = {
+  2304: "D110",
+  2320: "D110_M",
+};
+
+/**
+ * Query the connected printer for its model id (PrinterInfo, DeviceType
+ * sub-code 0x08) and map it to "D110" or "D110_M". Falls back to "D110"
+ * (logging a warning) if the printer doesn't respond in time or reports an
+ * id we don't recognize — "D110" is the simpler/more conservative task of
+ * the two, so it's the safer default to guess wrong toward.
+ */
+export async function detectPrinterModel(
+  char: BluetoothRemoteGATTCharacteristic,
+): Promise<PrinterModel> {
+  try {
+    const data = await sendAndWait(char, makePacket(0x40, [0x08]), 0x48);
+    // big-endian u16; some firmwares reply with just 1 byte (byte << 8)
+    const modelId = data.length >= 2 ? (data[0] << 8) | data[1] : data[0] << 8;
+    const model = MODEL_ID_MAP[modelId];
+    if (model) {
+      console.log(`Detected printer model: ${model} (id ${modelId})`);
+      return model;
+    }
+    console.warn(`Unrecognized printer model id ${modelId}; defaulting to D110 print task.`);
+    return "D110";
+  } catch (err) {
+    console.warn("Could not query printer model, defaulting to D110 print task:", err);
+    return "D110";
+  }
+}
+
+// -----------------------------
 // Main print function
 // -----------------------------
 
 /**
- * Print a QR code for `qrPayload` on the Niimbot D110.
+ * Print a QR code for `qrPayload` on a Niimbot D110 or D110_M.
  * If `label` is provided it is rendered as plain text to the left of the QR.
+ * If `model` is omitted, it's auto-detected by querying the printer right
+ * after connecting (see detectPrinterModel) — pass it explicitly to skip
+ * that round-trip.
  */
-export async function printQR(qrPayload: string, label?: string): Promise<void> {
+export async function printQR(
+  qrPayload: string,
+  label?: string,
+  model?: PrinterModel,
+): Promise<void> {
   // 1. Build canvas layout.
   //    QR is sized to fit CANVAS_H (the short axis, 96 px) with padding.
   const qr     = await generateQrCanvas(qrPayload, CANVAS_H - 4);
@@ -282,26 +424,44 @@ export async function printQR(qrPayload: string, label?: string): Promise<void> 
   const image = encodeCanvas(canvas);
   console.log(`Encoded: ${image.rows} rows × ${image.cols} cols`);
 
-  // 3. Connect.
+  // 3. Connect, then figure out which print task to use.
   const char = await connectD110();
   console.log("Connected…");
+
+  const resolvedModel = model ?? await detectPrinterModel(char);
+  console.log(`Printing with the ${resolvedModel} task`);
 
   // Printhead resolution for the D110 (96 px wide print head)
   const printheadPixels = image.cols;
 
-  // 4. Print sequence — matches D110PrintTask exactly:
-  //    setDensity → setLabelType → printStart1b
-  //    printClear → pageStart → setPageSize4b(rows, cols) → setPrintQuantity
-  //    → bitmap rows → pageEnd → printEnd
+  // 4. Print sequence — the two models use different print tasks
+  //    (see https://printers.niim.blue/interfacing/print-tasks/):
+  //
+  //    D110:    setDensity → setLabelType → printStart1b
+  //             → printClear → pageStart → setPageSize4b(rows, cols) → setPrintQuantity
+  //             → bitmap rows → pageEnd → printEnd
+  //
+  //    D110_M:  setDensity → setLabelType → printStart9b(totalPages)
+  //             → setPageSize13b(rows, cols, copies) → printStatus (fire-and-forget)
+  //             → bitmap rows → pageEnd → printEnd → heartbeat (fire-and-forget)
+  //             (no printClear, no pageStart, no separate setPrintQuantity —
+  //              copies count is folded into setPageSize13b instead)
 
-  await send(char, makePacket(0x21, [3]));                                        // setDensity(3)
+  const density = MODEL_PROFILES[resolvedModel].defaultDensity;
+  await send(char, makePacket(0x21, [density]));                                  // setDensity
   await send(char, makePacket(0x23, [1]));                                        // setLabelType(WithGaps=1)
-  await send(char, makePacket(0x01, [0x01]));                                     // printStart1b
 
-  await send(char, makePacket(0x20, [0x01]));                                     // printClear
-  await send(char, makePacket(0x03, [0x01]));                                     // pageStart
-  await send(char, makePacket(0x13, [...u16(image.rows), ...u16(image.cols)]));   // setPageSize4b(rows, cols)
-  await send(char, makePacket(0x15, [...u16(1)]));                                // setPrintQuantity(1)
+  if (resolvedModel === "D110") {
+    await send(char, makePacket(0x01, [0x01]));                                     // printStart1b
+    await send(char, makePacket(0x20, [0x01]));                                     // printClear
+    await send(char, makePacket(0x03, [0x01]));                                     // pageStart
+    await send(char, makePacket(0x13, [...u16(image.rows), ...u16(image.cols)]));   // setPageSize4b(rows, cols)
+    await send(char, makePacket(0x15, [...u16(1)]));                                // setPrintQuantity(1)
+  } else {
+    await send(char, makePacket(0x01, printStart9b(1)));                            // printStart9b(totalPages=1)
+    await send(char, makePacket(0x13, setPageSize13b(image.rows, image.cols, 1)));  // setPageSize13b(rows, cols, copies=1)
+    await send(char, makePacket(0xa3, [0x01]));                                     // printStatus (fire-and-forget)
+  }
 
   for (const row of image.rowsData) {
     if (row.data === undefined) {
@@ -335,6 +495,12 @@ export async function printQR(qrPayload: string, label?: string): Promise<void> 
 
   await send(char, makePacket(0xe3, [0x01]));  // pageEnd
   await send(char, makePacket(0xf3, [0x01]));  // printEnd
+
+  if (resolvedModel === "D110_M") {
+    // protocolVersion >= 3 printers (D110_M reports protocolVersion 4) expect
+    // the "Advanced 2" heartbeat payload (0x04) rather than 0x01.
+    await send(char, makePacket(0xdc, [0x04]));  // heartbeat (fire-and-forget)
+  }
 
   console.log("Print done.");
 }
