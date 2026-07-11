@@ -1,12 +1,10 @@
-stages:
-  - test_backend_api
+image: ghcr.io/astral-sh/uv:python3.12-bookworm
 
-test_backend_api:
-  stage: test_backend_api
+stages:
+  - test_backend_API
+
+test_backend_API:
+  stage: test_backend_API
   script:
-    - apt update
-    - apt install -y curl
-    - curl -LsSf https://astral.sh/uv/install.sh | sh
-    - export PATH="$HOME/.local/bin:$PATH"
-    - echo "Run backend API tests"
+    - uv --version
     - ./scripts/test_backend_API.sh
