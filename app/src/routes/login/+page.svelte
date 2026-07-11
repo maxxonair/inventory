@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { fetchUser } from "$lib/stores/auth.js";
   import { FloatingLabelInput, Button, Spinner } from 'flowbite-svelte';
+  import { version_number } from '$lib/config.js';
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@
   let password2 = $state('');
   let error_msg = $state('');
   let success   = $state('');
+
 
   // ── On mount: check whether the user table is empty ───────────────────────
 
@@ -202,7 +204,7 @@
 
     <!-- Footer -->
     <p class="text-center text-xs text-gray-400 dark:text-gray-600 mt-6">
-      Inventory Management System
+      Inventory Management System {version_number}
     </p>
   </div>
 </div>
