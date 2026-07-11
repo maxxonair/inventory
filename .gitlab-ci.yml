@@ -1,0 +1,8 @@
+stages:
+  - test_backend_api
+
+test_backend_api:
+  stage: test_backend_api
+  script:
+    - echo "Run backend API tests"
+    - ./scripts/test_backend_API.sh
