@@ -3,14 +3,17 @@ set -euo pipefail
 
 REGISTRY="docker.io"
 
+ACCOUNT="maxxonair"
+# ACCOUNT="inventorycontainer"
+
 LOCAL_IMAGES=(
   "localhost/inventoryserver:latest"
   "localhost/inventoryapp:latest"
 )
 
 REMOTE_IMAGES=(
-  "docker.io/maxxonair/inventoryserver:latest"
-  "docker.io/maxxonair/inventoryapp:latest"
+  "docker.io/${ACCOUNT}/inventoryserver:latest"
+  "docker.io/${ACCOUNT}/inventoryapp:latest"
 )
 
 echo "Logging in to $REGISTRY..."
