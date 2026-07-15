@@ -322,8 +322,28 @@ function parsePacket(bytes: Uint8Array): { cmd: number; data: Uint8Array } | nul
   return { cmd, data: bytes.slice(4, 4 + len) };
 }
 
+// Response command IDs the printer sends back for each control command
+// (see https://printers.niim.blue/interfacing/proto/ and niimbluelib's
+// commandsMap). Row/bitmap packets are one-way and have no ack.
+const ACK = {
+  setDensity:   0x31, // In_SetDensity
+  setLabelType: 0x33, // In_SetLabelType
+  printStart:   0x02, // In_PrintStart
+  setPageSize:  0x14, // In_SetPageSize
+  pageEnd:      0xe4, // In_PageEnd
+  printStatus:  0xb3, // In_PrintStatus
+} as const;
+
+// In_PrintError — the printer can send this INSTEAD of the expected ack for
+// almost any control command (e.g. niimbluelib notes it's returned after
+// SetPageSize "when page print is not started"). A common cause is
+// WriteRfidFail (error code 20): the D110_M enforces genuine NIIMBOT paper
+// with a valid RFID chip and will reject the job without one.
+const PRINT_ERROR_CMD = 0xdb;
+
 // Sends `packet` and resolves with the data payload of the first notification
-// whose command matches `expectCmd`, or rejects if none arrives in time.
+// whose command matches `expectCmd`, or rejects if none arrives in time —
+// or if the printer sends back a PrintError frame instead of the expected ack.
 function sendAndWait(
   char: BluetoothRemoteGATTCharacteristic,
   packet: Uint8Array,
@@ -338,7 +358,20 @@ function sendAndWait(
       if (!value) return;
       const bytes  = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
       const parsed = parsePacket(bytes);
-      if (parsed && parsed.cmd === expectCmd) {
+      if (!parsed) return;
+
+      if (parsed.cmd === PRINT_ERROR_CMD) {
+        clearTimeout(timer);
+        char.removeEventListener("characteristicvaluechanged", onValue);
+        const code = parsed.data.length > 0 ? parsed.data[parsed.data.length - 1] : -1;
+        reject(new Error(
+          `Printer rejected the job with error code ${code} while waiting for ack 0x${expectCmd.toString(16)} ` +
+          `(code 20 = WriteRfidFail — commonly a missing/invalid RFID tag or non-genuine label roll).`
+        ));
+        return;
+      }
+
+      if (parsed.cmd === expectCmd) {
         clearTimeout(timer);
         char.removeEventListener("characteristicvaluechanged", onValue);
         resolve(parsed.data);
@@ -357,6 +390,38 @@ function sendAndWait(
       reject(err);
     });
   });
+}
+
+// Polls PrintStatus (0xa3) until the printer's internal page counter
+// reaches totalPages, or throws if the printer reports an error (handled
+// inside sendAndWait) or never gets there. This matches niimbluelib's own
+// completion criterion for this task (status.page === totalPages) — the
+// print/feed percentage fields are for progress reporting only and are NOT
+// the completion signal. Deliberately does not give up and proceed early:
+// sending PrintEnd before the printer's page counter catches up can abort
+// an in-progress print.
+async function pollPrintStatusUntilDone(
+  char: BluetoothRemoteGATTCharacteristic,
+  totalPages: number,
+  maxAttempts = 100,
+  intervalMs = 300,
+): Promise<void> {
+  let lastLogged = -1;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const data = await sendAndWait(char, makePacket(0xa3, [0x01]), ACK.printStatus, 2000);
+    const page              = data.length >= 2 ? (data[0] << 8) | data[1] : 0;
+    const pagePrintProgress = data[2] ?? 0;
+    const pageFeedProgress  = data[3] ?? 0;
+
+    if (pagePrintProgress !== lastLogged) {
+      console.log(`Print progress: page ${page}/${totalPages}, ${pagePrintProgress}% printed, ${pageFeedProgress}% fed`);
+      lastLogged = pagePrintProgress;
+    }
+
+    if (page >= totalPages) return;
+    await sleep(intervalMs);
+  }
+  throw new Error(`Printer's page counter never reached ${totalPages} after ${(maxAttempts * intervalMs) / 1000}s.`);
 }
 
 // Known modelId → PrinterModel.
@@ -448,19 +513,36 @@ export async function printQR(
   //              copies count is folded into setPageSize13b instead)
 
   const density = MODEL_PROFILES[resolvedModel].defaultDensity;
-  await send(char, makePacket(0x21, [density]));                                  // setDensity
-  await send(char, makePacket(0x23, [1]));                                        // setLabelType(WithGaps=1)
 
   if (resolvedModel === "D110") {
+    // Unchanged — this path is confirmed working.
+    await send(char, makePacket(0x21, [density]));                                  // setDensity
+    await send(char, makePacket(0x23, [1]));                                        // setLabelType(WithGaps=1)
     await send(char, makePacket(0x01, [0x01]));                                     // printStart1b
     await send(char, makePacket(0x20, [0x01]));                                     // printClear
     await send(char, makePacket(0x03, [0x01]));                                     // pageStart
     await send(char, makePacket(0x13, [...u16(image.rows), ...u16(image.cols)]));   // setPageSize4b(rows, cols)
     await send(char, makePacket(0x15, [...u16(1)]));                                // setPrintQuantity(1)
   } else {
-    await send(char, makePacket(0x01, printStart9b(1)));                            // printStart9b(totalPages=1)
-    await send(char, makePacket(0x13, setPageSize13b(image.rows, image.cols, 1)));  // setPageSize13b(rows, cols, copies=1)
-    await send(char, makePacket(0xa3, [0x01]));                                     // printStatus (fire-and-forget)
+    // D110_M (D110M_V4 task). Every control packet here gets an explicit ack
+    // from the printer; using sendAndWait means a rejected command surfaces
+    // as a thrown error here instead of vanishing silently.
+    await sendAndWait(char, makePacket(0x21, [density]), ACK.setDensity);            // setDensity
+    await sendAndWait(char, makePacket(0x23, [1]), ACK.setLabelType);                // setLabelType(WithGaps=1)
+    await sendAndWait(char, makePacket(0x01, printStart9b(1)), ACK.printStart);      // printStart9b(totalPages=1)
+
+    // Some D110_M/B21_PRO units drop the *first* BLE packet sent right after
+    // PrintStart. The reference task absorbs this with a throwaway
+    // fire-and-forget PrintStatus ping sent BEFORE SetPageSize. Sending
+    // SetPageSize first (as before) means SetPageSize itself — the packet
+    // that actually matters — can be the one that gets dropped, leaving the
+    // printer with no page size and nothing to print.
+    await send(char, makePacket(0xa3, [0x01]));                                     // printStatus (throwaway, fire-and-forget)
+    await sendAndWait(
+      char,
+      makePacket(0x13, setPageSize13b(image.rows, image.cols, 1)),
+      ACK.setPageSize,
+    );                                                                              // setPageSize13b(rows, cols, copies=1)
   }
 
   for (const row of image.rowsData) {
@@ -493,13 +575,25 @@ export async function printQR(
     }
   }
 
-  await send(char, makePacket(0xe3, [0x01]));  // pageEnd
-  await send(char, makePacket(0xf3, [0x01]));  // printEnd
-
   if (resolvedModel === "D110_M") {
+    // PageEnd is sent right after the row data — the printer appears to wait
+    // for it before it actually starts feeding/printing the page, so status
+    // polling shows no progress at all until this has been sent. Give it a
+    // generous timeout since the printer may take a moment to process
+    // everything before acking.
+    await sendAndWait(char, makePacket(0xe3, [0x01]), ACK.pageEnd, 10000); // pageEnd
+
+    // NOW wait for the printer's page counter to catch up (totalPages=1,
+    // matching printStart9b(1) above) before ending the job.
+    await pollPrintStatusUntilDone(char, 1);
+
+    await sendAndWait(char, makePacket(0xf3, [0x01]), 0xf4); // printEnd -> In_PrintEnd
     // protocolVersion >= 3 printers (D110_M reports protocolVersion 4) expect
     // the "Advanced 2" heartbeat payload (0x04) rather than 0x01.
     await send(char, makePacket(0xdc, [0x04]));  // heartbeat (fire-and-forget)
+  } else {
+    await send(char, makePacket(0xe3, [0x01]));  // pageEnd
+    await send(char, makePacket(0xf3, [0x01]));  // printEnd
   }
 
   console.log("Print done.");
